@@ -1,6 +1,6 @@
 [project]
 name = "symeval"
-version = "0.1.0"
+version = "0.1.1"
 description = "Symbolic evaluation for engineering calculations — renders expression → numbers with units → result as LaTeX"
 readme = "README.md"
 authors = []
