@@ -1,7 +1,5 @@
 # symeval
 
-Wait, now what do I have to do again to build the package from the marimo notebook and then published to PyPI?
-
 ## Idea
 The idea is to build something like handcalcs and Calcpad, but then for in marimo notebooks using sympy symbolic math formulas as a starting point, such that we can create explorable explanations in marimo notebooks.
 

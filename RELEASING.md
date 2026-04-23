@@ -34,8 +34,8 @@ That's it. Two commands.
 
 1. Runs `build` and `test` as prerequisites — regenerates `src/symeval/__init__.py` from the notebook and runs the test suite. If either fails, the release is aborted before anything is committed.
 2. Checks the working tree is clean. If you have uncommitted changes (including a stale `__init__.py` from a forgotten `just build`), the release aborts.
-3. `uv version <version>` — bumps the version in `pyproject.toml`.
-4. `git commit -m "Release <version>" pyproject.toml` — commits *only* `pyproject.toml`. Other modified files (if any) stay uncommitted.
+3. `uv version <version>` — bumps the version in `pyproject.toml` *and* `uv.lock` (the lock file records the project's own version, so the two stay in sync).
+4. `git commit -m "Release <version>" pyproject.toml uv.lock` — commits only those two files. Any other modified files stay uncommitted.
 5. `git tag <version>` — creates an unsigned annotated tag.
 6. `git push && git push --tags` — pushes the commit and the tag to GitHub.
 7. `gh release create <version> --generate-notes` — creates a GitHub release using GitHub's auto-generated notes (list of merged PRs since the last tag, plus first-time contributors).

@@ -17,7 +17,7 @@ test:
 release version: build test
     @git diff --quiet HEAD || { echo "working tree not clean"; exit 1; }
     uv version {{version}}
-    git commit -m "Release {{version}}" pyproject.toml
+    git commit -m "Release {{version}}" pyproject.toml uv.lock
     git tag {{version}}
     git push && git push --tags
     gh release create {{version}} --generate-notes
