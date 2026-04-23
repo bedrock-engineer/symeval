@@ -1,0 +1,16 @@
+[project]
+name = "symeval"
+version = "0.1.0"
+description = "Symbolic evaluation for engineering calculations — renders expression → numbers with units → result as LaTeX"
+readme = "README.md"
+authors = []
+requires-python = ">=3.12"
+dependencies = ["sympy>=1.13", "pint>=0.24"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[project.urls]
+Homepage = "https://github.com/bedrock-engineer/symeval"
+Repository = "https://github.com/bedrock-engineer/symeval"
+Issues = "https://github.com/bedrock-engineer/symeval/issues"
