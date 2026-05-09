@@ -71,6 +71,7 @@ def _(mo):
         s["key"]: mo.ui.number(value=s["default"], step=s.get("step", 1))
         for s in input_specs if "key" in s
     })
+
     return input_specs, inputs
 
 
@@ -87,6 +88,7 @@ def _(input_specs, inputs, mo):
         "|--------------|--------|---|-----|---|\n"
         + "\n".join(_spec_row(s) for s in input_specs)
     )
+
     return
 
 
@@ -111,6 +113,7 @@ def _(Variable, input_specs, inputs):
     strength_reduction_factor = _vars["strength_reduction_factor"]
     cross_sectional_area = _vars["cross_sectional_area"]
     radius_gyration = _vars["radius_gyration"]
+
     return (
         beam_length,
         compressive_force,

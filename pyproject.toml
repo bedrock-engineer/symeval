@@ -19,16 +19,21 @@ Issues = "https://github.com/bedrock-engineer/symeval/issues"
 dev = ["taskipy>=1.14"]
 
 [tool.taskipy.tasks]
+# Tasks needing positional args (release) wrap their body in `bash -c '…' --`
+# so taskipy's appended args land at $1. Requires `bash` on PATH — present
+# wherever git is (Git for Windows ships Git Bash).
 install = "uv sync --group dev"
 build = "uvx marimo -y export session symeval_mo.py && uvx mobuild export symeval_mo.py src/symeval/__init__.py"
 test = "uvx --with marimo --with sympy --with pint pytest symeval_mo.py"
+clean = "bash -c 'rm -rf dist/'"
 pre_release = "task build && task test"
-release = """
+release = """bash -c '\
+[ -n "$1" ] || { echo "Usage: uv run task release <version>"; exit 1; } && \
 git diff --quiet HEAD || { echo "working tree not clean"; exit 1; } && \
 uv version "$1" && \
 git commit -m "Release $1" pyproject.toml uv.lock && \
 git tag "$1" && \
 git push && git push --tags && \
-gh release create "$1" --generate-notes
-"""
-pypi = "rm -rf dist/ && uv build && uv publish"
+gh release create "$1" --generate-notes\
+' --"""
+pypi = "task clean && uv build && uv publish"
