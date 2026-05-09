@@ -146,8 +146,8 @@ def _(
 ):
     euler_buckling_expr = (sympy.pi**2 * elastic_modulus.symbol) / (
         (
-            effective_length_factor.symbol
-            * beam_length.symbol
+            beam_length.symbol
+            * effective_length_factor.symbol
             / radius_gyration.symbol
         )
         ** 2
@@ -307,8 +307,6 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
             examples: Named example values (e.g. {"short span": 3, "long span": 12}).
         """
 
-        # TODO: add an optional description
-
         latex: str
         name: str
         unit: str | None = None
@@ -366,6 +364,29 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
             return f"{self.name}: {self.latex}"
 
 
+    def _strip_si_prefixes(quantity):
+        """Convert a quantity to its SI-prefix-free equivalent (kN -> N, MPa -> Pa, mm -> m).
+
+        `kg` is left as-is because it is itself the SI base unit for mass — even
+        though pint internally represents it as kilo*gram.
+        """
+        if quantity.dimensionless:
+            return quantity
+        target = {}
+        for unit_name, exponent in dict(quantity.units._units).items():
+            parses = ureg.parse_unit_name(unit_name)
+            # Prefer an unprefixed parse (e.g. 'Pa' has both ('', 'pascal', '') and ('peta', 'year', '')).
+            base = next((b for prefix, b, _ in parses if prefix == ""), None)
+            if base is None and parses:
+                # All parses are prefixed (e.g. 'kN' -> ('kilo', 'newton', '')).
+                prefix, b, _ = parses[0]
+                base = "kilogram" if (prefix, b) == ("kilo", "gram") else b
+            if base is None:
+                base = unit_name
+            target[base] = target.get(base, 0) + exponent
+        return quantity.to("*".join(f"{n}**{e}" for n, e in target.items()))
+
+
     def symeval(
         expr: sympy.Expr,
         output_variable: Variable,
@@ -393,34 +414,78 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
         expression_latex = latex(expr)
 
         # Step 2: Build the substituted LaTeX (formula with numbers).
-        # Substitute at the sympy level (symbol-aware), then render once, then
-        # replace each placeholder's rendered LaTeX with the value's LaTeX.
-        # Substring-safe: the trailing "Z" prevents SYMEVALPH0 matching inside SYMEVALPH10.
-        placeholder_syms = [
-            sympy.Symbol(f"SYMEVALPH{i}Z") for i in range(len(inputs))
-        ]
+        # Why placeholders instead of substituting values directly?
+        #   - Pint quantities aren't sympy values, so subs would drop the units.
+        #   - Substituting plain numbers triggers sympy simplification (a+a -> 2a),
+        #     which would destroy the structural shape we want to display.
+        # So we swap each input symbol for a unique placeholder symbol, and then let sympy
+        # render the structure (fracs, sqrts, parens, ...), then post-process the
+        # rendered LaTeX to splice in our `number + unit` formatting.
+        # The trailing "Z" makes substring .replace safe: SymEvalPH0Z is unique even
+        # when SymEvalPH10Z exists.
+        #
+        # Placeholder indices follow the canonical sort order of the *original*
+        # input symbols, not the inputs-list order. sympy.Mul stores args in
+        # canonical order keyed by the symbol's name, so naive numbering can make
+        # sympy reorder placeholders differently from the originals — the
+        # substituted line then no longer matches the symbolic line. Aligning the
+        # sort orders keeps both lines in step.
+        canonical_order = sorted(
+            range(len(inputs)), key=lambda i: inputs[i].symbol.sort_key()
+        )
+        placeholder_syms = [None] * len(inputs)
+        for canonical_pos, orig_idx in enumerate(canonical_order):
+            placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
         sub_map = dict(zip([v.symbol for v in inputs], placeholder_syms))
         substituted_latex = latex(expr.subs(sub_map, simultaneous=True))
+        # Cap precision at decimals+1 (one more than the result line) and strip
+        # trailing zeros so 1.5 m doesn't render as 1.500 m.
+        sub_decimals_fmt = f".{decimals + 1}f" if decimals is not None else ""
         for ph_sym, var in zip(placeholder_syms, inputs):
-            substituted_latex = substituted_latex.replace(
-                latex(ph_sym), rf"\medspace{var.quantity:~L}"
-            )
+            formatted = f"{var.quantity:{sub_decimals_fmt}~L}"
+            if decimals is not None:
+                mag_str, sep, unit_str = formatted.partition("\\ ")
+                if "." in mag_str:
+                    mag_str = mag_str.rstrip("0").rstrip(".")
+                formatted = f"{mag_str}{sep}{unit_str}"
+            # When the placeholder is raised to a power, wrap the substituted
+            # value in \\left(...\\right) so the exponent binds to the whole
+            # quantity — `\\mathrm{mm}^{2}` would otherwise square only the unit.
+            ph_latex = latex(ph_sym)
+            plain = rf"\medspace{formatted}"
+            if not var.quantity.dimensionless:
+                # Unit-bearing values raised to a power get wrapped so the exponent
+                # binds to the whole quantity. Plain numbers don't need that —
+                # 13^{2} is unambiguous.
+                wrapped = rf"\medspace\left({formatted}\right)"
+                substituted_latex = substituted_latex.replace(f"{ph_latex}^", f"{wrapped}^")
+            substituted_latex = substituted_latex.replace(ph_latex, plain)
 
         # Step 3: Numerically evaluate
         base_unit_inputs = {
             var.symbol: var._pint_to_sympy_base() for var in inputs
         }
-        result_value = expr.subs(base_unit_inputs).evalf()
+        # Pass substitutions via evalf's `subs` kwarg rather than `expr.subs(...).evalf()`:
+        # evalf does the substitution at arbitrary precision, avoiding precision loss
+        # for cancellation-heavy expressions. See:
+        # https://docs.sympy.org/latest/modules/core.html#module-sympy.core.evalf
+        result_value = expr.evalf(subs=base_unit_inputs)
         output_quantity = ureg(f"{result_value}")
 
         if output_variable.unit:
             output_quantity = output_quantity.to(output_variable.unit)
 
-        # Format output
-        decimal_fmt = ""
-        if decimals is not None:
-            decimal_fmt = f".{decimals}f"
+        # Format output. If the variable's unit carries an SI prefix (kN, MPa, mm,
+        # ...), prepend the prefix-stripped form in scientific notation so the line
+        # reads `Symbol = Y.YY*10^n N = X.XX kN`. Skipped when the unit is already
+        # prefix-free.
+        decimal_fmt = f".{decimals}f" if decimals is not None else ""
+        sci_fmt = f".{decimals}e" if decimals is not None else "e"
         output_latex = f"{output_quantity:{decimal_fmt}~L}"
+        no_prefix_quantity = _strip_si_prefixes(output_quantity)
+        if no_prefix_quantity.units != output_quantity.units:
+            no_prefix_latex = f"{no_prefix_quantity:{sci_fmt}~L}"
+            output_latex = f"{no_prefix_latex} = {output_latex}"
 
         # Build the three-step LaTeX
         output_sym_latex = latex(output_variable.symbol)
@@ -601,8 +666,24 @@ def _(Q_, Variable, symeval, sympy):
         result = symeval(expr, output_variable=F, inputs=[r, r_y], decimals=1)
         assert abs(result.quantity.magnitude - 5.0) < 0.1
         rendered = result._repr_latex_()
-        assert "SYMEVALPH" not in rendered
+        assert "SymEvalPHZ" not in rendered
         assert "r_{y}" in rendered
+
+
+    def test_kg_unit_not_stripped():
+        """`kg` is conventionally the SI base for mass; symeval should not strip it to `g`.
+
+        Contrast with `kN`, where the result line shows both `<value> N = <value> kN`.
+        """
+        m_in = Variable("m_in", name="Input mass", value=2, unit="kg")
+        m_out = Variable("m_out", name="Output mass", unit="kg")
+        m_in.symbol.symeval(m_out, inputs=[m_in], decimals=2)
+        assert m_out.quantity == Q_(2, "kg")
+        eval_latex = m_out._eval_latex
+        assert r"\mathrm{kg}" in eval_latex
+        # Would only appear if kg was stripped to gram — it shouldn't.
+        assert r"\mathrm{g}" not in eval_latex
+
 
     return
 
