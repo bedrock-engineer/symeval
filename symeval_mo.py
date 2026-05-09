@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.2"
+__generated_with = "0.23.5"
 app = marimo.App(width="columns")
 
 
@@ -23,9 +23,6 @@ def _(mo):
 
     Renders the three-step chain:
     **symbolic → numbers with units → result** as LaTeX.
-
-    Cells marked with `## EXPORT` are extracted into a Python package via
-    [`mobuild`](https://github.com/koaning/mobuild).
     """)
     return
 
@@ -50,32 +47,70 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(Variable):
-    # Define inputs
-    # Loads
-    compressive_force = Variable("C_f", name="Compressive force", unit="kN", value=680)
+def _(mo):
+    # Variable specs: single source of truth for metadata + UI defaults.
+    input_specs = [
+        {"section": "Loads"},
+        {"key": "compressive_force", "latex": "C_f", "name": "Compressive force", "unit": "kN", "default": 680},
+        {"section": "Member geometry"},
+        {"key": "beam_length", "latex": "L", "name": "Beam length", "unit": "m", "default": 6.5, "step": 0.1},
+        {"key": "effective_length_factor", "latex": "k", "name": "Effective length factor", "default": 1},
+        {"section": "Material properties"},
+        {"key": "elastic_modulus", "latex": "E", "name": "Elastic modulus", "unit": "GPa", "default": 200},
+        {"key": "yield_strength", "latex": "F_y", "name": "Yield strength", "unit": "MPa", "default": 400},
+        {"key": "n", "latex": "n", "name": "Strain-hardening exponent", "default": 1.34, "step": 0.01},
+        {"key": "strength_reduction_factor", "latex": r"\phi_s", "name": "Strength reduction factor", "default": 0.85, "step": 0.05},
+        {"section": "Member section properties"},
+        {"key": "cross_sectional_area", "latex": "A", "name": "Cross-sectional area", "unit": "mm^2", "default": 10_300},
+        {"key": "radius_gyration", "latex": "r_y", "name": "Radius of gyration about the y-axis", "unit": "mm", "default": 76.1, "step": 0.1},
+    ]
 
-    # Member geometry
-    beam_length = Variable("L", name="Beam length", unit="m", value=6.5)
-    effective_length_factor = Variable(
-        "k", name="Effective length factor", value=1
-    )
+    # mo.ui.dictionary makes the whole bundle a reactive UIElement; a plain dict
+    # would hide the input elements from marimo's static analysis and break reactivity.
+    inputs = mo.ui.dictionary({
+        s["key"]: mo.ui.number(value=s["default"], step=s.get("step", 1))
+        for s in input_specs if "key" in s
+    })
+    return input_specs, inputs
 
-    # Material properties
-    strength_reduction_factor = Variable(
-        r"\phi_s", name="Strength reduction factor", unit=None, value=0.85
-    )
-    elastic_modulus = Variable("E", name="Elastic modulus", unit="GPa", value=200)
-    yield_strength = Variable("F_y", name="Yield strength", unit="MPa", value=400)
-    n = Variable("n", name="Strain-hardening exponent", unit=None, value=1.34)
 
-    # Member section properties
-    cross_sectional_area = Variable(
-        "A", name="Cross-sectional area", unit="mm^2", value=10_300
+@app.cell(hide_code=True)
+def _(input_specs, inputs, mo):
+    def _spec_row(s):
+        if "section" in s:
+            return f"| **{s['section']}** |  |  |  |  |"
+        unit = f"${s['unit']}$" if s.get("unit") else ""
+        return f"| {s['name']} | ${s['latex']}$ | = | {inputs[s['key']]} | {unit} |"
+
+    mo.md(
+        "|     |     |     |     |     |\n"
+        "|--------------|--------|---|-----|---|\n"
+        + "\n".join(_spec_row(s) for s in input_specs)
     )
-    radius_gyration = Variable(
-        "r_y", name="Radius of gyration about the y-axis", unit="mm", value=76.1
-    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(Variable, input_specs, inputs):
+    _vars = {
+        s["key"]: Variable(
+            latex=s["latex"],
+            name=s["name"],
+            unit=s.get("unit"),
+            value=inputs.value[s["key"]],
+        )
+        for s in input_specs if "key" in s
+    }
+
+    compressive_force = _vars["compressive_force"]
+    beam_length = _vars["beam_length"]
+    effective_length_factor = _vars["effective_length_factor"]
+    elastic_modulus = _vars["elastic_modulus"]
+    yield_strength = _vars["yield_strength"]
+    n = _vars["n"]
+    strength_reduction_factor = _vars["strength_reduction_factor"]
+    cross_sectional_area = _vars["cross_sectional_area"]
+    radius_gyration = _vars["radius_gyration"]
     return (
         beam_length,
         compressive_force,
@@ -87,184 +122,6 @@ def _(Variable):
         strength_reduction_factor,
         yield_strength,
     )
-
-
-@app.cell(hide_code=True)
-def _():
-    def _magnitude_cells(variables):
-        """Compute max int-part and max decimal-part widths across non-None magnitudes."""
-        max_int, max_dec = 0, 0
-        for v in variables:
-            if v.quantity is None:
-                continue
-            s = str(v.quantity.magnitude)
-            if "." in s:
-                i, d = s.split(".", 1)
-                max_int = max(max_int, len(i))
-                max_dec = max(max_dec, len(d))
-            else:
-                max_int = max(max_int, len(s))
-        return max_int, max_dec
-
-
-    def _format_magnitude(mag, max_int, max_dec):
-        """Pad magnitude with phantoms so every number has identical visual width.
-
-        Guarantees decimal-point alignment when the result is placed in any
-        alignment column of a KaTeX array (avoids unsupported r@{}l spec).
-        """
-        s = str(mag)
-        if "." in s:
-            i, d = s.split(".", 1)
-        else:
-            i, d = s, ""
-
-        left_pad = max_int - len(i)
-        parts = []
-        if left_pad > 0:
-            parts.append(rf"\phantom{{{'0' * left_pad}}}")
-        parts.append(i)
-        if d:
-            parts.append("." + d)
-        elif max_dec > 0:
-            parts.append(r"\phantom{.}")
-        right_pad = max_dec - len(d)
-        if right_pad > 0:
-            parts.append(rf"\phantom{{{'0' * right_pad}}}")
-        return "".join(parts)
-
-
-    def inputs_array(inputs):
-        """Render Variables as a decimal-aligned KaTeX array.
-
-        Args:
-            inputs: list[Variable] for a flat display, or dict[str, list[Variable]]
-                for a grouped display with bold section headings.
-
-        Returns:
-            A mo.md-ready string wrapping the array in $$...$$.
-        """
-        groups = {None: inputs} if isinstance(inputs, list) else inputs
-        flat = [v for vs in groups.values() for v in vs]
-        max_int, max_dec = _magnitude_cells(flat)
-
-        rows = []
-        for heading, variables in groups.items():
-            if heading is not None:
-                rows.append(rf"\textbf{{{heading}}} & & & & \\")
-            for v in variables:
-                name = rf"\text{{{v.name}}}"
-                sym = v.latex
-                if v.quantity is None:
-                    rows.append(
-                        rf"{name} & {sym} & = & \multicolumn{{2}}{{c}}{{-}} \\"
-                    )
-                    continue
-                num = _format_magnitude(v.quantity.magnitude, max_int, max_dec)
-                unit = (
-                    ""
-                    if v.quantity.dimensionless
-                    else rf"\,{format(v.quantity.units, '~L')}"
-                )
-                rows.append(rf"{name} & {sym} & = & {num} & {unit} \\")
-
-        body = "\n".join(rows)
-        return f"$$\n\\begin{{array}}{{llcrl}}\n{body}\n\\end{{array}}\n$$"
-
-    return (inputs_array,)
-
-
-@app.cell(hide_code=True)
-def _(
-    beam_length,
-    compressive_force,
-    cross_sectional_area,
-    effective_length_factor,
-    elastic_modulus,
-    inputs_array,
-    mo,
-    n,
-    radius_gyration,
-    strength_reduction_factor,
-    yield_strength,
-):
-    inputs_table_latex = inputs_array(
-        {
-            "Loads": [compressive_force],
-            "Member geometry": [beam_length, effective_length_factor],
-            "Material properties": [
-                strength_reduction_factor,
-                elastic_modulus,
-                yield_strength,
-                n,
-            ],
-            "Member section properties": [
-                cross_sectional_area,
-                radius_gyration,
-            ],
-        }
-    )
-    mo.md(rf"""
-    ### Inputs
-    {inputs_table_latex}
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(
-    beam_length,
-    compressive_force,
-    cross_sectional_area,
-    effective_length_factor,
-    elastic_modulus,
-    mo,
-    radius_gyration,
-    strength_reduction_factor,
-    yield_strength,
-):
-    mo.md(rf"""
-    ### Inputs - table with quantities
-
-    |     |     |     |     |     |
-    |--------------|--------|---|-------|---|
-    | **Loads** |  |  |  |
-    | {compressive_force.name} | ${compressive_force.symbol}$ | = | ${compressive_force.quantity:~L}$ |
-    | **Member geometry** |  |  |  |
-    | {beam_length.name} | ${beam_length.symbol}$ | = | ${beam_length.quantity:~L}$ |
-    | {effective_length_factor.name} | ${effective_length_factor.symbol}$ | = | ${effective_length_factor.quantity:~L}$ |
-    | **Material properties** |  |  |  |
-    | {elastic_modulus.name} | ${elastic_modulus.symbol}$ | = | ${elastic_modulus.quantity:~L}$ |
-    | {yield_strength.name} | ${yield_strength.symbol}$ | = | ${yield_strength.quantity:~L}$ |
-    | {strength_reduction_factor.name} | ${strength_reduction_factor.symbol}$ | = | ${strength_reduction_factor.quantity:~L}$ |
-    | **Member section properties** |  |  |  |
-    | {cross_sectional_area.name} | ${cross_sectional_area.symbol}$ | = | ${cross_sectional_area.quantity:~L}$ |
-    | {radius_gyration.name} | ${radius_gyration.symbol}$ | = | ${radius_gyration.quantity:~L}$ |
-
-    ### Inputs - with a separate column for the units
-
-    |     |     |     |     |     |
-    |--------------|--------|---|-------|---|
-    | **Loads** |  |  |  |
-    | {compressive_force.name} | ${compressive_force.symbol}$ | = | ${compressive_force.value}$ | ${compressive_force.unit}$ |
-    | **Member geometry** |  |  |  |
-    | {beam_length.name} | ${beam_length.symbol}$ | = | ${beam_length.value}$ | ${beam_length.unit}$ |
-    | {effective_length_factor.name} | ${effective_length_factor.symbol}$ | = | ${effective_length_factor.value}$ | ${effective_length_factor.unit}$ |
-    | **Material properties** |  |  |  |
-    | {elastic_modulus.name} | ${elastic_modulus.symbol}$ | = | ${elastic_modulus.value}$ | ${elastic_modulus.unit}$ |
-    | {yield_strength.name} | ${yield_strength.symbol}$ | = | ${yield_strength.value}$ | ${yield_strength.unit}$ |
-    | {strength_reduction_factor.name} | ${strength_reduction_factor.symbol}$ | = | ${strength_reduction_factor.value}$ | ${strength_reduction_factor.unit}$ |
-    | **Member section properties** |  |  |  |
-    | {cross_sectional_area.name} | ${cross_sectional_area.symbol}$ | = | ${cross_sectional_area.value}$ | ${cross_sectional_area.unit}$ |
-    | {radius_gyration.name} | ${radius_gyration.symbol}$ | = | ${radius_gyration.value}$ | ${radius_gyration.unit}$ |
-
-    This table could be nicer if:
-
-    - the units in the table with a separate unit column weren't italic. Please also explain why the inputs table with the quantities aren't written in italic;
-    - the column with the units aligned left. Why do the columns in these tables align right in the first place?
-    - Would it be a good idea to add a .md_table_row attribute or property to the Variables, such that I can create these kind of tables in that way?
-    """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -373,7 +230,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Variable, axial_resistance, compressive_force):
     dcr_expr = compressive_force.symbol / axial_resistance.symbol
     dcr = dcr_expr.symeval(
@@ -385,28 +242,19 @@ def _(Variable, axial_resistance, compressive_force):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    Things that could be better:
-
-    - Decimal places in the filled in formula should be decimal or maybe at maximum decimals + 1.
-    - Would be handier if it were also possible to create sympy expressions from Variables directly, instead of having to call .symbol on every variable when creating an expression.
-    - Would be handier if the inputs kwarg wasn't needed when the expression is made up of Variables. It shouldn't be necessary to supply a list of inputs I would say, because it's already given in the expression. However, when I'm doing symbolic math with sympy first and then want to substitute in Variables and evaluate at the end, then I will have to supply a list of inputs to the .symeval method, because the resulting expression only contains sympy.Symbols, that don't contain values or units, right?
-    - When the output_variable is not dimensionless or when the unit is not and SI base unit, then always display the SI base unit, and then the Variable unit like Symbol = Value output_variable.base_unit = Value output_variable.unit
-    - Add verbose flag that adds an additional line to the substitutions that shows the expression with numbers in SI base units, before showing the line with the result. The line with the SI base units should use scientific notation to prevent illegible numbers. Possibly it would be good to use a [SciForm's](https://sciform.readthedocs.io/en/stable) engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html). But let's implement the verbose flag first and then look at the engineering formatting. The engineering formatting also allows for significant figures, which might actually be something that should be attached to the Variables.
-
-    ### Way of working
-
-    When developing things, I'd like to work from a practical application. So let's always first think of a practical use case and example calculation with known results, then set up the tests, and then implement. Put this into the CLAUDE.md under a sensible heading and formulated in a sensible way.
-    """)
-    return
-
-
 @app.cell(column=1, hide_code=True)
 def _(mo):
     mo.md(r"""
     # Implementation
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Cells marked with `## EXPORT` are extracted into a Python package via
+    [`mobuild`](https://github.com/koaning/mobuild).
     """)
     return
 
@@ -511,7 +359,7 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
 
         def __str__(self) -> str:
             if self.quantity is not None:
-                return f"{self.name}: {self.latex} = {self.quantity:~L}"
+                return f"{self.name}: {self.latex} = {self.quantity:~#P}"
             return f"{self.name}: {self.latex}"
 
 

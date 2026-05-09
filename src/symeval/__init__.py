@@ -83,7 +83,7 @@ class Variable:
 
     def __str__(self) -> str:
         if self.quantity is not None:
-            return f"{self.name}: {self.latex} = {self.quantity:~L}"
+            return f"{self.name}: {self.latex} = {self.quantity:~#P}"
         return f"{self.name}: {self.latex}"
 
 

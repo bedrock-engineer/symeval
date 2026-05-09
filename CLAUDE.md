@@ -1,26 +1,92 @@
 # CLAUDE.md — Project Instructions for symeval
 
+## TODO
+
+### Package
+#### First
+
+- Decimal places in the filled in formula should be decimal or maybe at maximum decimals + 1.
+- When the output_variable is not dimensionless or when the unit is not and SI base unit, then always display the SI base unit, and then the Variable unit like Symbol = Value output_variable.base_unit = Value output_variable.unit
+- Add verbose flag that adds an additional line to the substitutions that shows the expression with numbers in SI base units, before showing the line with the result. The line with the SI base units should use scientific notation to prevent illegible numbers. Possibly it would be good to use a [SciForm's](https://sciform.readthedocs.io/en/stable) engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html). But let's implement the verbose flag first and then look at the engineering formatting. The engineering formatting also allows for significant figures, which might actually be something that should be attached to the Variables. Or maybe this should be a mode kwarg where the options are verbose, one_line, multi_line, with multi_line being the default and one_line leading to a short symbolic evaluation of the sympy expression on a single line.
+
+#### Then
+Go into plan mode and /grill-me on this stuff:
+- Would be handier if it were also possible to create sympy expressions from Variables directly, instead of having to call .symbol on every variable when creating an expression.
+- Would be handier if the inputs kwarg wasn't needed when the expression is made up of Variables. It shouldn't be necessary to supply a list of inputs I would say, because it's already given in the expression. However, when I'm doing symbolic math with sympy first and then want to substitute in Variables and evaluate at the end, then I will have to supply a list of inputs to the .symeval method, because the resulting expression only contains sympy.Symbols, that don't contain values or units, right?
+- Maybe the current implementation of symeval is actually a little too complicated with the Variable class, because I just realized that I should probably simply be able to fill in a list of pint quantities in addition to a output_symbol and output_unit
+- Maybe it would be an even better idea to implement a quant_evalf method first that allows one to apply that function on a dataframe.
+
+### Examples
+A few simple examples that highlight the most important features of symeval:
+- Some super mega simple evaluation of an expression with units.
+- An example where we apply quant_evalf to a dataframe, and then sym_evalf to 
+- An example where we first do some symbolic math with sympy and then plug in the inputs.
+- Examples from the symeval sources of inspiration:
+    - The already implemented handcalcs example of "Axial Resistance of Steel HSS Member"
+    - One of the CalcPad "Simply supported beams" examples:
+        https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
+    - The [Explorable Explanations](https://worrydream.com/ExplorableExplanations) example.
+
+These simple examples should all live in the symeval_mo.py notebook.
+
+Additional examples should live in the examples folder:
+- Simply Supported Beam with Linearly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
+- Cantilever with Partially Distributed Load: https://imartincei.github.io/CalcpadCE/examples/cantilevers.html
+- Fully Restrained Beam with Uniformly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/fully-restrained-beams.html
+- Terzhagi bearing capacity calculation.
+
+
+### Logo
+A simple vector graphic that shows how you can fill in quantities (number + unit) into a sympy function:
+
+f(5N)
+
+Where the f is a snake.
+
+### Docs
+
+Regarding docs, the first thing I need is a better README.md. Inspiration README.md's:
+- General: https://github.com/banesullivan/README + Inspiration section
+- Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
+
+I want to create a docs website. I'm not sure yet what type of documentation site I want. I do like the structure of the [Diataxis](https://diataxis.fr/) approach, which is largely adapted by some of the projects that are an example to me when it comes to docs:
+- https://quarto.org
+- https://docs.marimo.io
+- https://docs.pyvista.org/user-guide/data_model
+- https://fastapi.tiangolo.com & https://sqlmodel.tiangolo.com & https://typer.tiangolo.com
+- https://geopandas.org/en/stable, although it's not intuitive enough to me how to get to the core concept explanation:
+    Flow: Getting Started -> Installation -> Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts
+
+
+And a wish list:
+- I want to build it using either [Quarto](https://quarto.org) or [Zensical](https://zensical.org). Let's implement both, such that I can choose which I like better later.
+- I want to have all the notebooks in the examples in the docs, but I also want tests in the example notebooks, but I don't want those tests to be part of the docs.
+- 
+
+
 ## What is this project?
 symeval is a Python package that extends sympy expressions with a `.symeval()` method for engineering calculations. It renders a three-step LaTeX chain: symbolic → numbers with units → result. Built on sympy + pint, targeting marimo notebooks.
 
 ## Package structure
 Notebook-as-source using mobuild (like koaning/hastyplot):
-- `symeval_mo.py` — marimo notebook, single source of truth. Cells marked `## EXPORT` get extracted.
+- `symeval_mo.py` — marimo notebook that contains the symeval implementation, tests and a few main examples from the inspirational sources and , single source of truth. Cells marked `## EXPORT` get extracted in the build step.
 - `src/symeval/__init__.py` — generated by mobuild, do not edit directly.
 - `examples` — demo notebooks showing symeval example usage.
 
 ## Build & dev commands
+Tasks are defined in `[tool.taskipy.tasks]` in `pyproject.toml` and run via taskipy (a dev dependency).
 ```bash
-just install    # set up venv and install in editable mode
-just build      # extract code from notebook via mobuild
-just test       # run tests (notebook + pytest)
+uv sync --group dev         # bootstrap venv with taskipy
+uv run task install         # set up venv and install in editable mode
+uv run task build           # extract code from notebook via mobuild
+uv run task test            # run tests (notebook + pytest)
 ```
 
 ## Release workflow
 See `RELEASING.md` for full details. Summary:
 ```bash
-just release 0.2.0   # bump version, commit, tag, push, GitHub release
-just pypi            # clean dist/, build wheel, publish to PyPI
+uv run task release 0.2.0   # bump version, commit, tag, push, GitHub release
+uv run task pypi            # clean dist/, build wheel, publish to PyPI
 ```
 Tests run inside `release` (before tagging), not in `pypi`. The tag is the trust boundary — once a tag exists, the code is tested. Version lives only in `pyproject.toml` (no `__version__` attribute).
 
