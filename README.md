@@ -19,6 +19,6 @@ Advantages of using sympy:
 - handcalcs: [GitHub](https://github.com/connorferster/handcalcs)
 - Calcpad: [Website](https://calcpad-ce.org); [Docs](https://imartincei.github.io/CalcpadCE); [GitHub](https://github.com/imartincei/CalcpadCE)
 - sympy: [Website](https://worrydream.com/ExplorableExplanations/); [Docs](https://docs.sympy.org/latest/index.html); [GitHub](https://github.com/sympy/sympy)
-- [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
+- Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
 
 

@@ -37,6 +37,53 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Example: axial stress under load
+
+    The axial stress $\sigma$ in a bar of cross-sectional area $A$ under axial
+    force $F$:
+
+    $$\sigma = \frac{F}{A}$$
+
+    Below: the same calculation rendered in each of symeval's three modes —
+    `multi_line` (default), `verbose`, and `one_line`.
+    """)
+    return
+
+
+@app.cell
+def _(Variable):
+    from sympy import Symbol, symbols
+
+    sigma_var = Variable(r"\sigma", name="Axial stress", unit="MPa")
+    sigma_expr = Symbol("F") / Symbol("A")
+    f = Variable("F", name="Axial force", value=50, unit="kN")
+    a = Variable("A", name="Cross-sectional area", value=100.000, unit="mm^2")
+
+    sigma_expr.symeval(
+        sigma_var,
+        inputs=[f, a],
+    )
+    return a, f, sigma_expr, sigma_var
+
+
+@app.cell
+def _(a, f, sigma_expr, sigma_var):
+    # You can specify the number of decimal places of your result, and the render mode:
+    # verbose: adds an extra line showing all values converted to SI base units.
+    sigma_expr.symeval(sigma_var, inputs=[f, a], decimals=2, mode="verbose")
+    return
+
+
+@app.cell
+def _(a, f, sigma_expr, sigma_var):
+    # one_line: collapse the derivation onto a single line.
+    sigma_expr.symeval(sigma_var, inputs=[f, a], mode="one_line")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Axial Resistance of Steel HSS Member
 
     As per CSA S16-17
@@ -54,7 +101,7 @@ def _(mo):
         {"key": "compressive_force", "latex": "C_f", "name": "Compressive force", "unit": "kN", "default": 680},
         {"section": "Member geometry"},
         {"key": "beam_length", "latex": "L", "name": "Beam length", "unit": "m", "default": 6.5, "step": 0.1},
-        {"key": "effective_length_factor", "latex": "k", "name": "Effective length factor", "default": 1},
+        {"key": "effective_length_factor", "latex": "k", "name": "Effective length factor", "default": 1, "step": 0.1},
         {"section": "Material properties"},
         {"key": "elastic_modulus", "latex": "E", "name": "Elastic modulus", "unit": "GPa", "default": 200},
         {"key": "yield_strength", "latex": "F_y", "name": "Yield strength", "unit": "MPa", "default": 400},
@@ -268,12 +315,13 @@ def _():
 
     import textwrap
     from dataclasses import dataclass, field
+    from typing import Literal
 
     import pint
     import sympy
     from sympy import latex
 
-    return dataclass, field, latex, pint, sympy, textwrap
+    return Literal, dataclass, field, latex, pint, sympy
 
 
 @app.cell
@@ -288,7 +336,7 @@ def _(pint):
 
 
 @app.cell
-def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
+def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
     ## EXPORT
 
 
@@ -387,49 +435,110 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
         return quantity.to("*".join(f"{n}**{e}" for n, e in target.items()))
 
 
+    _SCI_DEFAULT_PRECISION = 3
+    """Default decimal places for scientific notation when `decimals` is None.
+
+    pint\'s float-based unit conversions can leak precision noise (e.g. 100 mm^2
+    becomes 9.999999999999999e-5 m^2 instead of 1e-4 m^2). Using a precision cap
+    (`.3e`) rounds it back cleanly without imposing a cap on the natural variable
+    form of values that don\'t go through a unit conversion.
+    """
+
+
+    def _format_quantity_for_substitution(quantity, decimals, *, scientific=False):
+        """Format a pint quantity for inclusion in a substituted LaTeX line.
+
+        decimals=None and not scientific: pint\'s natural format (Python repr).
+        decimals=None and scientific:     `.{_SCI_DEFAULT_PRECISION}e`.
+        decimals=N and not scientific:    `.{N+1}f` with trailing-zero trim.
+        decimals=N and scientific:        `.{N+1}e`.
+        """
+        if decimals is None:
+            if scientific:
+                return f"{quantity:.{_SCI_DEFAULT_PRECISION}e~L}"
+            return f"{quantity:~L}"
+        n = decimals + 1
+        if scientific:
+            return f"{quantity:.{n}e~L}"
+        formatted = f"{quantity:.{n}f~L}"
+        mag_str, sep, unit_str = formatted.partition("\\ ")
+        if "." in mag_str:
+            mag_str = mag_str.rstrip("0").rstrip(".")
+        return f"{mag_str}{sep}{unit_str}"
+
+
+    def _splice_into_latex(rendered_latex, placeholder_syms, formatteds, wrappable):
+        """Replace each placeholder in `rendered_latex` with its formatted value.
+
+        When `wrappable[i]` is True and the placeholder is immediately followed
+        by `^`, wrap the substitution in `\\left(...\\right)` so the exponent
+        binds to the whole quantity, not just the unit.
+        """
+        for ph, fmt, wrap in zip(placeholder_syms, formatteds, wrappable):
+            ph_latex = latex(ph)
+            plain = rf"\medspace{fmt}"
+            if wrap:
+                wrapped = rf"\medspace\left({fmt}\right)"
+                rendered_latex = rendered_latex.replace(f"{ph_latex}^", f"{wrapped}^")
+            rendered_latex = rendered_latex.replace(ph_latex, plain)
+        return rendered_latex
+
+
+    _VALID_MODES = ("multi_line", "verbose", "one_line")
+
+
     def symeval(
         expr: sympy.Expr,
         output_variable: Variable,
         inputs: list[Variable],
         decimals: int | None = None,
+        mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
     ) -> Variable:
-        """Evaluate a sympy expression with pint units, producing a three-step LaTeX rendering.
+        """Evaluate a sympy expression with pint units, attaching a LaTeX rendering.
 
-        The output_variable is mutated in place: its quantity is set to the computed
-        value, and a three-step LaTeX rendering is attached so that rendering the
-        variable in marimo/Jupyter shows the full derivation.
+        The output_variable is mutated in place: its quantity is set to the
+        computed value, and `_eval_latex` is attached so rendering the variable
+        in marimo/Jupyter shows the derivation.
 
         Args:
             expr: The sympy expression to evaluate.
-            output_variable: Variable for the output. Its unit (if set) is the target
-                output unit; its symbol is used for labeling.
+            output_variable: Variable for the output. Its unit (if set) is the
+                target output unit; its symbol is used for labeling.
             inputs: List of Variables with values to substitute.
-            decimals: Number of decimal places for the output. If None, uses default.
+            decimals: Number of decimal places for the output. None uses pint
+                defaults throughout.
+            mode: Rendering style.
+                - "multi_line" (default): symbolic, substituted, result.
+                - "verbose": multi_line plus an extra substituted-in-SI-base line
+                  (scientific where conversion happened, decimal otherwise).
+                - "one_line": `Symbol = expression = result` on one line, using
+                  just the variable's unit (no prefix-stripped dual).
 
         Returns:
-            The output_variable, mutated in place with the computed quantity and
-            three-step LaTeX attached.
+            The output_variable, mutated in place.
         """
-        # Step 1: Build the symbolic LaTeX (formula with symbols)
+        if mode not in _VALID_MODES:
+            raise ValueError(
+                f"mode must be one of {_VALID_MODES}, got {mode!r}"
+            )
+
+        # Step 1: Symbolic LaTeX (formula with symbols).
         expression_latex = latex(expr)
 
         # Step 2: Build the substituted LaTeX (formula with numbers).
         # Why placeholders instead of substituting values directly?
-        #   - Pint quantities aren't sympy values, so subs would drop the units.
+        #   - Pint quantities aren\'t sympy values, so subs would drop the units.
         #   - Substituting plain numbers triggers sympy simplification (a+a -> 2a),
         #     which would destroy the structural shape we want to display.
-        # So we swap each input symbol for a unique placeholder symbol, and then let sympy
-        # render the structure (fracs, sqrts, parens, ...), then post-process the
-        # rendered LaTeX to splice in our `number + unit` formatting.
-        # The trailing "Z" makes substring .replace safe: SymEvalPH0Z is unique even
-        # when SymEvalPH10Z exists.
+        # So we swap each input symbol for a unique placeholder symbol, and then
+        # let sympy render the structure (fracs, sqrts, parens, ...), then
+        # post-process the rendered LaTeX to splice in our `number + unit`
+        # formatting. The trailing "Z" makes substring .replace safe: SymEvalPH0Z
+        # is unique even when SymEvalPH10Z exists.
         #
         # Placeholder indices follow the canonical sort order of the *original*
-        # input symbols, not the inputs-list order. sympy.Mul stores args in
-        # canonical order keyed by the symbol's name, so naive numbering can make
-        # sympy reorder placeholders differently from the originals — the
-        # substituted line then no longer matches the symbolic line. Aligning the
-        # sort orders keeps both lines in step.
+        # input symbols, so sympy.Mul ordering matches between the symbolic and
+        # substituted lines.
         canonical_order = sorted(
             range(len(inputs)), key=lambda i: inputs[i].symbol.sort_key()
         )
@@ -437,68 +546,80 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
         for canonical_pos, orig_idx in enumerate(canonical_order):
             placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
         sub_map = dict(zip([v.symbol for v in inputs], placeholder_syms))
-        substituted_latex = latex(expr.subs(sub_map, simultaneous=True))
-        # Cap precision at decimals+1 (one more than the result line) and strip
-        # trailing zeros so 1.5 m doesn't render as 1.500 m.
-        sub_decimals_fmt = f".{decimals + 1}f" if decimals is not None else ""
-        for ph_sym, var in zip(placeholder_syms, inputs):
-            formatted = f"{var.quantity:{sub_decimals_fmt}~L}"
-            if decimals is not None:
-                mag_str, sep, unit_str = formatted.partition("\\ ")
-                if "." in mag_str:
-                    mag_str = mag_str.rstrip("0").rstrip(".")
-                formatted = f"{mag_str}{sep}{unit_str}"
-            # When the placeholder is raised to a power, wrap the substituted
-            # value in \\left(...\\right) so the exponent binds to the whole
-            # quantity — `\\mathrm{mm}^{2}` would otherwise square only the unit.
-            ph_latex = latex(ph_sym)
-            plain = rf"\medspace{formatted}"
-            if not var.quantity.dimensionless:
-                # Unit-bearing values raised to a power get wrapped so the exponent
-                # binds to the whole quantity. Plain numbers don't need that —
-                # 13^{2} is unambiguous.
-                wrapped = rf"\medspace\left({formatted}\right)"
-                substituted_latex = substituted_latex.replace(f"{ph_latex}^", f"{wrapped}^")
-            substituted_latex = substituted_latex.replace(ph_latex, plain)
+        rendered = latex(expr.subs(sub_map, simultaneous=True))
 
-        # Step 3: Numerically evaluate
-        base_unit_inputs = {
-            var.symbol: var._pint_to_sympy_base() for var in inputs
-        }
-        # Pass substitutions via evalf's `subs` kwarg rather than `expr.subs(...).evalf()`:
-        # evalf does the substitution at arbitrary precision, avoiding precision loss
-        # for cancellation-heavy expressions. See:
+        wrappable = [not v.quantity.dimensionless for v in inputs]
+        formatteds_var = [
+            _format_quantity_for_substitution(v.quantity, decimals, scientific=False)
+            for v in inputs
+        ]
+        substituted_latex = _splice_into_latex(
+            rendered, placeholder_syms, formatteds_var, wrappable
+        )
+
+        # Step 2.5 (verbose only): SI-base substituted line. Each value uses
+        # scientific notation when SI-prefix-stripping changed its unit, plain
+        # decimal otherwise.
+        si_substituted_latex = None
+        if mode == "verbose":
+            formatteds_si = []
+            for v in inputs:
+                si_q = _strip_si_prefixes(v.quantity)
+                converted = si_q.units != v.quantity.units
+                formatteds_si.append(
+                    _format_quantity_for_substitution(si_q, decimals, scientific=converted)
+                )
+            si_substituted_latex = _splice_into_latex(
+                rendered, placeholder_syms, formatteds_si, wrappable
+            )
+
+        # Step 3: Numerically evaluate. Pass substitutions via evalf\'s `subs`
+        # kwarg (arbitrary-precision substitution) — see
         # https://docs.sympy.org/latest/modules/core.html#module-sympy.core.evalf
+        base_unit_inputs = {var.symbol: var._pint_to_sympy_base() for var in inputs}
         result_value = expr.evalf(subs=base_unit_inputs)
         output_quantity = ureg(f"{result_value}")
-
         if output_variable.unit:
             output_quantity = output_quantity.to(output_variable.unit)
 
-        # Format output. If the variable's unit carries an SI prefix (kN, MPa, mm,
-        # ...), prepend the prefix-stripped form in scientific notation so the line
-        # reads `Symbol = Y.YY*10^n N = X.XX kN`. Skipped when the unit is already
-        # prefix-free.
+        # Result line: variable\'s unit, plus prefix-stripped scientific dual
+        # when the variable\'s unit carries an SI prefix. With `decimals` set,
+        # the dual uses `.{decimals}e`; with `decimals=None` it falls back to
+        # `.{_SCI_DEFAULT_PRECISION}e` — bare `e` is Python\'s default (6 decimals)
+        # which would jar against the variable form\'s natural precision.
         decimal_fmt = f".{decimals}f" if decimals is not None else ""
-        sci_fmt = f".{decimals}e" if decimals is not None else "e"
-        output_latex = f"{output_quantity:{decimal_fmt}~L}"
+        sci_decimals = decimals if decimals is not None else _SCI_DEFAULT_PRECISION
+        output_var_unit_latex = f"{output_quantity:{decimal_fmt}~L}"
         no_prefix_quantity = _strip_si_prefixes(output_quantity)
         if no_prefix_quantity.units != output_quantity.units:
-            no_prefix_latex = f"{no_prefix_quantity:{sci_fmt}~L}"
-            output_latex = f"{no_prefix_latex} = {output_latex}"
+            no_prefix_latex = f"{no_prefix_quantity:.{sci_decimals}e~L}"
+            output_dual_latex = f"{no_prefix_latex} = {output_var_unit_latex}"
+        else:
+            output_dual_latex = output_var_unit_latex
 
-        # Build the three-step LaTeX
-        output_sym_latex = latex(output_variable.symbol)
-        align = "{align*}"
-        full_latex = textwrap.dedent(rf"""
-        $$
-        \begin{align}
-        {output_sym_latex} &= {expression_latex} \\
-        &= {substituted_latex} \\
-        {output_sym_latex} &= {output_latex}
-        \end{align}
-        $$
-        """)
+        # Assemble the final LaTeX based on mode.
+        sym_latex = latex(output_variable.symbol)
+        if mode == "one_line":
+            # `Symbol = formula = substituted = result` on a single line, using
+            # just the variable\'s unit on the right (no prefix-stripped dual).
+            full_latex = (
+                f"$$\n{sym_latex} = {expression_latex}"
+                f" = {substituted_latex}"
+                f" = {output_var_unit_latex}\n$$"
+            )
+        else:
+            align_lines = [
+                rf"{sym_latex} &= {expression_latex} \\",
+                rf"&= {substituted_latex} \\",
+            ]
+            if mode == "verbose":
+                align_lines.append(rf"&= {si_substituted_latex} \\")
+            align_lines.append(rf"{sym_latex} &= {output_dual_latex}")
+            full_latex = (
+                "$$\n\\begin{align*}\n"
+                + "\n".join(align_lines)
+                + "\n\\end{align*}\n$$"
+            )
 
         output_variable.quantity = output_quantity
         output_variable._eval_latex = full_latex
@@ -506,15 +627,65 @@ def _(Q_, dataclass, field, latex, sympy, textwrap, ureg):
 
 
     # Monkey-patch .symeval() onto sympy expressions
-    def _symeval_method(self, output_variable, inputs, decimals=None):
+    def _symeval_method(self, output_variable, inputs, decimals=None, mode="multi_line"):
         """Convenience method patched onto sympy.Expr. See symeval() for docs."""
         return symeval(
-            self, output_variable=output_variable, inputs=inputs, decimals=decimals
+            self,
+            output_variable=output_variable,
+            inputs=inputs,
+            decimals=decimals,
+            mode=mode,
         )
 
 
     sympy.Expr.symeval = _symeval_method
+
     return Variable, symeval
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Lessons Learned
+
+    ### Default precision (no `decimals` kwarg)
+
+    When you don\'t pass `decimals=...`, the variable form on the result line
+    uses pint\'s default magnitude format — which is just Python\'s `repr(float)`.
+    That means the precision **depends on the value**, not on a fixed default:
+    """)
+    return
+
+
+@app.cell
+def _(Q_):
+    # pint's default magnitude format is Python's repr(float) — varies with the value.
+    [
+        f"{v!r:>16}  ->  {Q_(v, 'Pa'):~L}"
+        for v in (500, 500.0, 1.5, 1.234, 1234567.89, 0.000001)
+    ]
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    For the prefix-stripped scientific form on the result line, symeval falls back
+    to **3 decimals** when `decimals` is not set — both to give it a defined
+    precision and to suppress float-conversion noise (pint computing
+    `100 mm² → 9.999...e-5 m²` instead of `1e-4 m²` is a real artifact of float
+    unit ratios).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+ 
+    """)
+    return
 
 
 @app.cell(column=2, hide_code=True)
@@ -526,9 +697,8 @@ def _(mo):
 
 
 @app.cell
-def _(Q_, Variable, symeval, sympy):
+def _(Q_, Variable, a, f, symeval, sympy):
     ## Put pytests here.
-
 
     def test_variable_with_unit():
         v = Variable("F_y", name="Yield strength", value=400, unit="MPa")
@@ -683,6 +853,63 @@ def _(Q_, Variable, symeval, sympy):
         assert r"\mathrm{kg}" in eval_latex
         # Would only appear if kg was stripped to gram — it shouldn't.
         assert r"\mathrm{g}" not in eval_latex
+
+
+    def _stress_calc(mode=None):
+        """Helper for the mode tests: σ = F/A in N/mm^2, returns the output Variable."""
+        F = Variable("F", name="Axial force", value=50, unit="kN")
+        A = Variable("A", name="Cross-sectional area", value=100, unit="mm^2")
+        out = Variable(r"\sigma", name="Axial stress", unit="MPa")
+        kwargs = {} if mode is None else {"mode": mode}
+        (F.symbol / A.symbol).symeval(out, inputs=[f, a], decimals=2, **kwargs)
+        return out
+
+
+    def test_symeval_mode_default_is_multi_line():
+        """Calling without `mode` produces the same _eval_latex as mode='multi_line'."""
+        default = _stress_calc()._eval_latex
+        explicit = _stress_calc(mode="multi_line")._eval_latex
+        assert default == explicit
+
+
+    def test_symeval_mode_verbose():
+        """Verbose mode adds an extra SI-base substituted line."""
+        multi = _stress_calc(mode="multi_line")._eval_latex
+        verbose = _stress_calc(mode="verbose")._eval_latex
+        # Verbose has exactly one more align line break (\\) than multi_line.
+        assert verbose.count(r"\\") == multi.count(r"\\") + 1
+        # The SI-converted scientific value 5e4 N appears on the new line.
+        assert r"5.000\times 10^{4}" in verbose
+        assert r"\mathrm{N}" in verbose
+        # Result line still has the prefix-strip dual `... Pa = 500.00 MPa`.
+        assert r"500.00\ \mathrm{MPa}" in verbose
+
+
+    def test_symeval_mode_one_line():
+        """One-line: no align block, includes substituted intermediate, no prefix-strip dual."""
+        one = _stress_calc(mode="one_line")._eval_latex
+        assert r"\begin{align" not in one
+        # Substituted intermediate is present.
+        assert r"50\ \mathrm{kN}" in one
+        assert r"100\ \mathrm{mm}" in one
+        # Result uses just the variable's unit, no prefix-stripped dual.
+        assert r"500.00\ \mathrm{MPa}" in one
+        assert r"\mathrm{Pa} = " not in one
+
+
+    def test_symeval_mode_invalid_raises():
+        """An unknown `mode` raises ValueError, mentioning the allowed values."""
+        F = Variable("F", name="Axial force", value=50, unit="kN")
+        A = Variable("A", name="Cross-sectional area", value=100, unit="mm^2")
+        out = Variable(r"\sigma", name="Axial stress", unit="MPa")
+        try:
+            (F.symbol / A.symbol).symeval(out, inputs=[f, a], decimals=2, mode="bogus")
+        except ValueError as e:
+            assert "multi_line" in str(e)
+            assert "verbose" in str(e)
+            assert "one_line" in str(e)
+        else:
+            raise AssertionError("Expected ValueError for invalid mode")
 
 
     return

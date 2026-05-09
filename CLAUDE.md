@@ -3,18 +3,14 @@
 ## TODO
 
 ### Package
-#### First
 
-- Decimal places in the filled in formula should be decimal or maybe at maximum decimals + 1.
-- When the output_variable is not dimensionless or when the unit is not and SI base unit, then always display the SI base unit, and then the Variable unit like Symbol = Value output_variable.base_unit = Value output_variable.unit
-- Add verbose flag that adds an additional line to the substitutions that shows the expression with numbers in SI base units, before showing the line with the result. The line with the SI base units should use scientific notation to prevent illegible numbers. Possibly it would be good to use a [SciForm's](https://sciform.readthedocs.io/en/stable) engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html). But let's implement the verbose flag first and then look at the engineering formatting. The engineering formatting also allows for significant figures, which might actually be something that should be attached to the Variables. Or maybe this should be a mode kwarg where the options are verbose, one_line, multi_line, with multi_line being the default and one_line leading to a short symbolic evaluation of the sympy expression on a single line.
-
-#### Then
 Go into plan mode and /grill-me on this stuff:
-- Would be handier if it were also possible to create sympy expressions from Variables directly, instead of having to call .symbol on every variable when creating an expression.
-- Would be handier if the inputs kwarg wasn't needed when the expression is made up of Variables. It shouldn't be necessary to supply a list of inputs I would say, because it's already given in the expression. However, when I'm doing symbolic math with sympy first and then want to substitute in Variables and evaluate at the end, then I will have to supply a list of inputs to the .symeval method, because the resulting expression only contains sympy.Symbols, that don't contain values or units, right?
-- Maybe the current implementation of symeval is actually a little too complicated with the Variable class, because I just realized that I should probably simply be able to fill in a list of pint quantities in addition to a output_symbol and output_unit
-- Maybe it would be an even better idea to implement a quant_evalf method first that allows one to apply that function on a dataframe.
+
+1. Would be handier if it were also possible to create sympy expressions from Variables directly, instead of having to call .symbol on every variable when creating an expression.
+2. Would be handier if the inputs kwarg wasn't needed when the expression is made up of Variables. It shouldn't be necessary to supply a list of inputs I would say, because it's already given in the expression. However, when I'm doing symbolic math with sympy first and then want to substitute in Variables and evaluate at the end, then I will have to supply a list of inputs to the .symeval method, because the resulting expression only contains sympy.Symbols, that don't contain values or units, right?
+3. Maybe the current implementation of symeval is actually a little too complicated with the Variable class, because I just realized that I should probably simply be able to fill in a list of pint quantities in addition to a output_symbol and output_unit
+4. Maybe it would be an even better idea to implement a quant_evalf method first, which would also allow one to apply that to an expression that maps the elements of a (polars) dataframe.
+5. I guess it'd also be better to use the complete signature of the sympy .evalf methods, and "just" add extra functionality to those. Would that be possible?
 
 ### Examples
 A few simple examples that highlight the most important features of symeval:
@@ -34,14 +30,6 @@ Additional examples should live in the examples folder:
 - Cantilever with Partially Distributed Load: https://imartincei.github.io/CalcpadCE/examples/cantilevers.html
 - Fully Restrained Beam with Uniformly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/fully-restrained-beams.html
 - Terzhagi bearing capacity calculation.
-
-
-### Logo
-A simple vector graphic that shows how you can fill in quantities (number + unit) into a sympy function:
-
-f(5N)
-
-Where the f is a snake.
 
 ### Docs
 
@@ -63,6 +51,8 @@ And a wish list:
 - I want to have all the notebooks in the examples in the docs, but I also want tests in the example notebooks, but I don't want those tests to be part of the docs.
 - 
 
+### Maybe?
+Possibly it would nice to make symeval work properly with significant figures. [SciForm](https://sciform.readthedocs.io/en/stable) might be a good tool for that. Also the engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html) seems nice.
 
 ## What is this project?
 symeval is a Python package that extends sympy expressions with a `.symeval()` method for engineering calculations. It renders a three-step LaTeX chain: symbolic → numbers with units → result. Built on sympy + pint, targeting marimo notebooks.
