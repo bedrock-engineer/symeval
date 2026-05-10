@@ -351,19 +351,19 @@ def _(
     yield_strength,
 ):
     # Create a dictionary with `sympy.Symbol` as keys and the input values as values
-    symbolic_quantities = {
+    _symbolic_quantities = {
         s["symbol"]: Quantity(input_uis[s["name"]].value, s.get("unit"))
         for s in input_table
         if "name" in s
     }
 
     # Define the Euler buckling stress sympy expression
-    euler_buckling_expr = (sympy.pi**2 * elastic_modulus) / (
+    _euler_buckling_expr = (sympy.pi**2 * elastic_modulus) / (
         (beam_length * effective_length_factor / radius_gyration) ** 2
     )
     # Symbolicly evaluate the Euler buckling stress
-    euler_buckling_stress = euler_buckling_expr.sym_evalf(
-        subs=symbolic_quantities,
+    euler_buckling_stress = _euler_buckling_expr.sym_evalf(
+        subs=_symbolic_quantities,
         output_symbol=sympy.Symbol("F_e"),
         output_unit="GPa",
         decimals=3,
@@ -371,43 +371,195 @@ def _(
     )
     # Add the resulting Euler buckling stress to the dictionary with symbolic quantities
     # such that it can be used in subsequent `.sym_evalf`s
-    symbolic_quantities[euler_buckling_stress.symbol] = euler_buckling_stress.quantity
+    _symbolic_quantities[euler_buckling_stress.symbol] = euler_buckling_stress.quantity
 
     # Same for the lambda factor: def expression; sym_evalf; add result to symbolic quantities dict
-    lambda_factor_expr = (
+    _lambda_factor_expr = (
         sympy.sqrt(yield_strength / euler_buckling_stress.symbol)
     ) ** (2 * strain_hardening_exponent)
-    lambda_factor = lambda_factor_expr.sym_evalf(
-        subs=symbolic_quantities,
+    lambda_factor = _lambda_factor_expr.sym_evalf(
+        subs=_symbolic_quantities,
         output_symbol=sympy.Symbol(r"\lambda"),
         decimals=3,
         mode="one_line",
     )
-    symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
+    _symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
 
     # Axial resistance
-    axial_resistance_expr = (
+    _axial_resistance_expr = (
         strength_reduction_factor * cross_sectional_area * yield_strength
     ) / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent))
-    axial_resistance = axial_resistance_expr.sym_evalf(
-        subs=symbolic_quantities,
+    axial_resistance = _axial_resistance_expr.sym_evalf(
+        subs=_symbolic_quantities,
         output_symbol=sympy.Symbol("C_r"),
         output_unit="MN",
         decimals=3,
         mode="one_line",
     )
-    symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
+    _symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
     # Demand capacity ratio
-    dcr_expr = compressive_force / axial_resistance.symbol
-    dcr = dcr_expr.sym_evalf(
-        subs=symbolic_quantities,
+    _dcr_expr = compressive_force / axial_resistance.symbol
+    dcr = _dcr_expr.sym_evalf(
+        subs=_symbolic_quantities,
         output_symbol=sympy.Symbol("DCR"),
         decimals=3,
         mode="one_line",
     )
-    symbolic_quantities[dcr.symbol] = dcr.quantity
+    _symbolic_quantities[dcr.symbol] = dcr.quantity
     return axial_resistance, dcr, euler_buckling_stress, lambda_factor
+
+
+@app.cell(hide_code=True)
+def _(R_q, ideal_gas_law, latex, mo):
+    mo.md(rf"""
+    ## Ideal Gas Law
+
+    When solving the ideal gas law 
+
+    $${latex(ideal_gas_law)}$$
+
+    you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
+
+    | Name | Symbol | SI-unit |
+    |------|--------|---------|
+    | Pressure | $P$ | $Pa$ |
+    | Volume | $V$ | $m^3$ |
+    | Temperature | $T$ | $K$ |
+    | Number of gas particles | $n$ | $mol$ |
+
+    Now, given that `symeval` is built on top of `sympy` we can now first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`:
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_solve_for, mo, solve_for_radio):
+    P_input = mo.ui.slider(
+        start=0,
+        stop=500,
+        step=1,
+        value=101.325,
+        debounce=True,
+        include_input=True,
+        disabled=get_solve_for() == "P (kPa)",
+    )
+    V_input = mo.ui.slider(
+        start=1,
+        stop=100,
+        step=0.5,
+        value=22.4,
+        debounce=True,
+        include_input=True,
+        disabled=get_solve_for() == "V (Liters)",
+    )
+    T_input = mo.ui.slider(
+        start=100,
+        stop=1000,
+        step=1,
+        value=273.15,
+        debounce=True,
+        include_input=True,
+        disabled=get_solve_for() == "T (°K)",
+    )
+    n_input = mo.ui.slider(
+        start=0.1,
+        stop=10,
+        step=0.1,
+        value=1.0,
+        debounce=True,
+        include_input=True,
+        disabled=get_solve_for() == "n (mol)",
+    )
+
+    mo.hstack(
+        [solve_for_radio, mo.vstack([P_input, V_input, T_input, n_input])],
+        align="center",
+        gap=2,
+    )
+    return P_input, T_input, V_input, n_input
+
+
+@app.cell(hide_code=True)
+def _(
+    P_input,
+    P_sym,
+    Quantity,
+    R_q,
+    R_sym,
+    T_input,
+    T_sym,
+    V_input,
+    V_sym,
+    get_solve_for,
+    ideal_gas_law,
+    ideal_gas_law_options,
+    mo,
+    n_input,
+    n_sym,
+    sympy,
+):
+    _symbolic_quantities = {
+        P_sym: Quantity(P_input.value, "kPa"),
+        V_sym: Quantity(V_input.value, "l"),
+        R_sym: R_q,
+        n_sym: Quantity(n_input.value, "mol"),
+        T_sym: Quantity(T_input.value, "K"),
+    }
+
+    _igl_dict = {val: i for i, val in enumerate(ideal_gas_law_options)}
+    _solve_for_idx = _igl_dict[get_solve_for()]
+    _solve_for_sym = [P_sym, V_sym, n_sym, T_sym][_solve_for_idx]
+    _solution = sympy.solve(ideal_gas_law, _solve_for_sym)[0]
+
+    mo.vstack(
+        [
+            ideal_gas_law,
+            _solution.sym_evalf(
+                subs=_symbolic_quantities,
+                output_symbol=_solve_for_sym,
+                output_unit=_symbolic_quantities[_solve_for_sym],
+                decimals=2,
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(Quantity, mo, sympy):
+    from sympy.physics.units import molar_gas_constant, joule, mol, kelvin
+    from sympy.physics.units.util import convert_to
+
+
+    # Define Ideal Gas Law sympy.Symbols and Equation
+    P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
+    ideal_gas_law = sympy.Eq(P_sym * V_sym, n_sym * R_sym * T_sym)
+    R_q = Quantity(
+        convert_to(molar_gas_constant, [joule, mol, kelvin]).args[0], "J/(mol*K)"
+    )
+
+    # Define ui inputs.
+    ideal_gas_law_options = ["P (kPa)", "V (Liters)", "T (°K)", "n (mol)"]
+    # EXPLAIN THE STATE STUFF HERE
+    get_solve_for, set_solve_for = mo.state("P (kPa)")
+    solve_for_radio = mo.ui.radio(
+        options=ideal_gas_law_options,
+        value=get_solve_for(),
+        on_change=set_solve_for,
+    )
+    return (
+        P_sym,
+        R_q,
+        R_sym,
+        T_sym,
+        V_sym,
+        get_solve_for,
+        ideal_gas_law,
+        ideal_gas_law_options,
+        n_sym,
+        solve_for_radio,
+    )
 
 
 @app.cell(column=1, hide_code=True)
@@ -856,7 +1008,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-
+ 
     """)
     return
 
