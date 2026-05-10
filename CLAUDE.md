@@ -8,28 +8,34 @@
 - Possibly it would nice to make symeval work properly with significant figures. [SciForm](https://sciform.readthedocs.io/en/stable) might be a good tool for that. Also the engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html) seems nice.
 
 ### Examples
-A few simple examples that highlight the most important features of symeval:
-- An example where we first do some symbolic math with sympy and then plug in the inputs.
-- Examples from the symeval sources of inspiration:
-    - The already implemented handcalcs example of "Axial Resistance of Steel HSS Member"
-    - One of the CalcPad "Simply supported beams" examples:
-        https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
-    - The [Explorable Explanations](https://worrydream.com/ExplorableExplanations) example.
 
-These simple examples should all live in the symeval_mo.py notebook.
+#### In `symeval_mo.py` (the main notebook)
+Short examples that highlight features:
+- One of the CalcPad "Simply supported beams" examples: https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
+- An [Explorable Explanations](https://worrydream.com/ExplorableExplanations) example.
 
-Additional examples should live in the examples folder:
+#### Optional polish for the existing Ideal Gas Law example
+- A piston with moving gas particles that updates reactively as the user drags the P, V, T, n sliders, similar to the @assets/explorable-explanations-by-chatgpt.mp4 screencap from ChatGPT.
+
+#### In the `examples/` folder
+Longer, more complete demos:
 - Simply Supported Beam with Linearly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
 - Cantilever with Partially Distributed Load: https://imartincei.github.io/CalcpadCE/examples/cantilevers.html
 - Fully Restrained Beam with Uniformly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/fully-restrained-beams.html
-- Terzhagi bearing capacity calculation.
+- Terzaghi bearing capacity calculation.
 
 ### Docs
 
-Regarding docs, the first thing I need is a better README.md. Inspiration README.md's:
-- General: https://github.com/banesullivan/README + Inspiration section
+#### README.md
+Guide and inspiration README.md's:
+- Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
 
+TODO:
+- The 📊 **DataFrame-ready** highlight is still a little verbose
+- Is it possible to create a taskipy task to export the code and output of certain (named) cells from the symeval_mo.py?
+
+#### Website
 I want to create a docs website. I'm not sure yet what type of documentation site I want. I do like the structure of the [Diataxis](https://diataxis.fr/) approach, which is largely adapted by some of the projects that are an example to me when it comes to docs:
 - https://quarto.org
 - https://docs.marimo.io
@@ -38,19 +44,21 @@ I want to create a docs website. I'm not sure yet what type of documentation sit
 - https://geopandas.org/en/stable, although it's not intuitive enough to me how to get to the core concept explanation:
     Flow: Getting Started -> Installation -> Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts
 
-
 And a wish list:
 - I want to build it using either [Quarto](https://quarto.org) or [Zensical](https://zensical.org). Let's implement both, such that I can choose which I like better later.
 - I want to have all the notebooks in the examples in the docs, but I also want tests in the example notebooks, but I don't want those tests to be part of the docs.
-- 
 
 
 ## What is this project?
-symeval is a Python package that extends sympy expressions with a `.symeval()` method for engineering calculations. It renders a three-step LaTeX chain: symbolic → numbers with units → result. Built on sympy + pint, targeting marimo notebooks.
+symeval is a Python package that extends sympy expressions with two methods for engineering calculations:
+- `.sym_evalf()` — evaluates the expression with `pint` quantities and renders a three-step LaTeX chain: symbolic → numbers with units → result.
+- `.quantity_evalf()` — same unit-aware evaluation, no LaTeX overhead. Useful inside `DataFrame.with_columns(...)` to compute a new column row-by-row.
+
+Built on sympy + pint, rendering via `_repr_latex_()` so it works in both marimo and Jupyter notebooks.
 
 ## Package structure
 Notebook-as-source using mobuild (like koaning/hastyplot):
-- `symeval_mo.py` — marimo notebook that contains the symeval implementation, tests and a few main examples from the inspirational sources and , single source of truth. Cells marked `## EXPORT` get extracted in the build step.
+- `symeval_mo.py` — marimo notebook containing the implementation, tests, and feature-highlight examples; single source of truth. Cells marked `## EXPORT` get extracted into the package by the build step.
 - `src/symeval/__init__.py` — generated by mobuild, do not edit directly.
 - `examples` — demo notebooks showing symeval example usage.
 
