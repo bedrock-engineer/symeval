@@ -1,4 +1,4 @@
-__all__ = ['ureg', 'Q_', 'SymbolicEvaluation', 'quantity_evalf', 'sym_evalf']
+__all__ = ['quantity_evalf', 'SymbolicEvaluation', 'sym_evalf']
 
 
 import textwrap
@@ -8,11 +8,6 @@ from typing import Literal
 import pint
 import sympy
 from sympy import latex
-
-# Default unit registry with sensible defaults for engineering calculations
-ureg = pint.UnitRegistry(auto_reduce_dimensions=True)
-ureg.formatter.default_format = "~L"
-Q_ = ureg.Quantity
 
 def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
     """Convert a pint quantity to a sympy expression in base SI units.
@@ -25,6 +20,53 @@ def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
     sympy_units = sympy.sympify(f"{base.units:~D}")
     return base.magnitude * sympy_units
 
+def quantity_evalf(
+    expr: sympy.Expr,
+    subs: dict[sympy.Symbol, pint.Quantity] | None = None,
+    output_unit: str | pint.Unit | None = None,
+    **evalf_kwargs,
+) -> pint.Quantity:
+    """Numerical evaluation of a sympy expression with unit-aware substitutions.
+
+    Mirrors `sympy.Expr.evalf`'s signature. Any extra keyword arguments are
+    captured by Python's `**evalf_kwargs` (a standard mechanism for
+    collecting unmatched kwargs into a dict) and forwarded verbatim to
+    `expr.evalf(...)` — so `n`, `maxn`, `chop`, `strict`, `quiet`, and
+    `verbose` all work without being listed here individually.
+
+    Args:
+        expr (sympy.Expr): The sympy expression to evaluate.
+        subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
+            `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
+            inputs). Same shape as sympy.evalf's `subs` kwarg, but values
+            carry units. Defaults to None (no substitutions).
+        output_unit (str | pint.Unit | None): Target pint unit for the
+            result (e.g. `"MPa"` or `ureg.MPa`). If `None`, the result is
+            returned in SI base units. Defaults to None. The result's
+            registry is the registry of the input `pint.Quantity` values
+            in `subs`; with empty subs (or all-scalar subs),
+            `pint.get_application_registry()` is used as a fallback.
+        **evalf_kwargs: Forwarded verbatim to `expr.evalf(...)`. Useful
+            kwargs include `n` (digits of precision), `chop` (round tiny
+            terms to zero), and `strict` (raise instead of returning an
+            unevaluated result).
+
+    Returns:
+        pint.Quantity: The computed quantity — in `output_unit` if given,
+            else in SI base units.
+    """
+    subs = subs or {}
+    target_ureg = next(
+        (q._REGISTRY for q in subs.values() if isinstance(q, pint.Quantity)),
+        pint.get_application_registry(),
+    )
+    base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
+    result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
+    output_quantity = target_ureg(f"{result_value}")
+    if output_unit is not None:
+        output_quantity = output_quantity.to(output_unit)
+    return output_quantity
+
 def _strip_si_prefixes(quantity: pint.Quantity) -> pint.Quantity:
     """Convert a quantity to its SI-prefix-free equivalent (kN -> N, MPa -> Pa, mm -> m).
 
@@ -33,6 +75,7 @@ def _strip_si_prefixes(quantity: pint.Quantity) -> pint.Quantity:
     """
     if quantity.dimensionless:
         return quantity
+    ureg = quantity._REGISTRY
     target = {}
     for unit_name, exponent in dict(quantity.units._units).items():
         parses = ureg.parse_unit_name(unit_name)
@@ -160,46 +203,6 @@ class SymbolicEvaluation:
 
     def __str__(self):
         return str(self.quantity)
-
-def quantity_evalf(
-    expr: sympy.Expr,
-    subs: dict[sympy.Symbol, pint.Quantity] | None = None,
-    output_unit: str | pint.Unit | None = None,
-    **evalf_kwargs,
-) -> pint.Quantity:
-    """Numerical evaluation of a sympy expression with unit-aware substitutions.
-
-    Mirrors `sympy.Expr.evalf`'s signature. Any extra keyword arguments are
-    captured by Python's `**evalf_kwargs` (a standard mechanism for
-    collecting unmatched kwargs into a dict) and forwarded verbatim to
-    `expr.evalf(...)` — so `n`, `maxn`, `chop`, `strict`, `quiet`, and
-    `verbose` all work without being listed here individually.
-
-    Args:
-        expr (sympy.Expr): The sympy expression to evaluate.
-        subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
-            `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
-            inputs). Same shape as sympy.evalf's `subs` kwarg, but values
-            carry units. Defaults to None (no substitutions).
-        output_unit (str | pint.Unit | None): Target pint unit for the
-            result (e.g. `"MPa"` or `ureg.MPa`). If `None`, the result is
-            returned in SI base units. Defaults to None.
-        **evalf_kwargs: Forwarded verbatim to `expr.evalf(...)`. Useful
-            kwargs include `n` (digits of precision), `chop` (round tiny
-            terms to zero), and `strict` (raise instead of returning an
-            unevaluated result).
-
-    Returns:
-        pint.Quantity: The computed quantity — in `output_unit` if given,
-            else in SI base units.
-    """
-    subs = subs or {}
-    base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
-    result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
-    output_quantity = ureg(f"{result_value}")
-    if output_unit is not None:
-        output_quantity = output_quantity.to(output_unit)
-    return output_quantity
 
 def sym_evalf(
     expr: sympy.Expr,

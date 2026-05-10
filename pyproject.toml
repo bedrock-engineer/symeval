@@ -17,6 +17,7 @@ Issues = "https://github.com/bedrock-engineer/symeval/issues"
 
 [dependency-groups]
 dev = [
+    "polars>=1.40.1",
     "pytest>=9.0.3",
     "taskipy>=1.14",
 ]

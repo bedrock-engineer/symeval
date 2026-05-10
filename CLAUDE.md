@@ -4,15 +4,11 @@
 
 ### Package
 
-What is smart re. the unit registry? Might not be such a good idea to put that inside the package, right? /grill-me on this please.
-
 #### Maybe?
 - Possibly it would nice to make symeval work properly with significant figures. [SciForm](https://sciform.readthedocs.io/en/stable) might be a good tool for that. Also the engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html) seems nice.
 
 ### Examples
 A few simple examples that highlight the most important features of symeval:
-- Some super mega simple evaluation of an expression with units.
-- An example where we apply quant_evalf to a dataframe, and then sym_evalf to 
 - An example where we first do some symbolic math with sympy and then plug in the inputs.
 - Examples from the symeval sources of inspiration:
     - The already implemented handcalcs example of "Axial Resistance of Steel HSS Member"
@@ -79,6 +75,6 @@ Tests run inside `release` (before tagging), not in `pypi`. The tag is the trust
 - All library code and tests live in the `symeval_mo.py` marimo notebook
 - Use `## EXPORT` markers for cells that should be extracted into the package
 - Units are handled by pint, not sympy.physics.units
-- symeval ships a default pint UnitRegistry (auto_reduce_dimensions=True, LaTeX format)
+- symeval does **not** ship a `UnitRegistry`. Internals derive the registry from the input quantities (`q._REGISTRY`); empty-subs calls fall back to `pint.get_application_registry()`. Users create quantities with `pint.Quantity` (or their own `UnitRegistry`); the result lands in their registry.
 - Use `_repr_latex_()` for rendering in marimo/Jupyter — no marimo runtime dependency
 - Keep the package minimal
