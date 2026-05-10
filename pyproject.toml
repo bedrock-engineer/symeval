@@ -16,7 +16,10 @@ Repository = "https://github.com/bedrock-engineer/symeval"
 Issues = "https://github.com/bedrock-engineer/symeval/issues"
 
 [dependency-groups]
-dev = ["taskipy>=1.14"]
+dev = [
+    "pytest>=9.0.3",
+    "taskipy>=1.14",
+]
 
 [tool.taskipy.tasks]
 # Tasks needing positional args (release) wrap their body in `bash -c '…' --`

@@ -1,8 +1,9 @@
-__all__ = ['ureg', 'Q_', 'Variable', 'symeval']
+__all__ = ['ureg', 'Q_', 'SymbolicEvaluation', 'quantity_evalf', 'sym_evalf']
 
 
 import textwrap
 from dataclasses import dataclass, field
+from typing import Literal
 
 import pint
 import sympy
@@ -13,160 +14,358 @@ ureg = pint.UnitRegistry(auto_reduce_dimensions=True)
 ureg.formatter.default_format = "~L"
 Q_ = ureg.Quantity
 
-@dataclass
-class Variable:
-    """A variable with a sympy symbol, pint quantity, and metadata.
+def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
+    """Convert a pint quantity to a sympy expression in base SI units.
 
-    Args:
-        latex: LaTeX symbol string (e.g. "F_e", r"\\phi_s"). Becomes both
-            the sympy Symbol and the LaTeX representation.
-        name: Human-readable description (e.g. "Euler buckling stress").
-        value: Numerical value. None for output-only variables.
-        unit: Pint unit string (e.g. "GPa", "mm^2"). None for dimensionless.
-        min: Minimum realistic value (for slider bounds).
-        max: Maximum realistic value (for slider bounds).
-        examples: Named example values (e.g. {"short span": 3, "long span": 12}).
+    Dimensionless quantities return their bare magnitude (a Python float).
+    """
+    if quantity.dimensionality == {}:
+        return quantity.magnitude
+    base = quantity.to_base_units()
+    sympy_units = sympy.sympify(f"{base.units:~D}")
+    return base.magnitude * sympy_units
+
+def _strip_si_prefixes(quantity: pint.Quantity) -> pint.Quantity:
+    """Convert a quantity to its SI-prefix-free equivalent (kN -> N, MPa -> Pa, mm -> m).
+
+    `kg` is left as-is because it is itself the SI base unit for mass — even
+    though pint internally represents it as kilo*gram.
+    """
+    if quantity.dimensionless:
+        return quantity
+    target = {}
+    for unit_name, exponent in dict(quantity.units._units).items():
+        parses = ureg.parse_unit_name(unit_name)
+        # Prefer an unprefixed parse (e.g. \'Pa\' has both (\'\', \'pascal\', \'\') and (\'peta\', \'year\', \'\')).
+        base = next((b for prefix, b, _ in parses if prefix == ""), None)
+        if base is None and parses:
+            # All parses are prefixed (e.g. \'kN\' -> (\'kilo\', \'newton\', \'\')).
+            prefix, b, _ = parses[0]
+            base = "kilogram" if (prefix, b) == ("kilo", "gram") else b
+        if base is None:
+            base = unit_name
+        target[base] = target.get(base, 0) + exponent
+    return quantity.to("*".join(f"{n}**{e}" for n, e in target.items()))
+
+_SCI_DEFAULT_PRECISION = 3
+"""Default decimal places for scientific notation when `decimals` is None.
+
+pint's float-based unit conversions can leak precision noise (e.g. 100 mm^2
+becomes 9.999999999999999e-5 m^2 instead of 1e-4 m^2). Using a precision cap
+(`.3e`) rounds it back cleanly without imposing a cap on the natural variable
+form of values that don't go through a unit conversion.
+"""
+
+def _format_quantity_for_substitution(
+    quantity: pint.Quantity,
+    decimals: int | None,
+    *,
+    scientific: bool = False,
+) -> str:
+    """Format a pint quantity for inclusion in a substituted LaTeX line.
+
+    decimals=None and not scientific: pint's natural format (Python repr).
+    decimals=None and scientific:     `.{_SCI_DEFAULT_PRECISION}e`.
+    decimals=N and not scientific:    `.{N+1}f` with trailing-zero trim.
+    decimals=N and scientific:        `.{N+1}e`.
+    """
+    if decimals is None:
+        if scientific:
+            return f"{quantity:.{_SCI_DEFAULT_PRECISION}e~L}"
+        return f"{quantity:~L}"
+    n = decimals + 1
+    if scientific:
+        return f"{quantity:.{n}e~L}"
+    formatted = f"{quantity:.{n}f~L}"
+    mag_str, sep, unit_str = formatted.partition("\\ ")
+    if "." in mag_str:
+        mag_str = mag_str.rstrip("0").rstrip(".")
+    return f"{mag_str}{sep}{unit_str}"
+
+def _splice_into_latex(
+    rendered_latex: str,
+    placeholder_syms: list[sympy.Symbol],
+    formatteds: list[str],
+    wrappable: list[bool],
+) -> str:
+    """Replace each placeholder in `rendered_latex` with its formatted value.
+
+    When `wrappable[i]` is True and the placeholder is immediately followed
+    by `^`, wrap the substitution in `\\left(...\\right)` so the exponent
+    binds to the whole quantity, not just the unit.
+    """
+    for ph, fmt, wrap in zip(placeholder_syms, formatteds, wrappable):
+        ph_latex = latex(ph)
+        plain = rf"\medspace{fmt}"
+        if wrap:
+            wrapped = rf"\medspace\left({fmt}\right)"
+            rendered_latex = rendered_latex.replace(f"{ph_latex}^", f"{wrapped}^")
+        rendered_latex = rendered_latex.replace(ph_latex, plain)
+    return rendered_latex
+
+_VALID_MODES = ("multi_line", "verbose", "one_line")
+
+class SymbolicEvaluation:
+    """A pint Quantity with an attached LaTeX rendering for marimo/Jupyter.
+
+    Returned by `sym_evalf`. Delegates the common Quantity surface
+    (magnitude, units, dimensionality, m, m_as, to, to_base_units) to
+    `self.quantity`. `_repr_latex_` returns the rendered LaTeX. `.symbol`
+    holds the output sympy.Symbol so the result can be plugged back into
+    downstream sympy expressions (chained calculations).
     """
 
-    # TODO: add an optional description
-
-    latex: str
-    name: str
-    unit: str | None = None
-    value: float | None = None
-    min: float | None = None
-    max: float | None = None
-    examples: dict[str, float] | None = field(default=None, repr=False)
-
-    def __post_init__(self):
-        self._sympy_symbol = sympy.Symbol(self.latex)
-        self._eval_latex: str | None = None
-
-        if self.value is not None:
-            if self.unit:
-                self.quantity = Q_(self.value, self.unit)
-            else:
-                self.quantity = Q_(self.value, "")
-        else:
-            self.quantity = None
+    def __init__(
+        self,
+        quantity: pint.Quantity,
+        latex: str,
+        symbol: sympy.Symbol,
+    ) -> None:
+        self.quantity = quantity
+        self.latex = latex
+        self.symbol = symbol
 
     @property
-    def symbol(self) -> sympy.Symbol:
-        """The sympy Symbol for use in expressions."""
-        return self._sympy_symbol
+    def magnitude(self):
+        return self.quantity.magnitude
 
-    def _pint_to_base_magnitude(self) -> float:
-        """Convert quantity to base SI units and return the magnitude."""
-        if self.quantity is None:
-            raise ValueError(f"Variable '{self.name}' has no value assigned.")
-        if self.quantity.dimensionality == {}:
-            return self.quantity.magnitude
-        return self.quantity.to_base_units().magnitude
+    @property
+    def units(self):
+        return self.quantity.units
 
-    def _pint_to_sympy_base(self) -> sympy.Expr:
-        """Convert pint quantity to a sympy expression in base SI units."""
-        if self.quantity is None:
-            raise ValueError(f"Variable '{self.name}' has no value assigned.")
-        if self.quantity.dimensionality == {}:
-            return self.quantity.magnitude
-        base = self.quantity.to_base_units()
-        sympy_units = sympy.sympify(f"{base.units:~D}")
-        return base.magnitude * sympy_units
+    @property
+    def dimensionality(self):
+        return self.quantity.dimensionality
+
+    @property
+    def m(self):
+        return self.quantity.m
+
+    def m_as(self, unit):
+        return self.quantity.m_as(unit)
+
+    def to(self, *args, **kwargs):
+        return self.quantity.to(*args, **kwargs)
+
+    def to_base_units(self):
+        return self.quantity.to_base_units()
 
     def _repr_latex_(self) -> str:
-        """LaTeX representation for marimo/Jupyter rendering."""
-        if self._eval_latex is not None:
-            return self._eval_latex
-        if self.quantity is not None:
-            return f"${self.latex} = {self.quantity:~L}$"
-        return f"${self.latex}$"
+        # Always wrap as display math so the default rendering is the larger
+        # block form. Inline embeds use `result.latex` directly with `$...$`.
+        return f"$$ {self.latex} $$"
 
-    def __str__(self) -> str:
-        if self.quantity is not None:
-            return f"{self.name}: {self.latex} = {self.quantity:~#P}"
-        return f"{self.name}: {self.latex}"
+    def __repr__(self):
+        return f"SymbolicEvaluation({self.quantity!r})"
 
+    def __str__(self):
+        return str(self.quantity)
 
-def symeval(
+def quantity_evalf(
     expr: sympy.Expr,
-    output_variable: Variable,
-    inputs: list[Variable],
-    decimals: int | None = None,
-) -> Variable:
-    """Evaluate a sympy expression with pint units, producing a three-step LaTeX rendering.
+    subs: dict[sympy.Symbol, pint.Quantity] | None = None,
+    output_unit: str | pint.Unit | None = None,
+    **evalf_kwargs,
+) -> pint.Quantity:
+    """Numerical evaluation of a sympy expression with unit-aware substitutions.
 
-    The output_variable is mutated in place: its quantity is set to the computed
-    value, and a three-step LaTeX rendering is attached so that rendering the
-    variable in marimo/Jupyter shows the full derivation.
+    Mirrors `sympy.Expr.evalf`'s signature. Any extra keyword arguments are
+    captured by Python's `**evalf_kwargs` (a standard mechanism for
+    collecting unmatched kwargs into a dict) and forwarded verbatim to
+    `expr.evalf(...)` — so `n`, `maxn`, `chop`, `strict`, `quiet`, and
+    `verbose` all work without being listed here individually.
 
     Args:
-        expr: The sympy expression to evaluate.
-        output_variable: Variable for the output. Its unit (if set) is the target
-            output unit; its symbol is used for labeling.
-        inputs: List of Variables with values to substitute.
-        decimals: Number of decimal places for the output. If None, uses default.
+        expr (sympy.Expr): The sympy expression to evaluate.
+        subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
+            `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
+            inputs). Same shape as sympy.evalf's `subs` kwarg, but values
+            carry units. Defaults to None (no substitutions).
+        output_unit (str | pint.Unit | None): Target pint unit for the
+            result (e.g. `"MPa"` or `ureg.MPa`). If `None`, the result is
+            returned in SI base units. Defaults to None.
+        **evalf_kwargs: Forwarded verbatim to `expr.evalf(...)`. Useful
+            kwargs include `n` (digits of precision), `chop` (round tiny
+            terms to zero), and `strict` (raise instead of returning an
+            unevaluated result).
 
     Returns:
-        The output_variable, mutated in place with the computed quantity and
-        three-step LaTeX attached.
+        pint.Quantity: The computed quantity — in `output_unit` if given,
+            else in SI base units.
     """
-    # Step 1: Build the symbolic LaTeX (formula with symbols)
+    subs = subs or {}
+    base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
+    result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
+    output_quantity = ureg(f"{result_value}")
+    if output_unit is not None:
+        output_quantity = output_quantity.to(output_unit)
+    return output_quantity
+
+def sym_evalf(
+    expr: sympy.Expr,
+    *,
+    subs: dict[sympy.Symbol, pint.Quantity] | None = None,
+    output_symbol: str | sympy.Symbol,
+    output_unit: str | pint.Unit | None = None,
+    decimals: int | None = None,
+    mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
+    **evalf_kwargs,
+) -> "SymbolicEvaluation":
+    """Numerically evaluate `expr` and produce a LaTeX rendering of the chain.
+
+    Same numeric kernel as `quantity_evalf`; the addition is the LaTeX
+    derivation attached to the returned `SymbolicEvaluation`.
+
+    Args:
+        expr (sympy.Expr): The sympy expression to evaluate.
+        subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
+            `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
+            inputs). Same shape as sympy.evalf's `subs` kwarg. Defaults to
+            None (no substitutions).
+        output_symbol (str | sympy.Symbol): LaTeX label for the output — a
+            string like `r"\\sigma"` or a `sympy.Symbol`. The label appears
+            on the left of every line of the rendered chain. Required;
+            keyword-only.
+        output_unit (str | pint.Unit | None): Target pint unit for the
+            result. If `None`, the result is rendered in SI base units.
+            Defaults to None.
+        decimals (int | None): Number of decimal places for the result and
+            substituted lines. `None` uses pint's natural (Python
+            `repr(float)`) format. Defaults to None.
+        mode (Literal["multi_line", "verbose", "one_line"]): Rendering
+            style, defaults to `"multi_line"`:
+
+            - `"multi_line"`: three lines — symbolic, substituted with
+              units, then result.
+            - `"verbose"`: four lines — multi_line plus an extra
+              substituted-in-SI-base line in scientific notation.
+            - `"one_line"`: a single line —
+              `Symbol = formula = substituted = result`, with just the
+              variable's unit on the right (no prefix-stripped dual).
+        **evalf_kwargs: Forwarded to `expr.evalf(...)` via
+            `quantity_evalf`. Useful kwargs: `n` (digits of precision),
+            `chop`, `strict`.
+
+    Returns:
+        SymbolicEvaluation: The computed `pint.Quantity` with the rendered
+            LaTeX chain attached. Renders in marimo / Jupyter via
+            `_repr_latex_`. Has `.quantity`, `.latex`, and `.symbol` for
+            chaining into downstream sympy expressions.
+
+    Raises:
+        ValueError: If `mode` is not one of the allowed values.
+    """
+    if mode not in _VALID_MODES:
+        raise ValueError(f"mode must be one of {_VALID_MODES}, got {mode!r}")
+    subs = subs or {}
+
+    # Step 1: Symbolic LaTeX (formula with symbols).
     expression_latex = latex(expr)
 
     # Step 2: Build the substituted LaTeX (formula with numbers).
-    # Substitute at the sympy level (symbol-aware), then render once, then
-    # replace each placeholder's rendered LaTeX with the value's LaTeX.
-    # Substring-safe: the trailing "Z" prevents SYMEVALPH0 matching inside SYMEVALPH10.
-    placeholder_syms = [
-        sympy.Symbol(f"SYMEVALPH{i}Z") for i in range(len(inputs))
+    # Why placeholders instead of substituting values directly?
+    #   - Pint quantities aren\'t sympy values, so subs would drop the units.
+    #   - Substituting plain numbers triggers sympy simplification (a+a -> 2a),
+    #     which would destroy the structural shape we want to display.
+    # So we swap each input symbol for a unique placeholder symbol, then let
+    # sympy render the structure, then post-process to splice in our
+    # `number + unit` formatting. The trailing "Z" makes substring .replace
+    # safe: SymEvalPH0Z is unique even when SymEvalPH10Z exists.
+    #
+    # Placeholder indices follow the canonical sort order of the *original*
+    # input symbols, so sympy.Mul ordering matches between the symbolic and
+    # substituted lines.
+    input_symbols = list(subs.keys())
+    input_quantities = list(subs.values())
+    canonical_order = sorted(
+        range(len(input_symbols)), key=lambda i: input_symbols[i].sort_key()
+    )
+    placeholder_syms = [None] * len(input_symbols)
+    for canonical_pos, orig_idx in enumerate(canonical_order):
+        placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
+    sub_map = dict(zip(input_symbols, placeholder_syms))
+    rendered = latex(expr.subs(sub_map, simultaneous=True))
+
+    wrappable = [not q.dimensionless for q in input_quantities]
+    formatteds_var = [
+        _format_quantity_for_substitution(q, decimals, scientific=False)
+        for q in input_quantities
     ]
-    sub_map = dict(zip([v.symbol for v in inputs], placeholder_syms))
-    substituted_latex = latex(expr.subs(sub_map, simultaneous=True))
-    for ph_sym, var in zip(placeholder_syms, inputs):
-        substituted_latex = substituted_latex.replace(
-            latex(ph_sym), rf"\medspace{var.quantity:~L}"
-        )
-
-    # Step 3: Numerically evaluate
-    base_unit_inputs = {
-        var.symbol: var._pint_to_sympy_base() for var in inputs
-    }
-    result_value = expr.subs(base_unit_inputs).evalf()
-    output_quantity = ureg(f"{result_value}")
-
-    if output_variable.unit:
-        output_quantity = output_quantity.to(output_variable.unit)
-
-    # Format output
-    decimal_fmt = ""
-    if decimals is not None:
-        decimal_fmt = f".{decimals}f"
-    output_latex = f"{output_quantity:{decimal_fmt}~L}"
-
-    # Build the three-step LaTeX
-    output_sym_latex = latex(output_variable.symbol)
-    align = "{align*}"
-    full_latex = textwrap.dedent(rf"""
-    $$
-    \begin{align}
-    {output_sym_latex} &= {expression_latex} \\
-    &= {substituted_latex} \\
-    {output_sym_latex} &= {output_latex}
-    \end{align}
-    $$
-    """)
-
-    output_variable.quantity = output_quantity
-    output_variable._eval_latex = full_latex
-    return output_variable
-
-
-# Monkey-patch .symeval() onto sympy expressions
-def _symeval_method(self, output_variable, inputs, decimals=None):
-    """Convenience method patched onto sympy.Expr. See symeval() for docs."""
-    return symeval(
-        self, output_variable=output_variable, inputs=inputs, decimals=decimals
+    substituted_latex = _splice_into_latex(
+        rendered, placeholder_syms, formatteds_var, wrappable
     )
 
+    # Step 2.5 (verbose only): SI-base substituted line. Each value uses
+    # scientific notation when SI-prefix-stripping changed its unit, plain
+    # decimal otherwise.
+    si_substituted_latex = None
+    if mode == "verbose":
+        formatteds_si = []
+        for q in input_quantities:
+            si_q = _strip_si_prefixes(q)
+            converted = si_q.units != q.units
+            formatteds_si.append(
+                _format_quantity_for_substitution(
+                    si_q, decimals, scientific=converted
+                )
+            )
+        si_substituted_latex = _splice_into_latex(
+            rendered, placeholder_syms, formatteds_si, wrappable
+        )
 
-sympy.Expr.symeval = _symeval_method
+    # Step 3: Numerical evaluation. Delegate to quantity_evalf, which forwards
+    # the evalf kwargs.
+    output_quantity = quantity_evalf(
+        expr, subs=subs, output_unit=output_unit, **evalf_kwargs
+    )
+
+    # Result line: variable\'s unit, plus prefix-stripped scientific dual
+    # when the variable\'s unit carries an SI prefix. With `decimals` set,
+    # the dual uses `.{decimals}e`; with `decimals=None` it falls back to
+    # `.{_SCI_DEFAULT_PRECISION}e`.
+    decimal_fmt = f".{decimals}f" if decimals is not None else ""
+    sci_decimals = decimals if decimals is not None else _SCI_DEFAULT_PRECISION
+    output_var_unit_latex = f"{output_quantity:{decimal_fmt}~L}"
+    no_prefix_quantity = _strip_si_prefixes(output_quantity)
+    if no_prefix_quantity.units != output_quantity.units:
+        no_prefix_latex = f"{no_prefix_quantity:.{sci_decimals}e~L}"
+        output_dual_latex = f"{no_prefix_latex} = {output_var_unit_latex}"
+    else:
+        output_dual_latex = output_var_unit_latex
+
+    # Coerce output_symbol to a sympy.Symbol for both rendering and chaining.
+    if isinstance(output_symbol, sympy.Symbol):
+        output_sym = output_symbol
+    else:
+        output_sym = sympy.Symbol(str(output_symbol))
+    sym_latex = latex(output_sym)
+    # `full_latex` is the BARE LaTeX (no `$` delimiters). SymbolicEvaluation._repr_latex_
+    # adds `$$...$$` for the default display rendering. Callers embedding the
+    # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
+    # `$${...}$$` for display).
+    if mode == "one_line":
+        full_latex = (
+            f"{sym_latex} = {expression_latex}"
+            f" = {substituted_latex}"
+            f" = {output_var_unit_latex}"
+        )
+    else:
+        align_lines = [
+            rf"{sym_latex} &= {expression_latex} \\",
+            rf"&= {substituted_latex} \\",
+        ]
+        if mode == "verbose":
+            align_lines.append(rf"&= {si_substituted_latex} \\")
+        align_lines.append(rf"{sym_latex} &= {output_dual_latex}")
+        full_latex = (
+            "\\begin{align*}\n" + "\n".join(align_lines) + "\n\\end{align*}"
+        )
+
+    return SymbolicEvaluation(output_quantity, full_latex, output_sym)
+
+# Method bindings on sympy.Expr so users can write `expr.sym_evalf(...)`.
+# Bind the functions directly (not via lambdas) so introspection tools
+# — `help`, marimo's 'View live docs', IDE hovers — see the real
+# signature and docstring rather than a generic `lambda(**kw)`.
+sympy.Expr.quantity_evalf = quantity_evalf
+sympy.Expr.sym_evalf = sym_evalf

@@ -4,13 +4,10 @@
 
 ### Package
 
-Go into plan mode and /grill-me on this stuff:
+What is smart re. the unit registry? Might not be such a good idea to put that inside the package, right? /grill-me on this please.
 
-1. Would be handier if it were also possible to create sympy expressions from Variables directly, instead of having to call .symbol on every variable when creating an expression.
-2. Would be handier if the inputs kwarg wasn't needed when the expression is made up of Variables. It shouldn't be necessary to supply a list of inputs I would say, because it's already given in the expression. However, when I'm doing symbolic math with sympy first and then want to substitute in Variables and evaluate at the end, then I will have to supply a list of inputs to the .symeval method, because the resulting expression only contains sympy.Symbols, that don't contain values or units, right?
-3. Maybe the current implementation of symeval is actually a little too complicated with the Variable class, because I just realized that I should probably simply be able to fill in a list of pint quantities in addition to a output_symbol and output_unit
-4. Maybe it would be an even better idea to implement a quant_evalf method first, which would also allow one to apply that to an expression that maps the elements of a (polars) dataframe.
-5. I guess it'd also be better to use the complete signature of the sympy .evalf methods, and "just" add extra functionality to those. Would that be possible?
+#### Maybe?
+- Possibly it would nice to make symeval work properly with significant figures. [SciForm](https://sciform.readthedocs.io/en/stable) might be a good tool for that. Also the engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html) seems nice.
 
 ### Examples
 A few simple examples that highlight the most important features of symeval:
@@ -51,8 +48,6 @@ And a wish list:
 - I want to have all the notebooks in the examples in the docs, but I also want tests in the example notebooks, but I don't want those tests to be part of the docs.
 - 
 
-### Maybe?
-Possibly it would nice to make symeval work properly with significant figures. [SciForm](https://sciform.readthedocs.io/en/stable) might be a good tool for that. Also the engineering formatter with exp_mode="engineering" in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html) seems nice.
 
 ## What is this project?
 symeval is a Python package that extends sympy expressions with a `.symeval()` method for engineering calculations. It renders a three-step LaTeX chain: symbolic → numbers with units → result. Built on sympy + pint, targeting marimo notebooks.

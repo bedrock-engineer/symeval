@@ -51,33 +51,45 @@ def _(mo):
 
 
 @app.cell
-def _(Variable):
-    from sympy import Symbol, symbols
+def _(Q_):
+    from sympy import Symbol
 
-    sigma_var = Variable(r"\sigma", name="Axial stress", unit="MPa")
-    sigma_expr = Symbol("F") / Symbol("A")
-    f = Variable("F", name="Axial force", value=50, unit="kN")
-    a = Variable("A", name="Cross-sectional area", value=100.000, unit="mm^2")
+    # Inputs as raw symbols + pint quantities (Variable is no longer the API):
+    F_sym = Symbol("F")
+    A_sym = Symbol("A")
+    sigma_expr = F_sym / A_sym
 
-    sigma_expr.symeval(
-        sigma_var,
-        inputs=[f, a],
+    sigma_expr.sym_evalf(
+        subs={F_sym: Q_(50, "kN"), A_sym: Q_(100, "mm^2")},
+        output_symbol=r"\sigma",
+        output_unit="MPa",
     )
-    return a, f, sigma_expr, sigma_var
+    return A_sym, F_sym, sigma_expr
 
 
 @app.cell
-def _(a, f, sigma_expr, sigma_var):
+def _(A_sym, F_sym, Q_, sigma_expr):
     # You can specify the number of decimal places of your result, and the render mode:
     # verbose: adds an extra line showing all values converted to SI base units.
-    sigma_expr.symeval(sigma_var, inputs=[f, a], decimals=2, mode="verbose")
+    sigma_expr.sym_evalf(
+        subs={F_sym: Q_(50, "kN"), A_sym: Q_(100, "mm^2")},
+        output_symbol=r"\sigma",
+        output_unit="MPa",
+        decimals=2,
+        mode="verbose",
+    )
     return
 
 
 @app.cell
-def _(a, f, sigma_expr, sigma_var):
+def _(A_sym, F_sym, Q_, sigma_expr):
     # one_line: collapse the derivation onto a single line.
-    sigma_expr.symeval(sigma_var, inputs=[f, a], mode="one_line")
+    sigma_expr.sym_evalf(
+        subs={F_sym: Q_(50, "kN"), A_sym: Q_(100, "mm^2")},
+        output_symbol=r"\sigma",
+        output_unit="MPa",
+        mode="one_line",
+    )
     return
 
 
@@ -85,7 +97,6 @@ def _(a, f, sigma_expr, sigma_var):
 def _(mo):
     mo.md(r"""
     ## Axial Resistance of Steel HSS Member
-
     As per CSA S16-17
 
     This is the example calculation that Connor Ferster, the author of [`handcalcs`](https://github.com/connorferster/handcalcs), shows in [this "Engineering Calculations: Handcalcs-on-Jupyter vs. Excel" YouTube tutorial](https://www.youtube.com/watch?v=n9Uzy3Eb-XI).
@@ -94,202 +105,232 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    # Variable specs: single source of truth for metadata + UI defaults.
-    input_specs = [
+def _(mo, sympy):
+    (
+        compressive_force,
+        beam_length,
+        effective_length_factor,
+        elastic_modulus,
+        yield_strength,
+        strain_hardening_exponent,
+        strength_reduction_factor,
+        cross_sectional_area,
+        radius_gyration,
+    ) = sympy.symbols(r"C_f L k E F_y n \phi_s A r_y")
+
+    input_uis = mo.ui.dictionary(
+        {
+            "Compressive force": mo.ui.number(value=680),
+            "Beam length": mo.ui.number(value=6.5, step=0.1),
+            "Effective length factor": mo.ui.number(value=1, step=0.1),
+            "Elastic modulus": mo.ui.number(value=200),
+            "Yield strength": mo.ui.number(value=400),
+            "Strain-hardening exponent": mo.ui.number(value=1.34, step=0.01),
+            "Strength reduction factor": mo.ui.number(value=0.85, step=0.05),
+            "Cross-sectional area": mo.ui.number(value=10_300),
+            "Radius of gyration about the y-axis": mo.ui.number(value=76.1, step=0.1),
+        }
+    )
+
+    input_table = [
         {"section": "Loads"},
-        {"key": "compressive_force", "latex": "C_f", "name": "Compressive force", "unit": "kN", "default": 680},
+        {
+            "name": "Compressive force",
+            "symbol": compressive_force,
+            "unit": "kN",
+        },
         {"section": "Member geometry"},
-        {"key": "beam_length", "latex": "L", "name": "Beam length", "unit": "m", "default": 6.5, "step": 0.1},
-        {"key": "effective_length_factor", "latex": "k", "name": "Effective length factor", "default": 1, "step": 0.1},
+        {
+            "name": "Beam length",
+            "symbol": beam_length,
+            "unit": "m",
+        },
+        {
+            "name": "Effective length factor",
+            "symbol": effective_length_factor,
+        },
         {"section": "Material properties"},
-        {"key": "elastic_modulus", "latex": "E", "name": "Elastic modulus", "unit": "GPa", "default": 200},
-        {"key": "yield_strength", "latex": "F_y", "name": "Yield strength", "unit": "MPa", "default": 400},
-        {"key": "n", "latex": "n", "name": "Strain-hardening exponent", "default": 1.34, "step": 0.01},
-        {"key": "strength_reduction_factor", "latex": r"\phi_s", "name": "Strength reduction factor", "default": 0.85, "step": 0.05},
+        {
+            "name": "Elastic modulus",
+            "symbol": elastic_modulus,
+            "unit": "GPa",
+        },
+        {
+            "name": "Yield strength",
+            "symbol": yield_strength,
+            "unit": "MPa",
+        },
+        {
+            "name": "Strain-hardening exponent",
+            "symbol": strain_hardening_exponent,
+        },
+        {
+            "name": "Strength reduction factor",
+            "symbol": strength_reduction_factor,
+        },
         {"section": "Member section properties"},
-        {"key": "cross_sectional_area", "latex": "A", "name": "Cross-sectional area", "unit": "mm^2", "default": 10_300},
-        {"key": "radius_gyration", "latex": "r_y", "name": "Radius of gyration about the y-axis", "unit": "mm", "default": 76.1, "step": 0.1},
+        {
+            "name": "Cross-sectional area",
+            "symbol": cross_sectional_area,
+            "unit": "mm^2",
+        },
+        {
+            "name": "Radius of gyration about the y-axis",
+            "symbol": radius_gyration,
+            "unit": "mm",
+        },
     ]
 
-    # mo.ui.dictionary makes the whole bundle a reactive UIElement; a plain dict
-    # would hide the input elements from marimo's static analysis and break reactivity.
-    inputs = mo.ui.dictionary({
-        s["key"]: mo.ui.number(value=s["default"], step=s.get("step", 1))
-        for s in input_specs if "key" in s
-    })
-
-    return input_specs, inputs
-
-
-@app.cell(hide_code=True)
-def _(input_specs, inputs, mo):
-    def _spec_row(s):
+    def _table_row(s):
         if "section" in s:
             return f"| **{s['section']}** |  |  |  |  |"
         unit = f"${s['unit']}$" if s.get("unit") else ""
-        return f"| {s['name']} | ${s['latex']}$ | = | {inputs[s['key']]} | {unit} |"
+        return (
+            f"| {s['name']} | ${s['symbol']}$ | = | {input_uis[s['name']]} | {unit} |"
+        )
 
     mo.md(
+        "### Inputs\n"
         "|     |     |     |     |     |\n"
         "|--------------|--------|---|-----|---|\n"
-        + "\n".join(_spec_row(s) for s in input_specs)
+        + "\n".join(_table_row(s) for s in input_table)
     )
-
-    return
-
-
-@app.cell(hide_code=True)
-def _(Variable, input_specs, inputs):
-    _vars = {
-        s["key"]: Variable(
-            latex=s["latex"],
-            name=s["name"],
-            unit=s.get("unit"),
-            value=inputs.value[s["key"]],
-        )
-        for s in input_specs if "key" in s
-    }
-
-    compressive_force = _vars["compressive_force"]
-    beam_length = _vars["beam_length"]
-    effective_length_factor = _vars["effective_length_factor"]
-    elastic_modulus = _vars["elastic_modulus"]
-    yield_strength = _vars["yield_strength"]
-    n = _vars["n"]
-    strength_reduction_factor = _vars["strength_reduction_factor"]
-    cross_sectional_area = _vars["cross_sectional_area"]
-    radius_gyration = _vars["radius_gyration"]
-
     return (
         beam_length,
         compressive_force,
         cross_sectional_area,
         effective_length_factor,
         elastic_modulus,
-        n,
+        input_table,
+        input_uis,
         radius_gyration,
+        strain_hardening_exponent,
         strength_reduction_factor,
         yield_strength,
     )
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Euler Buckling Stress
-    """)
+def _(axial_resistance, dcr, euler_buckling_stress, lambda_factor, mo):
+    mo.vstack(
+        [
+            mo.md("### Calculation"),
+            mo.hstack(
+                [
+                    mo.md("Euler buckling stress"),
+                    mo.md(rf"$\displaystyle {euler_buckling_stress.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+            mo.hstack(
+                [
+                    mo.md(r"$\lambda$ factor"),
+                    mo.md(rf"$\displaystyle {lambda_factor.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+            mo.hstack(
+                [
+                    mo.md("Axial resistance"),
+                    mo.md(rf"$\displaystyle {axial_resistance.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+            mo.hstack(
+                [
+                    mo.md("Demand capacity ratio"),
+                    mo.md(rf"$\displaystyle {dcr.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+        ],
+        gap=2,
+    )
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(
-    Variable,
+    Q_,
     beam_length,
+    compressive_force,
+    cross_sectional_area,
     effective_length_factor,
     elastic_modulus,
+    input_table,
+    input_uis,
     radius_gyration,
-    sympy,
-):
-    euler_buckling_expr = (sympy.pi**2 * elastic_modulus.symbol) / (
-        (
-            beam_length.symbol
-            * effective_length_factor.symbol
-            / radius_gyration.symbol
-        )
-        ** 2
-    )
-    euler_buckling_stress = euler_buckling_expr.symeval(
-        output_variable=Variable("F_e", name="Euler buckling stress", unit="GPa"),
-        inputs=[
-            effective_length_factor,
-            elastic_modulus,
-            beam_length,
-            radius_gyration,
-        ],
-        decimals=3,
-    )
-    euler_buckling_stress
-    return (euler_buckling_stress,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### $\lambda$ Factor
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(Variable, euler_buckling_stress, n, sympy, yield_strength):
-    lambda_factor_expr = (sympy.sqrt(yield_strength.symbol / euler_buckling_stress.symbol)) ** (
-        2 * n.symbol
-    )
-    lambda_factor = lambda_factor_expr.symeval(
-        output_variable=Variable(r"\lambda", name=r"\lambda factor", unit=None),
-        inputs=[yield_strength, euler_buckling_stress, n],
-        decimals=3,
-    )
-    lambda_factor
-    return (lambda_factor,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Axial Resistance
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(
-    Variable,
-    cross_sectional_area,
-    lambda_factor,
-    n,
+    strain_hardening_exponent,
     strength_reduction_factor,
+    sympy,
     yield_strength,
 ):
+    # Create a dictionary with `sympy.Symbol` as keys and the input values as values
+    symbolic_quantities = {
+        s["symbol"]: Q_(input_uis[s["name"]].value, s.get("unit"))
+        for s in input_table
+        if "name" in s
+    }
+
+    # Define the Euler buckling stress sympy expression
+    euler_buckling_expr = (sympy.pi**2 * elastic_modulus) / (
+        (beam_length * effective_length_factor / radius_gyration) ** 2
+    )
+    # Symbolicly evaluate the Euler buckling stress
+    euler_buckling_stress = euler_buckling_expr.sym_evalf(
+        subs=symbolic_quantities,
+        output_symbol=sympy.Symbol("F_e"),
+        output_unit="GPa",
+        decimals=3,
+        mode="one_line",
+    )
+    # Add the resulting Euler buckling stress to the dictionary with symbolic quantities
+    # such that it can be used in subsequent `.sym_evalf`s
+    symbolic_quantities[euler_buckling_stress.symbol] = euler_buckling_stress.quantity
+
+    # Same for the lambda factor: def expression; sym_evalf; add result to symbolic quantities dict
+    lambda_factor_expr = (
+        sympy.sqrt(yield_strength / euler_buckling_stress.symbol)
+    ) ** (2 * strain_hardening_exponent)
+    lambda_factor = lambda_factor_expr.sym_evalf(
+        subs=symbolic_quantities,
+        output_symbol=sympy.Symbol(r"\lambda"),
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
+
+    # Axial resistance
     axial_resistance_expr = (
-        strength_reduction_factor.symbol
-        * cross_sectional_area.symbol
-        * yield_strength.symbol
-    ) / ((1 + lambda_factor.symbol) ** (1 / n.symbol))
-    axial_resistance = axial_resistance_expr.symeval(
-        output_variable=Variable("C_r", name="Axial resistance", unit="MN"),
-        inputs=[
-            strength_reduction_factor,
-            cross_sectional_area,
-            yield_strength,
-            lambda_factor,
-            n,
-        ],
+        strength_reduction_factor * cross_sectional_area * yield_strength
+    ) / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent))
+    axial_resistance = axial_resistance_expr.sym_evalf(
+        subs=symbolic_quantities,
+        output_symbol=sympy.Symbol("C_r"),
+        output_unit="MN",
         decimals=3,
+        mode="one_line",
     )
-    axial_resistance
-    return (axial_resistance,)
+    symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Demand Capacity Ratio
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(Variable, axial_resistance, compressive_force):
-    dcr_expr = compressive_force.symbol / axial_resistance.symbol
-    dcr = dcr_expr.symeval(
-        output_variable=Variable("DCR", name="Demand capacity ratio", unit=None),
-        inputs=[compressive_force, axial_resistance],
+    # Demand capacity ratio
+    dcr_expr = compressive_force / axial_resistance.symbol
+    dcr = dcr_expr.sym_evalf(
+        subs=symbolic_quantities,
+        output_symbol=sympy.Symbol("DCR"),
         decimals=3,
+        mode="one_line",
     )
-    dcr
-    return
+    symbolic_quantities[dcr.symbol] = dcr.quantity
+    return axial_resistance, dcr, euler_buckling_stress, lambda_factor
 
 
 @app.cell(column=1, hide_code=True)
@@ -303,7 +344,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Cells marked with `## EXPORT` are extracted into a Python package via
+    Cells marked with `## EXPORT` are extracted into the Python package via
     [`mobuild`](https://github.com/koaning/mobuild).
     """)
     return
@@ -321,7 +362,7 @@ def _():
     import sympy
     from sympy import latex
 
-    return Literal, dataclass, field, latex, pint, sympy
+    return Literal, latex, pint, sympy
 
 
 @app.cell
@@ -336,83 +377,21 @@ def _(pint):
 
 
 @app.cell
-def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
+def _(Literal, latex, pint, sympy, ureg):
     ## EXPORT
 
+    def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
+        """Convert a pint quantity to a sympy expression in base SI units.
 
-    @dataclass
-    class Variable:
-        """A variable with a sympy symbol, pint quantity, and metadata.
-
-        Args:
-            latex: LaTeX symbol string (e.g. "F_e", r"\\phi_s"). Becomes both
-                the sympy Symbol and the LaTeX representation.
-            name: Human-readable description (e.g. "Euler buckling stress").
-            value: Numerical value. None for output-only variables.
-            unit: Pint unit string (e.g. "GPa", "mm^2"). None for dimensionless.
-            min: Minimum realistic value (for slider bounds).
-            max: Maximum realistic value (for slider bounds).
-            examples: Named example values (e.g. {"short span": 3, "long span": 12}).
+        Dimensionless quantities return their bare magnitude (a Python float).
         """
+        if quantity.dimensionality == {}:
+            return quantity.magnitude
+        base = quantity.to_base_units()
+        sympy_units = sympy.sympify(f"{base.units:~D}")
+        return base.magnitude * sympy_units
 
-        latex: str
-        name: str
-        unit: str | None = None
-        value: float | None = None
-        min: float | None = None
-        max: float | None = None
-        examples: dict[str, float] | None = field(default=None, repr=False)
-
-        def __post_init__(self):
-            self._sympy_symbol = sympy.Symbol(self.latex)
-            self._eval_latex: str | None = None
-
-            if self.value is not None:
-                if self.unit:
-                    self.quantity = Q_(self.value, self.unit)
-                else:
-                    self.quantity = Q_(self.value, "")
-            else:
-                self.quantity = None
-
-        @property
-        def symbol(self) -> sympy.Symbol:
-            """The sympy Symbol for use in expressions."""
-            return self._sympy_symbol
-
-        def _pint_to_base_magnitude(self) -> float:
-            """Convert quantity to base SI units and return the magnitude."""
-            if self.quantity is None:
-                raise ValueError(f"Variable '{self.name}' has no value assigned.")
-            if self.quantity.dimensionality == {}:
-                return self.quantity.magnitude
-            return self.quantity.to_base_units().magnitude
-
-        def _pint_to_sympy_base(self) -> sympy.Expr:
-            """Convert pint quantity to a sympy expression in base SI units."""
-            if self.quantity is None:
-                raise ValueError(f"Variable '{self.name}' has no value assigned.")
-            if self.quantity.dimensionality == {}:
-                return self.quantity.magnitude
-            base = self.quantity.to_base_units()
-            sympy_units = sympy.sympify(f"{base.units:~D}")
-            return base.magnitude * sympy_units
-
-        def _repr_latex_(self) -> str:
-            """LaTeX representation for marimo/Jupyter rendering."""
-            if self._eval_latex is not None:
-                return self._eval_latex
-            if self.quantity is not None:
-                return f"${self.latex} = {self.quantity:~L}$"
-            return f"${self.latex}$"
-
-        def __str__(self) -> str:
-            if self.quantity is not None:
-                return f"{self.name}: {self.latex} = {self.quantity:~#P}"
-            return f"{self.name}: {self.latex}"
-
-
-    def _strip_si_prefixes(quantity):
+    def _strip_si_prefixes(quantity: pint.Quantity) -> pint.Quantity:
         """Convert a quantity to its SI-prefix-free equivalent (kN -> N, MPa -> Pa, mm -> m).
 
         `kg` is left as-is because it is itself the SI base unit for mass — even
@@ -423,10 +402,10 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
         target = {}
         for unit_name, exponent in dict(quantity.units._units).items():
             parses = ureg.parse_unit_name(unit_name)
-            # Prefer an unprefixed parse (e.g. 'Pa' has both ('', 'pascal', '') and ('peta', 'year', '')).
+            # Prefer an unprefixed parse (e.g. \'Pa\' has both (\'\', \'pascal\', \'\') and (\'peta\', \'year\', \'\')).
             base = next((b for prefix, b, _ in parses if prefix == ""), None)
             if base is None and parses:
-                # All parses are prefixed (e.g. 'kN' -> ('kilo', 'newton', '')).
+                # All parses are prefixed (e.g. \'kN\' -> (\'kilo\', \'newton\', \'\')).
                 prefix, b, _ = parses[0]
                 base = "kilogram" if (prefix, b) == ("kilo", "gram") else b
             if base is None:
@@ -434,21 +413,24 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
             target[base] = target.get(base, 0) + exponent
         return quantity.to("*".join(f"{n}**{e}" for n, e in target.items()))
 
-
     _SCI_DEFAULT_PRECISION = 3
     """Default decimal places for scientific notation when `decimals` is None.
 
-    pint\'s float-based unit conversions can leak precision noise (e.g. 100 mm^2
+    pint's float-based unit conversions can leak precision noise (e.g. 100 mm^2
     becomes 9.999999999999999e-5 m^2 instead of 1e-4 m^2). Using a precision cap
     (`.3e`) rounds it back cleanly without imposing a cap on the natural variable
-    form of values that don\'t go through a unit conversion.
+    form of values that don't go through a unit conversion.
     """
 
-
-    def _format_quantity_for_substitution(quantity, decimals, *, scientific=False):
+    def _format_quantity_for_substitution(
+        quantity: pint.Quantity,
+        decimals: int | None,
+        *,
+        scientific: bool = False,
+    ) -> str:
         """Format a pint quantity for inclusion in a substituted LaTeX line.
 
-        decimals=None and not scientific: pint\'s natural format (Python repr).
+        decimals=None and not scientific: pint's natural format (Python repr).
         decimals=None and scientific:     `.{_SCI_DEFAULT_PRECISION}e`.
         decimals=N and not scientific:    `.{N+1}f` with trailing-zero trim.
         decimals=N and scientific:        `.{N+1}e`.
@@ -466,8 +448,12 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
             mag_str = mag_str.rstrip("0").rstrip(".")
         return f"{mag_str}{sep}{unit_str}"
 
-
-    def _splice_into_latex(rendered_latex, placeholder_syms, formatteds, wrappable):
+    def _splice_into_latex(
+        rendered_latex: str,
+        placeholder_syms: list[sympy.Symbol],
+        formatteds: list[str],
+        wrappable: list[bool],
+    ) -> str:
         """Replace each placeholder in `rendered_latex` with its formatted value.
 
         When `wrappable[i]` is True and the placeholder is immediately followed
@@ -483,44 +469,161 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
             rendered_latex = rendered_latex.replace(ph_latex, plain)
         return rendered_latex
 
-
     _VALID_MODES = ("multi_line", "verbose", "one_line")
 
+    class SymbolicEvaluation:
+        """A pint Quantity with an attached LaTeX rendering for marimo/Jupyter.
 
-    def symeval(
+        Returned by `sym_evalf`. Delegates the common Quantity surface
+        (magnitude, units, dimensionality, m, m_as, to, to_base_units) to
+        `self.quantity`. `_repr_latex_` returns the rendered LaTeX. `.symbol`
+        holds the output sympy.Symbol so the result can be plugged back into
+        downstream sympy expressions (chained calculations).
+        """
+
+        def __init__(
+            self,
+            quantity: pint.Quantity,
+            latex: str,
+            symbol: sympy.Symbol,
+        ) -> None:
+            self.quantity = quantity
+            self.latex = latex
+            self.symbol = symbol
+
+        @property
+        def magnitude(self):
+            return self.quantity.magnitude
+
+        @property
+        def units(self):
+            return self.quantity.units
+
+        @property
+        def dimensionality(self):
+            return self.quantity.dimensionality
+
+        @property
+        def m(self):
+            return self.quantity.m
+
+        def m_as(self, unit):
+            return self.quantity.m_as(unit)
+
+        def to(self, *args, **kwargs):
+            return self.quantity.to(*args, **kwargs)
+
+        def to_base_units(self):
+            return self.quantity.to_base_units()
+
+        def _repr_latex_(self) -> str:
+            # Always wrap as display math so the default rendering is the larger
+            # block form. Inline embeds use `result.latex` directly with `$...$`.
+            return f"$$ {self.latex} $$"
+
+        def __repr__(self):
+            return f"SymbolicEvaluation({self.quantity!r})"
+
+        def __str__(self):
+            return str(self.quantity)
+
+    def quantity_evalf(
         expr: sympy.Expr,
-        output_variable: Variable,
-        inputs: list[Variable],
-        decimals: int | None = None,
-        mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
-    ) -> Variable:
-        """Evaluate a sympy expression with pint units, attaching a LaTeX rendering.
+        subs: dict[sympy.Symbol, pint.Quantity] | None = None,
+        output_unit: str | pint.Unit | None = None,
+        **evalf_kwargs,
+    ) -> pint.Quantity:
+        """Numerical evaluation of a sympy expression with unit-aware substitutions.
 
-        The output_variable is mutated in place: its quantity is set to the
-        computed value, and `_eval_latex` is attached so rendering the variable
-        in marimo/Jupyter shows the derivation.
+        Mirrors `sympy.Expr.evalf`'s signature. Any extra keyword arguments are
+        captured by Python's `**evalf_kwargs` (a standard mechanism for
+        collecting unmatched kwargs into a dict) and forwarded verbatim to
+        `expr.evalf(...)` — so `n`, `maxn`, `chop`, `strict`, `quiet`, and
+        `verbose` all work without being listed here individually.
 
         Args:
-            expr: The sympy expression to evaluate.
-            output_variable: Variable for the output. Its unit (if set) is the
-                target output unit; its symbol is used for labeling.
-            inputs: List of Variables with values to substitute.
-            decimals: Number of decimal places for the output. None uses pint
-                defaults throughout.
-            mode: Rendering style.
-                - "multi_line" (default): symbolic, substituted, result.
-                - "verbose": multi_line plus an extra substituted-in-SI-base line
-                  (scientific where conversion happened, decimal otherwise).
-                - "one_line": `Symbol = expression = result` on one line, using
-                  just the variable's unit (no prefix-stripped dual).
+            expr (sympy.Expr): The sympy expression to evaluate.
+            subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
+                `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
+                inputs). Same shape as sympy.evalf's `subs` kwarg, but values
+                carry units. Defaults to None (no substitutions).
+            output_unit (str | pint.Unit | None): Target pint unit for the
+                result (e.g. `"MPa"` or `ureg.MPa`). If `None`, the result is
+                returned in SI base units. Defaults to None.
+            **evalf_kwargs: Forwarded verbatim to `expr.evalf(...)`. Useful
+                kwargs include `n` (digits of precision), `chop` (round tiny
+                terms to zero), and `strict` (raise instead of returning an
+                unevaluated result).
 
         Returns:
-            The output_variable, mutated in place.
+            pint.Quantity: The computed quantity — in `output_unit` if given,
+                else in SI base units.
+        """
+        subs = subs or {}
+        base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
+        result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
+        output_quantity = ureg(f"{result_value}")
+        if output_unit is not None:
+            output_quantity = output_quantity.to(output_unit)
+        return output_quantity
+
+    def sym_evalf(
+        expr: sympy.Expr,
+        *,
+        subs: dict[sympy.Symbol, pint.Quantity] | None = None,
+        output_symbol: str | sympy.Symbol,
+        output_unit: str | pint.Unit | None = None,
+        decimals: int | None = None,
+        mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
+        **evalf_kwargs,
+    ) -> "SymbolicEvaluation":
+        """Numerically evaluate `expr` and produce a LaTeX rendering of the chain.
+
+        Same numeric kernel as `quantity_evalf`; the addition is the LaTeX
+        derivation attached to the returned `SymbolicEvaluation`.
+
+        Args:
+            expr (sympy.Expr): The sympy expression to evaluate.
+            subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
+                `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
+                inputs). Same shape as sympy.evalf's `subs` kwarg. Defaults to
+                None (no substitutions).
+            output_symbol (str | sympy.Symbol): LaTeX label for the output — a
+                string like `r"\\sigma"` or a `sympy.Symbol`. The label appears
+                on the left of every line of the rendered chain. Required;
+                keyword-only.
+            output_unit (str | pint.Unit | None): Target pint unit for the
+                result. If `None`, the result is rendered in SI base units.
+                Defaults to None.
+            decimals (int | None): Number of decimal places for the result and
+                substituted lines. `None` uses pint's natural (Python
+                `repr(float)`) format. Defaults to None.
+            mode (Literal["multi_line", "verbose", "one_line"]): Rendering
+                style, defaults to `"multi_line"`:
+
+                - `"multi_line"`: three lines — symbolic, substituted with
+                  units, then result.
+                - `"verbose"`: four lines — multi_line plus an extra
+                  substituted-in-SI-base line in scientific notation.
+                - `"one_line"`: a single line —
+                  `Symbol = formula = substituted = result`, with just the
+                  variable's unit on the right (no prefix-stripped dual).
+            **evalf_kwargs: Forwarded to `expr.evalf(...)` via
+                `quantity_evalf`. Useful kwargs: `n` (digits of precision),
+                `chop`, `strict`.
+
+        Returns:
+            SymbolicEvaluation: The computed `pint.Quantity` with the rendered
+                LaTeX chain attached. Renders in marimo / Jupyter via
+                `_repr_latex_`. Has `.quantity`, `.latex`, and `.symbol` for
+                chaining into downstream sympy expressions.
+
+        Raises:
+            ValueError: If `mode` is not one of the allowed values.
         """
         if mode not in _VALID_MODES:
-            raise ValueError(
-                f"mode must be one of {_VALID_MODES}, got {mode!r}"
-            )
+            raise ValueError(f"mode must be one of {_VALID_MODES}, got {mode!r}")
+        subs = subs or {}
 
         # Step 1: Symbolic LaTeX (formula with symbols).
         expression_latex = latex(expr)
@@ -530,28 +633,29 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
         #   - Pint quantities aren\'t sympy values, so subs would drop the units.
         #   - Substituting plain numbers triggers sympy simplification (a+a -> 2a),
         #     which would destroy the structural shape we want to display.
-        # So we swap each input symbol for a unique placeholder symbol, and then
-        # let sympy render the structure (fracs, sqrts, parens, ...), then
-        # post-process the rendered LaTeX to splice in our `number + unit`
-        # formatting. The trailing "Z" makes substring .replace safe: SymEvalPH0Z
-        # is unique even when SymEvalPH10Z exists.
+        # So we swap each input symbol for a unique placeholder symbol, then let
+        # sympy render the structure, then post-process to splice in our
+        # `number + unit` formatting. The trailing "Z" makes substring .replace
+        # safe: SymEvalPH0Z is unique even when SymEvalPH10Z exists.
         #
         # Placeholder indices follow the canonical sort order of the *original*
         # input symbols, so sympy.Mul ordering matches between the symbolic and
         # substituted lines.
+        input_symbols = list(subs.keys())
+        input_quantities = list(subs.values())
         canonical_order = sorted(
-            range(len(inputs)), key=lambda i: inputs[i].symbol.sort_key()
+            range(len(input_symbols)), key=lambda i: input_symbols[i].sort_key()
         )
-        placeholder_syms = [None] * len(inputs)
+        placeholder_syms = [None] * len(input_symbols)
         for canonical_pos, orig_idx in enumerate(canonical_order):
             placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
-        sub_map = dict(zip([v.symbol for v in inputs], placeholder_syms))
+        sub_map = dict(zip(input_symbols, placeholder_syms))
         rendered = latex(expr.subs(sub_map, simultaneous=True))
 
-        wrappable = [not v.quantity.dimensionless for v in inputs]
+        wrappable = [not q.dimensionless for q in input_quantities]
         formatteds_var = [
-            _format_quantity_for_substitution(v.quantity, decimals, scientific=False)
-            for v in inputs
+            _format_quantity_for_substitution(q, decimals, scientific=False)
+            for q in input_quantities
         ]
         substituted_latex = _splice_into_latex(
             rendered, placeholder_syms, formatteds_var, wrappable
@@ -563,30 +667,28 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
         si_substituted_latex = None
         if mode == "verbose":
             formatteds_si = []
-            for v in inputs:
-                si_q = _strip_si_prefixes(v.quantity)
-                converted = si_q.units != v.quantity.units
+            for q in input_quantities:
+                si_q = _strip_si_prefixes(q)
+                converted = si_q.units != q.units
                 formatteds_si.append(
-                    _format_quantity_for_substitution(si_q, decimals, scientific=converted)
+                    _format_quantity_for_substitution(
+                        si_q, decimals, scientific=converted
+                    )
                 )
             si_substituted_latex = _splice_into_latex(
                 rendered, placeholder_syms, formatteds_si, wrappable
             )
 
-        # Step 3: Numerically evaluate. Pass substitutions via evalf\'s `subs`
-        # kwarg (arbitrary-precision substitution) — see
-        # https://docs.sympy.org/latest/modules/core.html#module-sympy.core.evalf
-        base_unit_inputs = {var.symbol: var._pint_to_sympy_base() for var in inputs}
-        result_value = expr.evalf(subs=base_unit_inputs)
-        output_quantity = ureg(f"{result_value}")
-        if output_variable.unit:
-            output_quantity = output_quantity.to(output_variable.unit)
+        # Step 3: Numerical evaluation. Delegate to quantity_evalf, which forwards
+        # the evalf kwargs.
+        output_quantity = quantity_evalf(
+            expr, subs=subs, output_unit=output_unit, **evalf_kwargs
+        )
 
         # Result line: variable\'s unit, plus prefix-stripped scientific dual
         # when the variable\'s unit carries an SI prefix. With `decimals` set,
         # the dual uses `.{decimals}e`; with `decimals=None` it falls back to
-        # `.{_SCI_DEFAULT_PRECISION}e` — bare `e` is Python\'s default (6 decimals)
-        # which would jar against the variable form\'s natural precision.
+        # `.{_SCI_DEFAULT_PRECISION}e`.
         decimal_fmt = f".{decimals}f" if decimals is not None else ""
         sci_decimals = decimals if decimals is not None else _SCI_DEFAULT_PRECISION
         output_var_unit_latex = f"{output_quantity:{decimal_fmt}~L}"
@@ -597,15 +699,21 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
         else:
             output_dual_latex = output_var_unit_latex
 
-        # Assemble the final LaTeX based on mode.
-        sym_latex = latex(output_variable.symbol)
+        # Coerce output_symbol to a sympy.Symbol for both rendering and chaining.
+        if isinstance(output_symbol, sympy.Symbol):
+            output_sym = output_symbol
+        else:
+            output_sym = sympy.Symbol(str(output_symbol))
+        sym_latex = latex(output_sym)
+        # `full_latex` is the BARE LaTeX (no `$` delimiters). SymbolicEvaluation._repr_latex_
+        # adds `$$...$$` for the default display rendering. Callers embedding the
+        # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
+        # `$${...}$$` for display).
         if mode == "one_line":
-            # `Symbol = formula = substituted = result` on a single line, using
-            # just the variable\'s unit on the right (no prefix-stripped dual).
             full_latex = (
-                f"$$\n{sym_latex} = {expression_latex}"
+                f"{sym_latex} = {expression_latex}"
                 f" = {substituted_latex}"
-                f" = {output_var_unit_latex}\n$$"
+                f" = {output_var_unit_latex}"
             )
         else:
             align_lines = [
@@ -616,31 +724,18 @@ def _(Literal, Q_, dataclass, field, latex, sympy, ureg):
                 align_lines.append(rf"&= {si_substituted_latex} \\")
             align_lines.append(rf"{sym_latex} &= {output_dual_latex}")
             full_latex = (
-                "$$\n\\begin{align*}\n"
-                + "\n".join(align_lines)
-                + "\n\\end{align*}\n$$"
+                "\\begin{align*}\n" + "\n".join(align_lines) + "\n\\end{align*}"
             )
 
-        output_variable.quantity = output_quantity
-        output_variable._eval_latex = full_latex
-        return output_variable
+        return SymbolicEvaluation(output_quantity, full_latex, output_sym)
 
-
-    # Monkey-patch .symeval() onto sympy expressions
-    def _symeval_method(self, output_variable, inputs, decimals=None, mode="multi_line"):
-        """Convenience method patched onto sympy.Expr. See symeval() for docs."""
-        return symeval(
-            self,
-            output_variable=output_variable,
-            inputs=inputs,
-            decimals=decimals,
-            mode=mode,
-        )
-
-
-    sympy.Expr.symeval = _symeval_method
-
-    return Variable, symeval
+    # Method bindings on sympy.Expr so users can write `expr.sym_evalf(...)`.
+    # Bind the functions directly (not via lambdas) so introspection tools
+    # — `help`, marimo's 'View live docs', IDE hovers — see the real
+    # signature and docstring rather than a generic `lambda(**kw)`.
+    sympy.Expr.quantity_evalf = quantity_evalf
+    sympy.Expr.sym_evalf = sym_evalf
+    return quantity_evalf, sym_evalf
 
 
 @app.cell(hide_code=True)
@@ -658,13 +753,17 @@ def _(mo):
 
 
 @app.cell
+def _():
+    return
+
+
+@app.cell
 def _(Q_):
     # pint's default magnitude format is Python's repr(float) — varies with the value.
     [
         f"{v!r:>16}  ->  {Q_(v, 'Pa'):~L}"
         for v in (500, 500.0, 1.5, 1.234, 1234567.89, 0.000001)
     ]
-
     return
 
 
@@ -683,7 +782,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
+
     """)
     return
 
@@ -691,226 +790,232 @@ def _(mo):
 @app.cell(column=2, hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Tests
+    # `pytest` Tests
     """)
     return
 
 
 @app.cell
-def _(Q_, Variable, a, f, symeval, sympy):
-    ## Put pytests here.
-
-    def test_variable_with_unit():
-        v = Variable("F_y", name="Yield strength", value=400, unit="MPa")
-        assert v.symbol == sympy.Symbol("F_y")
-        assert v.quantity == Q_(400, "MPa")
-        assert v.name == "Yield strength"
-
-
-    def test_variable_dimensionless():
-        v = Variable("k", name="Effective length factor", value=1)
-        assert v.quantity == Q_(1, "")
-        assert v._pint_to_base_magnitude() == 1
-
-
-    def test_variable_no_value():
-        v = Variable("F_e", name="Euler buckling stress")
-        assert v.quantity is None
-        assert v.symbol == sympy.Symbol("F_e")
-
-
-    def test_variable_with_bounds():
-        v = Variable("L", name="Beam length", value=6.5, unit="m", min=1, max=20)
-        assert v.min == 1
-        assert v.max == 20
-
-
-    def test_variable_with_examples():
-        v = Variable(
-            "L",
-            name="Beam length",
-            value=6.5,
-            unit="m",
-            examples={"short": 3, "typical": 6.5, "long": 12},
+def _(Q_, quantity_evalf, sympy):
+    def test_quantity_evalf_basic():
+        """quantity_evalf returns a plain pint.Quantity (not a SymbolicEvaluation)."""
+        F, A = sympy.symbols("F A")
+        q = quantity_evalf(
+            F / A,
+            subs={F: Q_(50, "kN"), A: Q_(100, "mm^2")},
+            output_unit="MPa",
         )
-        assert v.examples["short"] == 3
+        assert isinstance(q, type(Q_(1, "Pa")))
+        assert q.units == Q_(1, "MPa").units
+        assert abs(q.magnitude - 500) < 0.001
 
-
-    def test_variable_repr_latex():
-        v = Variable("F_y", name="Yield strength", value=400, unit="MPa")
-        result = v._repr_latex_()
-        assert "F_y" in result
-        assert "$" in result
-
-
-    def test_variable_output_only_repr_latex():
-        v = Variable("F_e", name="Euler buckling stress")
-        result = v._repr_latex_()
-        assert "F_e" in result
-
-
-    def test_basic_symeval():
-        """Test the Euler buckling example from the original notebook."""
-        F_e = Variable("F_e", name="Euler buckling stress", unit="GPa")
-        k = Variable("k", name="Effective length factor", value=1)
-        E = Variable("E", name="Elastic modulus", value=200, unit="GPa")
-        L = Variable("L", name="Beam length", value=6.5, unit="m")
-        r_y = Variable("r_y", name="Radius of gyration", value=76.1, unit="mm")
-
-        expr = (sympy.pi**2 * E.symbol) / ((k.symbol * L.symbol / r_y.symbol) ** 2)
-
-        result = symeval(
-            expr, output_variable=F_e, inputs=[k, E, L, r_y], decimals=3
+    def test_quantity_evalf_method_on_expr():
+        """The monkey-patched .quantity_evalf(...) method works the same way."""
+        F, A = sympy.symbols("F A")
+        q = (F / A).quantity_evalf(
+            subs={F: Q_(50, "kN"), A: Q_(100, "mm^2")},
+            output_unit="MPa",
         )
+        assert abs(q.magnitude - 500) < 0.001
 
-        assert result is F_e
-        assert F_e.quantity.units == Q_(1, "GPa").units
-        assert abs(F_e.quantity.magnitude - 0.271) < 0.001
-        assert "F_{e}" in F_e._repr_latex_()
-        assert "\\begin{align*}" in F_e._repr_latex_()
+    def test_quantity_evalf_no_output_unit():
+        """Without output_unit, the result lands in fully-reduced SI base units."""
+        F, A = sympy.symbols("F A")
+        q = quantity_evalf(F / A, subs={F: Q_(50, "kN"), A: Q_(100, "mm^2")})
+        # Dimensionality matches a stress (Pa), but the units form is the
+        # fully-reduced kg/(m·s²) rather than the derived Pa.
+        assert q.dimensionality == Q_(1, "Pa").dimensionality
+        assert abs(q.magnitude - 5e8) < 1
 
+    def test_quantity_evalf_no_subs():
+        """With subs=None (no substitutions), a constant sympy expression evaluates fine."""
+        q = quantity_evalf(sympy.pi**2)
+        assert abs(float(q.magnitude) - 9.8696) < 0.001
 
-    def test_symeval_method_on_expr():
-        """Test the monkey-patched .symeval() method."""
-        F_e = Variable("F_e", name="Euler buckling stress", unit="GPa")
-        k = Variable("k", name="Effective length factor", value=1)
-        E = Variable("E", name="Elastic modulus", value=200, unit="GPa")
-        L = Variable("L", name="Beam length", value=6.5, unit="m")
-        r_y = Variable("r_y", name="Radius of gyration", value=76.1, unit="mm")
-
-        expr = (sympy.pi**2 * E.symbol) / ((k.symbol * L.symbol / r_y.symbol) ** 2)
-
-        result = expr.symeval(
-            output_variable=F_e, inputs=[k, E, L, r_y], decimals=3
+    def test_quantity_evalf_forwards_evalf_kwargs():
+        """**evalf_kwargs are passed through to expr.evalf — passing `n` shouldn\'t crash."""
+        F, A = sympy.symbols("F A")
+        q = quantity_evalf(
+            F / A,
+            subs={F: Q_(50, "kN"), A: Q_(100, "mm^2")},
+            output_unit="MPa",
+            n=20,
         )
-        assert result is F_e
-        assert abs(F_e.quantity.magnitude - 0.271) < 0.001
+        assert abs(q.magnitude - 500) < 0.001
+
+    return
 
 
-    def test_symeval_renders_three_step_latex():
-        """Output variable's _repr_latex_ shows the three-step chain after symeval."""
-        x = Variable("x", name="x", value=3)
-        y = Variable("y", name="y", value=4)
-        z = Variable("z", name="result", unit=None)
-        expr = x.symbol**2 + y.symbol**2
-        symeval(expr, output_variable=z, inputs=[x, y])
-        rendered = z._repr_latex_()
+@app.cell
+def _(Q_, sym_evalf, sympy):
+    def test_sym_evalf_basic():
+        """Test the Euler buckling example using the free function."""
+        k, E, L, r_y = sympy.symbols("k E L r_y")
+        expr = (sympy.pi**2 * E) / ((k * L / r_y) ** 2)
+        result = sym_evalf(
+            expr,
+            subs={
+                k: Q_(1, ""),
+                E: Q_(200, "GPa"),
+                L: Q_(6.5, "m"),
+                r_y: Q_(76.1, "mm"),
+            },
+            output_symbol="F_e",
+            output_unit="GPa",
+            decimals=3,
+        )
+        assert result.quantity.units == Q_(1, "GPa").units
+        assert abs(result.quantity.magnitude - 0.271) < 0.001
+        assert "F_{e}" in result._repr_latex_()
+        assert "\\begin{align*}" in result._repr_latex_()
+
+    def test_sym_evalf_method_on_expr():
+        """The monkey-patched `expr.sym_evalf(...)` method works the same way."""
+        k, E, L, r_y = sympy.symbols("k E L r_y")
+        expr = (sympy.pi**2 * E) / ((k * L / r_y) ** 2)
+        result = expr.sym_evalf(
+            subs={
+                k: Q_(1, ""),
+                E: Q_(200, "GPa"),
+                L: Q_(6.5, "m"),
+                r_y: Q_(76.1, "mm"),
+            },
+            output_symbol="F_e",
+            output_unit="GPa",
+            decimals=3,
+        )
+        assert abs(result.quantity.magnitude - 0.271) < 0.001
+
+    def test_sym_evalf_renders_three_step_latex():
+        """SymbolicEvaluation._repr_latex_ shows the three-step align block."""
+        x, y = sympy.symbols("x y")
+        expr = x**2 + y**2
+        result = sym_evalf(
+            expr,
+            subs={x: Q_(3, ""), y: Q_(4, "")},
+            output_symbol="z",
+        )
+        rendered = result._repr_latex_()
         assert "\\begin{align*}" in rendered
         assert "$$" in rendered
 
-
-    def test_symeval_no_unit():
-        """Test symeval without specifying output unit."""
-        x = Variable("x", name="x", value=3)
-        y = Variable("y", name="y", value=4)
-        z = Variable("z", name="result")
-        expr = x.symbol**2 + y.symbol**2
-        result = symeval(expr, output_variable=z, inputs=[x, y])
+    def test_sym_evalf_no_output_unit():
+        """Without `output_unit`, the result lands in SI base units."""
+        x, y = sympy.symbols("x y")
+        expr = x**2 + y**2
+        result = sym_evalf(expr, subs={x: Q_(3, ""), y: Q_(4, "")}, output_symbol="z")
         assert abs(result.quantity.magnitude - 25) < 0.001
 
-
-    def test_symeval_simple_multiplication():
-        """Test A * f_y example from design doc."""
-        F = Variable("F", name="Force", unit="kN")
-        A = Variable("A", name="Cross-sectional area", value=500, unit="mm^2")
-        f_y = Variable("f_y", name="Yield strength", value=355, unit="MPa")
-
-        expr = A.symbol * f_y.symbol
-        result = symeval(expr, output_variable=F, inputs=[A, f_y], decimals=1)
+    def test_sym_evalf_simple_multiplication():
+        """A * f_y example: stress * area = force."""
+        A_sym = sympy.Symbol("A")
+        f_y = sympy.Symbol("f_y")
+        expr = A_sym * f_y
+        result = sym_evalf(
+            expr,
+            subs={A_sym: Q_(500, "mm^2"), f_y: Q_(355, "MPa")},
+            output_symbol="F",
+            output_unit="kN",
+            decimals=1,
+        )
         assert abs(result.quantity.magnitude - 177.5) < 0.1
 
-
-    def test_no_symbol_collision():
-        """Symbols like 'r' must not collide with 'r_y' during LaTeX substitution.
-
-        Originally caught a bug where string-level placeholder replacement chewed
-        up variable names that appeared as substrings of the placeholder word
-        (e.g. 'E', 'L', 'R' inside '__PLACEHOLDER__'). The current sympy-level
-        substitution is symbol-aware, so this verifies no such substring leak.
-        """
-        F = Variable("F", name="Force", unit="m")
-        r = Variable("r", name="Radius", value=2, unit="m")
-        r_y = Variable("r_y", name="Radius y", value=3, unit="m")
-
-        expr = r.symbol + r_y.symbol
-        result = symeval(expr, output_variable=F, inputs=[r, r_y], decimals=1)
+    def test_sym_evalf_no_symbol_collision():
+        """Symbols like 'r' must not collide with 'r_y' during placeholder substitution."""
+        r = sympy.Symbol("r")
+        r_y = sympy.Symbol("r_y")
+        expr = r + r_y
+        result = sym_evalf(
+            expr,
+            subs={r: Q_(2, "m"), r_y: Q_(3, "m")},
+            output_symbol="F",
+            output_unit="m",
+            decimals=1,
+        )
         assert abs(result.quantity.magnitude - 5.0) < 0.1
         rendered = result._repr_latex_()
-        assert "SymEvalPHZ" not in rendered
+        assert "SymEvalPH" not in rendered
         assert "r_{y}" in rendered
 
+    def test_sym_evalf_kg_unit_not_stripped():
+        """kg is the SI base unit for mass; sym_evalf should not strip it to g."""
+        m_in = sympy.Symbol("m_in")
+        result = sym_evalf(
+            m_in,
+            subs={m_in: Q_(2, "kg")},
+            output_symbol="m_out",
+            output_unit="kg",
+            decimals=2,
+        )
+        assert result.quantity == Q_(2, "kg")
+        rendered = result._repr_latex_()
+        assert r"\mathrm{kg}" in rendered
+        assert r"\mathrm{g}" not in rendered
 
-    def test_kg_unit_not_stripped():
-        """`kg` is conventionally the SI base for mass; symeval should not strip it to `g`.
-
-        Contrast with `kN`, where the result line shows both `<value> N = <value> kN`.
-        """
-        m_in = Variable("m_in", name="Input mass", value=2, unit="kg")
-        m_out = Variable("m_out", name="Output mass", unit="kg")
-        m_in.symbol.symeval(m_out, inputs=[m_in], decimals=2)
-        assert m_out.quantity == Q_(2, "kg")
-        eval_latex = m_out._eval_latex
-        assert r"\mathrm{kg}" in eval_latex
-        # Would only appear if kg was stripped to gram — it shouldn't.
-        assert r"\mathrm{g}" not in eval_latex
+    return
 
 
-    def _stress_calc(mode=None):
-        """Helper for the mode tests: σ = F/A in N/mm^2, returns the output Variable."""
-        F = Variable("F", name="Axial force", value=50, unit="kN")
-        A = Variable("A", name="Cross-sectional area", value=100, unit="mm^2")
-        out = Variable(r"\sigma", name="Axial stress", unit="MPa")
+@app.cell
+def _(Q_, sym_evalf, sympy):
+    def stress_calc(mode=None):
+        """Helper: σ = F/A → MPa, returns the SymbolicEvaluation."""
+        F = sympy.Symbol("F")
+        A = sympy.Symbol("A")
         kwargs = {} if mode is None else {"mode": mode}
-        (F.symbol / A.symbol).symeval(out, inputs=[f, a], decimals=2, **kwargs)
-        return out
+        return sym_evalf(
+            F / A,
+            subs={F: Q_(50, "kN"), A: Q_(100, "mm^2")},
+            output_symbol=r"\sigma",
+            output_unit="MPa",
+            decimals=2,
+            **kwargs,
+        )
+
+    return (stress_calc,)
 
 
-    def test_symeval_mode_default_is_multi_line():
-        """Calling without `mode` produces the same _eval_latex as mode='multi_line'."""
-        default = _stress_calc()._eval_latex
-        explicit = _stress_calc(mode="multi_line")._eval_latex
-        assert default == explicit
+@app.cell
+def _(Q_, stress_calc, sym_evalf, sympy):
+    def test_sym_evalf_mode_default_is_multi_line():
+        """Default mode matches mode='multi_line' explicitly."""
+        assert stress_calc().latex == stress_calc(mode="multi_line").latex
 
-
-    def test_symeval_mode_verbose():
-        """Verbose mode adds an extra SI-base substituted line."""
-        multi = _stress_calc(mode="multi_line")._eval_latex
-        verbose = _stress_calc(mode="verbose")._eval_latex
-        # Verbose has exactly one more align line break (\\) than multi_line.
+    def test_sym_evalf_mode_verbose():
+        """Verbose adds an extra SI-base substituted line."""
+        multi = stress_calc(mode="multi_line").latex
+        verbose = stress_calc(mode="verbose").latex
         assert verbose.count(r"\\") == multi.count(r"\\") + 1
-        # The SI-converted scientific value 5e4 N appears on the new line.
         assert r"5.000\times 10^{4}" in verbose
         assert r"\mathrm{N}" in verbose
-        # Result line still has the prefix-strip dual `... Pa = 500.00 MPa`.
         assert r"500.00\ \mathrm{MPa}" in verbose
 
-
-    def test_symeval_mode_one_line():
+    def test_sym_evalf_mode_one_line():
         """One-line: no align block, includes substituted intermediate, no prefix-strip dual."""
-        one = _stress_calc(mode="one_line")._eval_latex
+        one = stress_calc(mode="one_line").latex
         assert r"\begin{align" not in one
-        # Substituted intermediate is present.
         assert r"50\ \mathrm{kN}" in one
         assert r"100\ \mathrm{mm}" in one
-        # Result uses just the variable's unit, no prefix-stripped dual.
         assert r"500.00\ \mathrm{MPa}" in one
         assert r"\mathrm{Pa} = " not in one
 
-
-    def test_symeval_mode_invalid_raises():
-        """An unknown `mode` raises ValueError, mentioning the allowed values."""
-        F = Variable("F", name="Axial force", value=50, unit="kN")
-        A = Variable("A", name="Cross-sectional area", value=100, unit="mm^2")
-        out = Variable(r"\sigma", name="Axial stress", unit="MPa")
+    def test_sym_evalf_mode_invalid_raises():
+        """An unknown mode raises ValueError listing the allowed values."""
+        F = sympy.Symbol("F")
+        A = sympy.Symbol("A")
         try:
-            (F.symbol / A.symbol).symeval(out, inputs=[f, a], decimals=2, mode="bogus")
+            sym_evalf(
+                F / A,
+                subs={F: Q_(50, "kN"), A: Q_(100, "mm^2")},
+                output_symbol=r"\sigma",
+                output_unit="MPa",
+                mode="bogus",
+            )
         except ValueError as e:
             assert "multi_line" in str(e)
             assert "verbose" in str(e)
             assert "one_line" in str(e)
         else:
             raise AssertionError("Expected ValueError for invalid mode")
-
 
     return
 
