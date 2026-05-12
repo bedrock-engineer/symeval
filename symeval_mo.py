@@ -509,7 +509,7 @@ def _(
 
     _igl_dict = {val: i for i, val in enumerate(ideal_gas_law_options)}
     _solve_for_idx = _igl_dict[get_solve_for()]
-    _solve_for_sym = [P_sym, V_sym, n_sym, T_sym][_solve_for_idx]
+    _solve_for_sym = [P_sym, V_sym, T_sym, n_sym][_solve_for_idx]
     _solution = sympy.solve(ideal_gas_law, _solve_for_sym)[0]
 
     mo.vstack(
@@ -534,7 +534,7 @@ def _(Quantity, mo, sympy):
 
     # Define Ideal Gas Law sympy.Symbols and Equation
     P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
-    ideal_gas_law = sympy.Eq(P_sym * V_sym, n_sym * R_sym * T_sym)
+    ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
     R_q = Quantity(
         convert_to(molar_gas_constant, [joule, mol, kelvin]).args[0], "J/(mol*K)"
     )

@@ -2,17 +2,15 @@
 
 Write a [`sympy`](https://docs.sympy.org) expression, fill in [`pint`](https://pint.readthedocs.io/) quantities, and get the full derivation, that is (1) formula, (2) substituted values with units, and (3) the result with unit — rendered as LaTeX in your [`marimo`](https://docs.marimo.io) or Jupyter notebook.
 
-- ✨ **Crystal-clear** - shows the full derivation: formula, values with units, and result of any expression
-- 🐍 **Pure Python** - integrate into your *interactive* notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL)
-- 📏 **Unit-aware** - `pint` quantities carry units through every step and convert to your chosen output unit
-- 🧮 **Sympy-native** - use symbolic math to derive or rearrange your formula first, then evaluate symbolicly
-- 📊 **DataFrame-ready** - use `sympy.Expr.quantity_evalf()` on a `DataFrame` to calculate the values of a new column in a unit-aware manner
+- ✨ **Crystal-clear** — shows the full derivation: formula, values with units, and result
+- 🐍 **Pure Python** — drop into your *interactive* notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL)
+- 📏 **Unit-aware** — `pint` quantities carry units through every step and convert to your chosen output unit
+- 🧮 **Sympy-native** — rearrange or simplify your formula symbolically first, then evaluate
+- 📊 **DataFrame-ready** — use `quantity_evalf()` to compute a new unit-aware column on a `DataFrame`
 
 ```sh
 pip install symeval
 ```
-
----
 
 ## Axial stress under a compressive force
 
@@ -32,29 +30,18 @@ sigma = sym_evalf(
 
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
 \sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
-You can also build the `sympy` expression first and call `.sym_evalf()` as a method — useful when you want to do symbolic math before filling in numbers:
+You can also build the `sympy` expression first and call `.sym_evalf()` as a method — useful when you want to do symbolic math before filling in numbers. Pass `mode=` to choose the rendering style; `mode="verbose"` adds an extra line showing all values converted to SI base units:
 
 ```python
-from sympy import Symbol
-from pint import Quantity
-
-f_sym = Symbol("F")
-a_sym = Symbol("A")
+f_sym, a_sym = Symbol("F"), Symbol("A")
 sigma_expr = f_sym / a_sym
 
-f_q = Quantity(-680, "kN")
-a_q = Quantity(10_580, "mm^2")
-```
-
-Pass `decimals=` to control precision and `mode=` to choose the rendering style. `mode="verbose"` adds an extra line showing all values converted to SI base units:
-
-```python
 sigma_expr.sym_evalf(
-    subs={f_sym: f_q, a_sym: a_q},
+    subs={f_sym: Quantity(-680, "kN"), a_sym: Quantity(10_580, "mm^2")},
     output_symbol=r"\sigma",
     output_unit="MPa",
     decimals=2,
@@ -64,8 +51,8 @@ sigma_expr.sym_evalf(
 
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
-&= \frac{\medspace-6.800\times 10^{5}\ \mathrm{N}}{\medspace1.058\times 10^{-2}\ \mathrm{m}^{2}} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
+&= \frac{\,-6.800\times 10^{5}\ \mathrm{N}}{\,1.058\times 10^{-2}\ \mathrm{m}^{2}} \\
 \sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
@@ -73,7 +60,7 @@ $$\begin{align*}
 
 ```python
 sigma_expr.sym_evalf(
-    subs={f_sym: f_q, a_sym: a_q},
+    subs={f_sym: Quantity(-680, "kN"), a_sym: Quantity(10_580, "mm^2")},
     output_symbol=r"\sigma",
     output_unit="MPa",
     decimals=1,
@@ -81,51 +68,7 @@ sigma_expr.sym_evalf(
 )
 ```
 
-$$\sigma = \frac{F}{A} = \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}$$
-
----
-
-## Ideal Gas Law: Symbolic Rearrangement
-
-Starting from $PV = nRT$, use `sympy.solve` to rearrange the equation symbolically for any variable, then feed the result straight into `sym_evalf`:
-
-```python
-import sympy
-from sympy.physics.units import molar_gas_constant
-import sympy.physics.units as spu
-from sympy.physics.units.util import convert_to
-from pint import Quantity
-from symeval import sym_evalf
-
-P, V, n, T, R = sympy.symbols("P V n T R")
-
-# Rearrange symbolically — no hardcoding which variable to solve for
-ideal_gas_law = sympy.Eq(P * V, n * R * T)
-solution = sympy.solve(ideal_gas_law, P)[0]
-
-# Pull R from sympy — no hardcoded constant
-R_si = convert_to(molar_gas_constant, [spu.joule, spu.mol, spu.kelvin])
-R_q = Quantity(float(R_si.args[0]), "J/(mol*K)")
-
-solution.sym_evalf(
-    subs={R: R_q, V: Quantity(22.4, "L"), n: Quantity(1.0, "mol"), T: Quantity(273.15, "K")},
-    output_symbol=P,
-    output_unit="kPa",
-    decimals=2,
-)
-```
-
-**Rearranged:** $P = \dfrac{R T n}{V}$
-
-$$\begin{align*}
-P &= \frac{R T n}{V} \\
-&= \frac{\medspace8.314\ \frac{\mathrm{J}}{\left(\mathrm{K} \cdot \mathrm{mol}\right)} \medspace273.15\ \mathrm{K} \medspace1\ \mathrm{mol}}{\medspace22.4\ \mathrm{l}} \\
-P &= 1.01\times 10^{5}\ \mathrm{Pa} = 101.39\ \mathrm{kPa}
-\end{align*}$$
-
-> **In [marimo](https://marimo.io):** add a `mo.ui.radio` to let the user pick which variable to solve for — the symbolic rearrangement and evaluation both update reactively.
-
----
+$$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}$$
 
 ## `quantity_evalf()` on a DataFrame
 
@@ -182,14 +125,51 @@ sigma_expr.sym_evalf(
 
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
 \sigma &= -6.4\times 10^{7}\ \mathrm{Pa} = -64.3\ \mathrm{MPa}
 \end{align*}$$
 
----
+
+## Axial resistance of a steel HSS member
+
+A worked example from CSA S16-17. Each `sym_evalf` result feeds into the next — `F_e` into $\lambda$, $\lambda$ into $C_r$, $C_r$ into $DCR$ — so the LaTeX rendering captures the full audit trail of a multi-step engineering check:
+
+$$F_{e} = \frac{\pi^{2} E r_{y}^{2}}{L^{2} k^{2}} = \frac{\pi^{2} \,200\ \mathrm{GPa} \,\left(76.1\ \mathrm{mm}\right)^{2}}{\,\left(6.5\ \mathrm{m}\right)^{2} \,1^{2}} = 0.271\ \mathrm{GPa}$$
+
+$$\lambda = \left(\frac{F_{y}}{F_{e}}\right)^{n} = \left(\frac{\,400\ \mathrm{MPa}}{\,0.2706\ \mathrm{GPa}}\right)^{\,1.34} = 1.689$$
+
+$$C_{r} = A F_{y} \phi_{s} \left(\lambda + 1\right)^{- \frac{1}{n}} = \,10580\ \mathrm{mm}^{2} \,400\ \mathrm{MPa} \,0.85 \left(\,1.6886 + 1\right)^{- \frac{1}{\,1.34}} = 1.720\ \mathrm{MN}$$
+
+$$DCR = \frac{C_{f}}{C_{r}} = \frac{\,680\ \mathrm{kN}}{\,1.7196\ \mathrm{MN}} = 0.395$$
+
+See `symeval_mo.py` for the full reactive marimo notebook with input UIs.
+
+## Ideal Gas Law: symbolic rearrangement
+
+Starting from $PV = nRT$, `sympy.solve` rearranges the equation symbolically for any variable, then the resulting expression feeds straight into `sym_evalf`:
+
+$$\begin{align*}
+P &= \frac{R T n}{V} \\
+&= \frac{\,8.314\ \frac{\mathrm{J}}{\left(\mathrm{K} \cdot \mathrm{mol}\right)} \,273.15\ \mathrm{K} \,1\ \mathrm{mol}}{\,22.4\ \mathrm{l}} \\
+P &= 1.01\times 10^{5}\ \mathrm{Pa} = 101.39\ \mathrm{kPa}
+\end{align*}$$
+
+See `symeval_mo.py` for the full reactive marimo notebook with input UIs.
+
+## Author
+
+Built and maintained by [Joost Gevaert](https://github.com/JoostGevaert) at [Bedrock](https://bedrock.engineer).
+
+## Feedback & contributing
+
+Found a bug or have a feature request? [Open an issue](https://github.com/bedrock-engineer/symeval/issues) — pull requests are welcome too. The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`CLAUDE.md`](CLAUDE.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
 
 ## Inspiration
 
 - [handcalcs](https://github.com/connorferster/handcalcs) — renders Python calculation code as LaTeX in Jupyter
 - [CalcPad](https://calcpad-ce.org) — engineering calculations DSL with symbolic/numeric workflow
 - Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
