@@ -2,13 +2,19 @@
 
 ## Package
 
+- Redesign package API such that the default is to work with SymPy equations, rather than Expressions.
+- Build something that works well for functions, such as e.g.
+    `f(x)=1.9sin((2π/2.36)x)`
+
+
 ### Maybe?
 - Possibly it would be nice to make symeval work properly with significant figures. [SciForm](https://sciform.readthedocs.io/en/stable) might be a good tool for that. Also the engineering formatter with `exp_mode="engineering"` in a custom Pint formatter (see last paragraph of https://pint.readthedocs.io/en/stable/user/formatting.html) seems nice.
 
 ## Examples
 
-### Piston for the Ideal Gas Law example
-- A piston with moving gas particles that updates reactively as the user drags the P, V, T, n sliders, similar to the @assets/explorable-explanations-by-chatgpt.mp4 screencap from ChatGPT.
+### mo.ui.batch for handcalcs example
+
+- https://docs.marimo.io/api/inputs/batch
 
 ### In the `examples/` folder
 Longer, more complete demos:

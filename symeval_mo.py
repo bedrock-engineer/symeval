@@ -2,16 +2,16 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "marimo",
-#     "pint==0.25.3",
-#     "polars==1.40.1",
-#     "pytest==9.0.3",
-#     "sympy==1.14.0",
+#     "pint",
+#     "polars",
+#     "pytest",
+#     "sympy",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.23.5"
+__generated_with = "0.23.14"
 app = marimo.App(width="columns")
 
 
@@ -361,7 +361,7 @@ def _(
     _euler_buckling_expr = (sympy.pi**2 * elastic_modulus) / (
         (beam_length * effective_length_factor / radius_gyration) ** 2
     )
-    # Symbolicly evaluate the Euler buckling stress
+    # Symbolically evaluate the Euler buckling stress
     euler_buckling_stress = _euler_buckling_expr.sym_evalf(
         subs=_symbolic_quantities,
         output_symbol=sympy.Symbol("F_e"),
@@ -434,24 +434,24 @@ def _(R_q, ideal_gas_law, latex, mo):
 
 
 @app.cell(hide_code=True)
-def _(get_solve_for, mo, solve_for_radio):
+def _(mo, solve_for_radio):
     P_input = mo.ui.slider(
-        start=0,
+        start=1,
         stop=500,
         step=1,
         value=101.325,
         debounce=True,
         include_input=True,
-        disabled=get_solve_for() == "P (kPa)",
+        disabled=solve_for_radio.value == "P (kPa)",
     )
     V_input = mo.ui.slider(
-        start=1,
+        start=5,
         stop=100,
         step=0.5,
         value=22.4,
         debounce=True,
         include_input=True,
-        disabled=get_solve_for() == "V (Liters)",
+        disabled=solve_for_radio.value == "V (Liters)",
     )
     T_input = mo.ui.slider(
         start=100,
@@ -460,7 +460,7 @@ def _(get_solve_for, mo, solve_for_radio):
         value=273.15,
         debounce=True,
         include_input=True,
-        disabled=get_solve_for() == "T (°K)",
+        disabled=solve_for_radio.value == "T (K)",
     )
     n_input = mo.ui.slider(
         start=0.1,
@@ -469,15 +469,22 @@ def _(get_solve_for, mo, solve_for_radio):
         value=1.0,
         debounce=True,
         include_input=True,
-        disabled=get_solve_for() == "n (mol)",
+        disabled=solve_for_radio.value == "n (mol)",
     )
+
+    igl_inputs = {
+        "P (kPa)": P_input,
+        "V (Liters)": V_input,
+        "T (K)": T_input,
+        "n (mol)": n_input,
+    }
 
     mo.hstack(
         [solve_for_radio, mo.vstack([P_input, V_input, T_input, n_input])],
         align="center",
         gap=2,
     )
-    return P_input, T_input, V_input, n_input
+    return P_input, T_input, V_input, igl_inputs, n_input
 
 
 @app.cell(hide_code=True)
@@ -491,62 +498,467 @@ def _(
     T_sym,
     V_input,
     V_sym,
-    get_solve_for,
     ideal_gas_law,
-    ideal_gas_law_options,
+    ideal_gas_law_vars,
+    igl_inputs,
     mo,
     n_input,
     n_sym,
+    piston_js,
+    solve_for_radio,
     sympy,
 ):
+    # First symbolically evaluate the value of the variable we're solving for.
+    # Then feed the knowns and unknown into the piston widget.
     _symbolic_quantities = {
-        P_sym: Quantity(P_input.value, "kPa"),
-        V_sym: Quantity(V_input.value, "l"),
-        R_sym: R_q,
-        n_sym: Quantity(n_input.value, "mol"),
-        T_sym: Quantity(T_input.value, "K"),
+        _sym: Quantity(igl_inputs[_label].value, _unit)
+        for _label, (_sym, _unit) in ideal_gas_law_vars.items()
     }
+    _symbolic_quantities[R_sym] = R_q
 
-    _igl_dict = {val: i for i, val in enumerate(ideal_gas_law_options)}
-    _solve_for_idx = _igl_dict[get_solve_for()]
-    _solve_for_sym = [P_sym, V_sym, T_sym, n_sym][_solve_for_idx]
+    # Put the variable of Ideal Gas Law that we're solving for on the
+    # left hand side of the IGL equation.
+    _solve_for_label = solve_for_radio.value
+    _solve_for_sym, _solve_for_unit = ideal_gas_law_vars[_solve_for_label]
     _solution = sympy.solve(ideal_gas_law, _solve_for_sym)[0]
 
-    mo.vstack(
-        [
-            ideal_gas_law,
-            _solution.sym_evalf(
-                subs=_symbolic_quantities,
-                output_symbol=_solve_for_sym,
-                output_unit=_symbolic_quantities[_solve_for_sym],
-                decimals=2,
-            ),
-        ]
+    # Symbolically evaluate the Ideal Gas Law for variable we solved for
+    igl_sym_eval = _solution.sym_evalf(
+        subs=_symbolic_quantities,
+        output_symbol=_solve_for_sym,
+        output_unit=_solve_for_unit,
+        decimals=2,
+    )
+    # Put the result back into the dictionary with symbolic quantities
+    _symbolic_quantities[_solve_for_sym] = igl_sym_eval.quantity
+
+    # Put the knowns, unknowns and their slider bounds into JavaScript constants
+    _js_consts = f"""
+    const P = {_symbolic_quantities[P_sym].magnitude};
+    const V = {_symbolic_quantities[V_sym].magnitude};
+    const T = {_symbolic_quantities[T_sym].magnitude};
+    const n = {_symbolic_quantities[n_sym].magnitude};
+
+    const V_MIN = {V_input.start}, V_MAX = {V_input.stop};
+    const P_MIN = {P_input.start}, P_MAX = {P_input.stop};
+    const T_MIN = {T_input.start}, T_MAX = {T_input.stop};
+    const N_MIN = {n_input.start}, N_MAX = {n_input.stop};
+    """
+
+    # Out Of Bounds detection: when the widget cannot display the value that
+    # was solved for, this happens for example when the weight can't become bigger,
+    # but P can. Note: only the solve-for variable can land out of range.
+    _solve_for_input = igl_inputs[_solve_for_label]
+    _solve_for_value = float(igl_sym_eval.magnitude)
+    # Out Of Bounds message & HTML
+    # T is exempt: the particle speed follows the raw T at any value, so the visual
+    # stays honest outside the slider range. Only the tint saturates.
+    _oob_msg = ""
+    if str(_solve_for_sym) != "T":
+        if _solve_for_value < _solve_for_input.start:
+            _oob_msg = (
+                f"\U0001F4A5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
+                f"below min ({_solve_for_input.start}). Visual is floored; see symbolic evaluation."
+            )
+        elif _solve_for_value > _solve_for_input.stop:
+            _oob_msg = (
+                f"\U0001F4A5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
+                f"above max ({_solve_for_input.stop}). Visual is capped; see symbolic evaluation."
+            )
+    _oob_html = (
+        f'<div style="position:absolute;top:4px;left:4px;right:4px;'
+        f'font-family:sans-serif;font-size:10.5px;line-height:1.25;'
+        f'background:rgba(255,238,238,0.75);border:1px solid #d33;'
+        f'border-radius:4px;padding:3px 6px;color:#900;">{_oob_msg}</div>'
+        if _oob_msg else ""
+    )
+
+    _piston_html = f"""<!doctype html>
+    <html>
+    <body style="margin:0;padding:0;background:#ffffff">
+    <div style="position:relative;width:270px;height:360px;">
+      <canvas id="piston-canvas" width="270" height="360" style="display:block;"></canvas>
+      {_oob_html}
+    </div>
+    <script>
+    {_js_consts}
+    {piston_js}
+    </script>
+    </body></html>"""
+
+    _piston_iframe = mo.iframe(_piston_html, width="290px", height="380px")
+
+    mo.hstack(
+        [_piston_iframe, mo.vstack([ideal_gas_law, igl_sym_eval])],
+        align="center",
+        gap=2,
     )
     return
 
 
 @app.cell(hide_code=True)
+def _():
+    piston_js = r"""
+    // piston_js
+    // Canvas and cylinder dimensions
+    const c = document.getElementById("piston-canvas");
+    const ctx2d = c.getContext("2d");
+    const W = c.width;
+    const H = c.height;
+    const CYL_X = 70;
+    const CYL_W = 130;
+    const TOP_MARGIN = 110;
+    const BOTTOM_MARGIN = 20;
+    const CYL_BOTTOM = H - BOTTOM_MARGIN;
+
+    // Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
+    const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
+    const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
+    const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
+    const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
+
+    // V -> gas column height
+    // V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
+    // gasHeight & pistonY scale linearly across the V-slider range
+    const GAS_MIN = 10;
+    const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
+    const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
+    const pistonY = CYL_BOTTOM - gasHeight;
+
+    // P -> trapezoidal weight block size
+    // Until the middle of the P-range, the weight grows in all directions
+    // as P increases. At higher P's the weight only scales vertically.
+    const WEIGHT_W_MIN = 40;
+    const WEIGHT_W_MAX = CYL_W - 6;
+    const WEIGHT_H_MIN = 18;
+    const WEIGHT_H_MID = 45;
+    const WEIGHT_H_MAX = 90;
+    const PHASE_SPLIT = 0.5;
+    let weightWBottom, weightH;
+    if (p01 <= PHASE_SPLIT) {
+      const k = p01 / PHASE_SPLIT;
+      weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
+      weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
+    } else {
+      const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
+      weightWBottom = WEIGHT_W_MAX;
+      weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
+    }
+    const weightWTop = weightWBottom * 0.55;
+
+    // T -> particle speed + warm/cool tint
+    const speed = Math.sqrt(T) * 0.11;
+    const tintR = Math.round(80 + t01 * (240 - 80));
+    const tintG = Math.round(140 - t01 * 80);
+    const tintB = Math.round(240 - t01 * 200);
+    const tint = `rgb(${tintR},${tintG},${tintB})`;
+
+    // n -> particle count
+    const N_PARTICLES_MIN = 4;
+    const N_PARTICLES_MAX = 250;
+    const nParticles = Math.max(
+      N_PARTICLES_MIN,
+      Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
+    );
+
+    const particles = [];
+    for (let i = 0; i < nParticles; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      particles.push({
+        x: CYL_X + 4 + Math.random() * (CYL_W - 8),
+        y: pistonY + 4 + Math.random() * (gasHeight - 8),
+        vx: Math.cos(ang),
+        vy: Math.sin(ang),
+      });
+    }
+
+    function draw() {
+      ctx2d.clearRect(0, 0, W, H);
+
+      ctx2d.strokeStyle = "#888";
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.moveTo(CYL_X, TOP_MARGIN);
+      ctx2d.lineTo(CYL_X, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
+      ctx2d.stroke();
+
+      const cx = CYL_X + CYL_W / 2;
+      const wBL = cx - weightWBottom / 2;
+      const wBR = cx + weightWBottom / 2;
+      const wTL = cx - weightWTop / 2;
+      const wTR = cx + weightWTop / 2;
+      const wBY = pistonY - 4;
+      const wTY = wBY - weightH;
+      ctx2d.fillStyle = "#5a5a5a";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1.5;
+      ctx2d.beginPath();
+      ctx2d.moveTo(wBL, wBY);
+      ctx2d.lineTo(wBR, wBY);
+      ctx2d.lineTo(wTR, wTY);
+      ctx2d.lineTo(wTL, wTY);
+      ctx2d.closePath();
+      ctx2d.fill();
+      ctx2d.stroke();
+
+      // Ring handle: outer radius AND thickness both scale with P. Inner hole
+      // is always smaller than the ring thickness, so the ring reads as a
+      // chunky rim at all sizes.
+      const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
+      const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
+      const ringInnerR = Math.max(1, ringOuterR - ringThickness);
+      const ringCenterY = wTY - ringOuterR + 2;
+      ctx2d.fillStyle = "#333";
+      ctx2d.beginPath();
+      ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
+      ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
+      ctx2d.closePath();
+      ctx2d.fill();
+
+      ctx2d.fillStyle = "#fff";
+      const fontSize = Math.min(18, weightH * 0.55);
+      ctx2d.font = fontSize + "px sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.textBaseline = "middle";
+      ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
+
+      ctx2d.fillStyle = "#aaa";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1;
+      ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
+      ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
+
+      ctx2d.fillStyle = tint;
+      for (const p of particles) {
+        const mag = Math.hypot(p.vx, p.vy) || 1;
+        const sx = (p.vx / mag) * speed;
+        const sy = (p.vy / mag) * speed;
+        p.x += sx;
+        p.y += sy;
+        if (p.x < CYL_X + 3) {
+          p.x = CYL_X + 3;
+          p.vx = Math.abs(p.vx);
+        } else if (p.x > CYL_X + CYL_W - 3) {
+          p.x = CYL_X + CYL_W - 3;
+          p.vx = -Math.abs(p.vx);
+        }
+        if (p.y < pistonY + 5) {
+          p.y = pistonY + 5;
+          p.vy = Math.abs(p.vy);
+        } else if (p.y > CYL_BOTTOM - 3) {
+          p.y = CYL_BOTTOM - 3;
+          p.vy = -Math.abs(p.vy);
+        }
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    // piston_js
+    """
+    return (piston_js,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    1. Edit the JavaScript code of the piston here with syntax highlighting.
+    2. Copy the JS code into the string in the `piston_js` variable in the Python cell above.
+
+    ```js
+    // piston_js
+    // Canvas and cylinder dimensions
+    const c = document.getElementById("piston-canvas");
+    const ctx2d = c.getContext("2d");
+    const W = c.width;
+    const H = c.height;
+    const CYL_X = 70;
+    const CYL_W = 130;
+    const TOP_MARGIN = 110;
+    const BOTTOM_MARGIN = 20;
+    const CYL_BOTTOM = H - BOTTOM_MARGIN;
+
+    // Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
+    const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
+    const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
+    const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
+    const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
+
+    // V -> gas column height
+    // V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
+    // gasHeight & pistonY scale linearly across the V-slider range
+    const GAS_MIN = 10;
+    const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
+    const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
+    const pistonY = CYL_BOTTOM - gasHeight;
+
+    // P -> trapezoidal weight block size
+    // Until the middle of the P-range, the weight grows in all directions
+    // as P increases. At higher P's the weight only scales vertically.
+    const WEIGHT_W_MIN = 40;
+    const WEIGHT_W_MAX = CYL_W - 6;
+    const WEIGHT_H_MIN = 18;
+    const WEIGHT_H_MID = 45;
+    const WEIGHT_H_MAX = 90;
+    const PHASE_SPLIT = 0.5;
+    let weightWBottom, weightH;
+    if (p01 <= PHASE_SPLIT) {
+      const k = p01 / PHASE_SPLIT;
+      weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
+      weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
+    } else {
+      const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
+      weightWBottom = WEIGHT_W_MAX;
+      weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
+    }
+    const weightWTop = weightWBottom * 0.55;
+
+    // T -> particle speed + warm/cool tint
+    const speed = Math.sqrt(T) * 0.11;
+    const tintR = Math.round(80 + t01 * (240 - 80));
+    const tintG = Math.round(140 - t01 * 80);
+    const tintB = Math.round(240 - t01 * 200);
+    const tint = `rgb(${tintR},${tintG},${tintB})`;
+
+    // n -> particle count
+    const N_PARTICLES_MIN = 4;
+    const N_PARTICLES_MAX = 250;
+    const nParticles = Math.max(
+      N_PARTICLES_MIN,
+      Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
+    );
+
+    const particles = [];
+    for (let i = 0; i < nParticles; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      particles.push({
+        x: CYL_X + 4 + Math.random() * (CYL_W - 8),
+        y: pistonY + 4 + Math.random() * (gasHeight - 8),
+        vx: Math.cos(ang),
+        vy: Math.sin(ang),
+      });
+    }
+
+    function draw() {
+      ctx2d.clearRect(0, 0, W, H);
+
+      ctx2d.strokeStyle = "#888";
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.moveTo(CYL_X, TOP_MARGIN);
+      ctx2d.lineTo(CYL_X, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
+      ctx2d.stroke();
+
+      const cx = CYL_X + CYL_W / 2;
+      const wBL = cx - weightWBottom / 2;
+      const wBR = cx + weightWBottom / 2;
+      const wTL = cx - weightWTop / 2;
+      const wTR = cx + weightWTop / 2;
+      const wBY = pistonY - 4;
+      const wTY = wBY - weightH;
+      ctx2d.fillStyle = "#5a5a5a";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1.5;
+      ctx2d.beginPath();
+      ctx2d.moveTo(wBL, wBY);
+      ctx2d.lineTo(wBR, wBY);
+      ctx2d.lineTo(wTR, wTY);
+      ctx2d.lineTo(wTL, wTY);
+      ctx2d.closePath();
+      ctx2d.fill();
+      ctx2d.stroke();
+
+      // Ring handle: outer radius AND thickness both scale with P. Inner hole
+      // is always smaller than the ring thickness, so the ring reads as a
+      // chunky rim at all sizes.
+      const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
+      const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
+      const ringInnerR = Math.max(1, ringOuterR - ringThickness);
+      const ringCenterY = wTY - ringOuterR + 2;
+      ctx2d.fillStyle = "#333";
+      ctx2d.beginPath();
+      ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
+      ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
+      ctx2d.closePath();
+      ctx2d.fill();
+
+      ctx2d.fillStyle = "#fff";
+      const fontSize = Math.min(18, weightH * 0.55);
+      ctx2d.font = fontSize + "px sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.textBaseline = "middle";
+      ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
+
+      ctx2d.fillStyle = "#aaa";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1;
+      ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
+      ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
+
+      ctx2d.fillStyle = tint;
+      for (const p of particles) {
+        const mag = Math.hypot(p.vx, p.vy) || 1;
+        const sx = (p.vx / mag) * speed;
+        const sy = (p.vy / mag) * speed;
+        p.x += sx;
+        p.y += sy;
+        if (p.x < CYL_X + 3) {
+          p.x = CYL_X + 3;
+          p.vx = Math.abs(p.vx);
+        } else if (p.x > CYL_X + CYL_W - 3) {
+          p.x = CYL_X + CYL_W - 3;
+          p.vx = -Math.abs(p.vx);
+        }
+        if (p.y < pistonY + 5) {
+          p.y = pistonY + 5;
+          p.vy = Math.abs(p.vy);
+        } else if (p.y > CYL_BOTTOM - 3) {
+          p.y = CYL_BOTTOM - 3;
+          p.vy = -Math.abs(p.vy);
+        }
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    // piston_js
+    ```
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(Quantity, mo, sympy):
-    from sympy.physics.units import molar_gas_constant, joule, mol, kelvin
-    from sympy.physics.units.util import convert_to
-
-
     # Define Ideal Gas Law sympy.Symbols and Equation
     P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
     ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
-    R_q = Quantity(
-        convert_to(molar_gas_constant, [joule, mol, kelvin]).args[0], "J/(mol*K)"
-    )
+    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+
+    # Maps each radio label to the sympy.Symbol it selects and the unit its slider
+    # is in. Single source of truth: the radio options, the symbol lookup and the
+    # units all derive from this, so nothing depends on list position.
+    ideal_gas_law_vars = {
+        "P (kPa)": (P_sym, "kPa"),
+        "V (Liters)": (V_sym, "l"),
+        "T (K)": (T_sym, "K"),
+        "n (mol)": (n_sym, "mol"),
+    }
 
     # Define ui inputs.
-    ideal_gas_law_options = ["P (kPa)", "V (Liters)", "T (°K)", "n (mol)"]
-    # EXPLAIN THE STATE STUFF HERE
-    get_solve_for, set_solve_for = mo.state("P (kPa)")
+    ideal_gas_law_options = list(ideal_gas_law_vars)
     solve_for_radio = mo.ui.radio(
         options=ideal_gas_law_options,
-        value=get_solve_for(),
-        on_change=set_solve_for,
+        value="P (kPa)",
     )
     return (
         P_sym,
@@ -554,9 +966,8 @@ def _(Quantity, mo, sympy):
         R_sym,
         T_sym,
         V_sym,
-        get_solve_for,
         ideal_gas_law,
-        ideal_gas_law_options,
+        ideal_gas_law_vars,
         n_sym,
         solve_for_radio,
     )
@@ -975,11 +1386,6 @@ def _(mo):
     uses pint\'s default magnitude format — which is just Python\'s `repr(float)`.
     That means the precision **depends on the value**, not on a fixed default:
     """)
-    return
-
-
-@app.cell
-def _():
     return
 
 
