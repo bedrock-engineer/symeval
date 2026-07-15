@@ -3,7 +3,7 @@
 How to cut a new release of symeval and publish it to PyPI.
 
 ```bash
-uv run task release 0.2.0   # bumps version, commits, tags, pushes, creates GitHub release
+uv run task release 0.#.#   # bumps version, commits, tags, pushes, creates GitHub release
 uv run task pypi            # cleans dist/, builds wheel, publishes to PyPI
 ```
 
@@ -22,7 +22,7 @@ uv run task pypi            # cleans dist/, builds wheel, publishes to PyPI
 ## Per-release flow
 
 ```bash
-uv run task release 0.2.0   # bumps version, commits, tags, pushes, creates GitHub release
+uv run task release 0.#.#   # bumps version, commits, tags, pushes, creates GitHub release
 uv run task pypi            # cleans dist/, builds wheel, publishes to PyPI
 ```
 
