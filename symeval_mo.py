@@ -44,7 +44,6 @@ def _():
     # import sympy
 
     from pint import Quantity
-
     # from symeval import quantity_evalf
     from sympy import Symbol
 
@@ -93,7 +92,7 @@ def _(axial_stress_eq, fa_inputs):
 
 @app.cell
 def _(axial_stress_eq, fa_inputs):
-    # one_line: collapse the derivation onto a single line.
+    # one_line: collapse the working onto a single line.
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
@@ -1031,12 +1030,6 @@ def _():
     import pint
     import sympy
 
-    return Literal, pint, sympy
-
-
-@app.cell
-def _(Literal, pint, sympy):
-    ## EXPORT
 
     def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
         """Convert a pint quantity to a sympy expression in base SI units.
@@ -1205,26 +1198,63 @@ def _(Literal, pint, sympy):
             mag_str = mag_str.rstrip("0").rstrip(".")
         return f"{mag_str}{sep}{unit_str}"
 
-    def _splice_into_latex(
-        rendered_latex: str,
-        placeholder_syms: list[sympy.Symbol],
-        formatteds: list[str],
-        wrappable: list[bool],
+    def _render_substituted(
+        expr: sympy.Expr,
+        subs: dict[sympy.Symbol, pint.Quantity],
+        decimals: int | None,
+        *,
+        si_stripped: bool = False,
     ) -> str:
-        """Replace each placeholder in `rendered_latex` with its formatted value.
+        """Render the substituted form: `expr` with each input symbol replaced by its formatted value and unit.
 
-        When `wrappable[i]` is True and the placeholder is immediately followed
-        by `^`, wrap the substitution in `\\left(...\\right)` so the exponent
-        binds to the whole quantity, not just the unit.
+        The placeholder trick lives here, in one place. Each input symbol is
+        swapped for a unique `SymEvalPH#Z` symbol so sympy renders the structure
+        without simplifying (``a + a`` stays ``a + a``) or dropping units; each
+        placeholder is then spliced back to a formatted `value + unit` string. The
+        trailing "Z" keeps the substring replace safe: `SymEvalPH0Z` never matches
+        inside `SymEvalPH10Z`. Placeholder indices follow the canonical sort order
+        of the input symbols, so sympy.Mul ordering matches the symbolic form.
+
+        With `si_stripped` True, each quantity is converted to its SI-prefix-free
+        form (kN -> N, mm -> m) and shown in scientific notation when that
+        conversion changed its unit; this is the extra line rendered in verbose
+        mode.
+
+        A value carrying a unit is wrapped in ``\\left(...\\right)`` when it sits
+        under an exponent, so the power binds to the whole quantity, not the unit.
         """
-        for ph, fmt, wrap in zip(placeholder_syms, formatteds, wrappable):
-            ph_latex = sympy.latex(ph)
-            plain = rf"\medspace{fmt}"
-            if wrap:
-                wrapped = rf"\medspace\left({fmt}\right)"
-                rendered_latex = rendered_latex.replace(f"{ph_latex}^", f"{wrapped}^")
-            rendered_latex = rendered_latex.replace(ph_latex, plain)
-        return rendered_latex
+        input_symbols = list(subs.keys())
+        input_quantities = list(subs.values())
+
+        # Placeholder indices follow the canonical sort order of the input symbols,
+        # so sympy.Mul ordering matches between the symbolic and substituted forms.
+        canonical_order = sorted(
+            range(len(input_symbols)), key=lambda i: input_symbols[i].sort_key()
+        )
+        placeholder_syms = [None] * len(input_symbols)
+        for canonical_pos, orig_idx in enumerate(canonical_order):
+            placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
+        sub_map = dict(zip(input_symbols, placeholder_syms))
+        rendered = sympy.latex(expr.subs(sub_map, simultaneous=True))
+
+        for quantity, placeholder in zip(input_quantities, placeholder_syms):
+            if si_stripped:
+                shown = _strip_si_prefixes(quantity)
+                scientific = shown.units != quantity.units
+            else:
+                shown = quantity
+                scientific = False
+            formatted = _format_quantity_for_substitution(
+                shown, decimals, scientific=scientific
+            )
+            ph_latex = sympy.latex(placeholder)
+            # Wrap a unit-carrying value in \left(...\right) when it sits under an
+            # exponent, so the power binds to the whole quantity, not just the unit.
+            if not quantity.dimensionless:
+                wrapped = rf"\medspace\left({formatted}\right)"
+                rendered = rendered.replace(f"{ph_latex}^", f"{wrapped}^")
+            rendered = rendered.replace(ph_latex, rf"\medspace{formatted}")
+        return rendered
 
     _VALID_MODES = ("multi_line", "verbose", "one_line")
 
@@ -1234,8 +1264,8 @@ def _(Literal, pint, sympy):
         Returned by `sym_evalf`. Delegates the common Quantity surface
         (magnitude, units, dimensionality, m, m_as, to, to_base_units) to
         `self.quantity`. `_repr_latex_` returns the rendered LaTeX. `.symbol`
-        holds the output sympy.Symbol so the result can be plugged back into
-        downstream sympy expressions (chained calculations).
+        is the output sympy.Symbol: reference it when building a later equation and
+        pair it with `.quantity` in that evaluation's `subs` to chain calculations.
         """
 
         def __init__(
@@ -1294,10 +1324,10 @@ def _(Literal, pint, sympy):
         mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
         **evalf_kwargs,
     ) -> "SymbolicEvaluation":
-        """Numerically evaluate `expr` and produce a LaTeX rendering of the chain.
+        """Numerically evaluate `expr` and produce a LaTeX rendering of the working.
 
         Same numeric kernel as `quantity_evalf`; the addition is the LaTeX
-        derivation attached to the returned `SymbolicEvaluation`.
+        working attached to the returned `SymbolicEvaluation`.
 
         Args:
             expr (sympy.Expr | sympy.Equality): The expression to evaluate,
@@ -1310,7 +1340,7 @@ def _(Literal, pint, sympy):
                 None (no substitutions).
             output_symbol (str | sympy.Symbol | None): LaTeX label for the
                 output — a string like `r"\\sigma"` or a `sympy.Symbol`. The label
-                appears on the left of every line of the rendered chain.
+                appears on the left of every line of the rendered working.
                 Keyword-only. Required for a bare expression; for an equation it
                 defaults to the inferred unknown, and an explicit value overrides
                 only the rendered label.
@@ -1336,7 +1366,7 @@ def _(Literal, pint, sympy):
 
         Returns:
             SymbolicEvaluation: The computed `pint.Quantity` with the rendered
-                LaTeX chain attached. Renders in marimo / Jupyter via
+                LaTeX working attached. Renders in marimo / Jupyter via
                 `_repr_latex_`. Has `.quantity`, `.latex`, and `.symbol` for
                 chaining into downstream sympy expressions.
 
@@ -1359,55 +1389,14 @@ def _(Literal, pint, sympy):
         # Step 1: Symbolic LaTeX (formula with symbols).
         expression_latex = sympy.latex(expr)
 
-        # Step 2: Build the substituted LaTeX (formula with numbers).
-        # Why placeholders instead of substituting values directly?
-        #   - Pint quantities aren\'t sympy values, so subs would drop the units.
-        #   - Substituting plain numbers triggers sympy simplification (a+a -> 2a),
-        #     which would destroy the structural shape we want to display.
-        # So we swap each input symbol for a unique placeholder symbol, then let
-        # sympy render the structure, then post-process to splice in our
-        # `number + unit` formatting. The trailing "Z" makes substring .replace
-        # safe: SymEvalPH0Z is unique even when SymEvalPH10Z exists.
-        #
-        # Placeholder indices follow the canonical sort order of the *original*
-        # input symbols, so sympy.Mul ordering matches between the symbolic and
-        # substituted lines.
-        input_symbols = list(subs.keys())
-        input_quantities = list(subs.values())
-        canonical_order = sorted(
-            range(len(input_symbols)), key=lambda i: input_symbols[i].sort_key()
-        )
-        placeholder_syms = [None] * len(input_symbols)
-        for canonical_pos, orig_idx in enumerate(canonical_order):
-            placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
-        sub_map = dict(zip(input_symbols, placeholder_syms))
-        rendered = sympy.latex(expr.subs(sub_map, simultaneous=True))
+        # Step 2: the substituted form (formula with numbers spliced in).
+        substituted_latex = _render_substituted(expr, subs, decimals)
 
-        wrappable = [not q.dimensionless for q in input_quantities]
-        formatteds_var = [
-            _format_quantity_for_substitution(q, decimals, scientific=False)
-            for q in input_quantities
-        ]
-        substituted_latex = _splice_into_latex(
-            rendered, placeholder_syms, formatteds_var, wrappable
-        )
-
-        # Step 2.5 (verbose only): SI-base substituted line. Each value uses
-        # scientific notation when SI-prefix-stripping changed its unit, plain
-        # decimal otherwise.
+        # Step 2.5 (verbose only): the substituted form in SI base units.
         si_substituted_latex = None
         if mode == "verbose":
-            formatteds_si = []
-            for q in input_quantities:
-                si_q = _strip_si_prefixes(q)
-                converted = si_q.units != q.units
-                formatteds_si.append(
-                    _format_quantity_for_substitution(
-                        si_q, decimals, scientific=converted
-                    )
-                )
-            si_substituted_latex = _splice_into_latex(
-                rendered, placeholder_syms, formatteds_si, wrappable
+            si_substituted_latex = _render_substituted(
+                expr, subs, decimals, si_stripped=True
             )
 
         # Step 3: Numerical evaluation. Delegate to quantity_evalf, which forwards
@@ -1473,7 +1462,7 @@ def _(Literal, pint, sympy):
     sympy.Expr.quantity_evalf = quantity_evalf
     sympy.Expr.sym_evalf = sym_evalf
     sympy.Equality.sym_evalf = sym_evalf
-    return quantity_evalf, sym_evalf
+    return quantity_evalf, sym_evalf, sympy
 
 
 @app.cell(hide_code=True)
@@ -1680,6 +1669,25 @@ def _(Quantity, sym_evalf, sympy):
         rendered = result._repr_latex_()
         assert r"\mathrm{kg}" in rendered
         assert r"\mathrm{g}" not in rendered
+
+    def test_sym_evalf_wraps_unit_under_exponent():
+        """A unit-carrying value under a power is wrapped in \\left(...\\right) so the exponent binds the whole quantity."""
+        x = sympy.Symbol("x")
+        out = sym_evalf(x**2, subs={x: Quantity(3, "m")}, output_symbol="y").latex
+        assert r"\left(" in out and r"\right)" in out
+
+    def test_sym_evalf_preserves_equal_valued_terms():
+        """Distinct symbols with equal values stay a sum in the substituted form (3 m + 3 m, not folded to 6 m)."""
+        x, y = sympy.symbols("x y")
+        out = sym_evalf(
+            x + y,
+            subs={x: Quantity(3, "m"), y: Quantity(3, "m")},
+            output_symbol="z",
+        ).latex
+        # multi_line carries a '+' in both the symbolic and the substituted line;
+        # folding 3 m + 3 m to 6 m would drop the substituted line's '+'.
+        assert out.count("+") >= 2
+
 
     return
 
