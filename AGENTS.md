@@ -1,8 +1,5 @@
 # symeval — Agent Guide
 
-Resume last session with:
-claude --resume 271866c5-99aa-4d55-9619-a61acbaf0fa7
-
 ## What it is
 
 Python package extending sympy expressions with two methods for engineering calculations:

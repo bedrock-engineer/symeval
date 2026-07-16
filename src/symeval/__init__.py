@@ -7,7 +7,6 @@ from typing import Literal
 
 import pint
 import sympy
-from sympy import latex
 
 def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
     """Convert a pint quantity to a sympy expression in base SI units.
@@ -19,6 +18,49 @@ def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
     base = quantity.to_base_units()
     sympy_units = sympy.sympify(f"{base.units:~D}")
     return base.magnitude * sympy_units
+
+def _resolve_formula(
+    formula: "sympy.Expr | sympy.Equality",
+    subs: dict,
+) -> "tuple[sympy.Expr, sympy.Symbol | None]":
+    """Resolve a *formula* (expression or equation) into `(expression, output_symbol)`.
+
+    A bare `sympy.Expr` passes through unchanged, with `None` for the output
+    symbol (the caller must supply `output_symbol` itself).
+
+    A `sympy.Eq` is solved for its single unknown — the one free symbol that
+    has no value in `subs` (everything in `subs` is a known input). When that
+    unknown is already isolated on one side of the equation, the other side is
+    returned verbatim so the rendered formula keeps the shape the user wrote;
+    otherwise `sympy.solve` isolates it.
+
+    Raises:
+        ValueError: If the equation does not have exactly one unknown, or if
+            solving it does not yield a unique solution.
+    """
+    if not isinstance(formula, sympy.Equality):
+        return formula, None
+    unknowns = formula.free_symbols - set(subs)
+    if len(unknowns) != 1:
+        raise ValueError(
+            "Expected exactly one unknown — a free symbol of the equation with "
+            "no value in `subs`. Found "
+            f"{sorted(map(str, unknowns))}. Provide `subs` values for every "
+            "symbol except the one to solve for."
+        )
+    (unknown,) = unknowns
+    if formula.lhs == unknown:
+        return formula.rhs, unknown
+    if formula.rhs == unknown:
+        return formula.lhs, unknown
+    solutions = sympy.solve(formula, unknown)
+    if len(solutions) != 1:
+        raise ValueError(
+            f"Solving for {unknown} gave {len(solutions)} solutions "
+            f"({solutions}); symeval needs a unique one. Solve the equation "
+            "yourself and pass the branch you want."
+        )
+    return solutions[0], unknown
 
 def quantity_evalf(
     expr: sympy.Expr,
@@ -35,7 +77,9 @@ def quantity_evalf(
     `verbose` all work without being listed here individually.
 
     Args:
-        expr (sympy.Expr): The sympy expression to evaluate.
+        expr (sympy.Expr): The sympy expression to evaluate. Equations are
+            not accepted here — use `sym_evalf` for a `sympy.Eq`, or solve
+            it first and pass the resulting expression.
         subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
             `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
             inputs). Same shape as sympy.evalf's `subs` kwarg, but values
@@ -56,6 +100,12 @@ def quantity_evalf(
             else in SI base units.
     """
     subs = subs or {}
+    if isinstance(expr, sympy.Equality):
+        raise TypeError(
+            "quantity_evalf evaluates a bare expression, not an equation. "
+            "Use sym_evalf for a sympy.Eq (it infers the output symbol), or "
+            "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
+        )
     target_ureg = next(
         (q._REGISTRY for q in subs.values() if isinstance(q, pint.Quantity)),
         pint.get_application_registry(),
@@ -138,7 +188,7 @@ def _splice_into_latex(
     binds to the whole quantity, not just the unit.
     """
     for ph, fmt, wrap in zip(placeholder_syms, formatteds, wrappable):
-        ph_latex = latex(ph)
+        ph_latex = sympy.latex(ph)
         plain = rf"\medspace{fmt}"
         if wrap:
             wrapped = rf"\medspace\left({fmt}\right)"
@@ -205,10 +255,10 @@ class SymbolicEvaluation:
         return str(self.quantity)
 
 def sym_evalf(
-    expr: sympy.Expr,
+    expr: "sympy.Expr | sympy.Equality",
     *,
     subs: dict[sympy.Symbol, pint.Quantity] | None = None,
-    output_symbol: str | sympy.Symbol,
+    output_symbol: str | sympy.Symbol | None = None,
     output_unit: str | pint.Unit | None = None,
     decimals: int | None = None,
     mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
@@ -220,15 +270,20 @@ def sym_evalf(
     derivation attached to the returned `SymbolicEvaluation`.
 
     Args:
-        expr (sympy.Expr): The sympy expression to evaluate.
+        expr (sympy.Expr | sympy.Equality): The expression to evaluate,
+            or a `sympy.Eq` whose single unknown (the free symbol absent from
+            `subs`) is solved for. For an equation the output symbol is
+            inferred, so `output_symbol` may be omitted.
         subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
             `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
             inputs). Same shape as sympy.evalf's `subs` kwarg. Defaults to
             None (no substitutions).
-        output_symbol (str | sympy.Symbol): LaTeX label for the output — a
-            string like `r"\\sigma"` or a `sympy.Symbol`. The label appears
-            on the left of every line of the rendered chain. Required;
-            keyword-only.
+        output_symbol (str | sympy.Symbol | None): LaTeX label for the
+            output — a string like `r"\\sigma"` or a `sympy.Symbol`. The label
+            appears on the left of every line of the rendered chain.
+            Keyword-only. Required for a bare expression; for an equation it
+            defaults to the inferred unknown, and an explicit value overrides
+            only the rendered label.
         output_unit (str | pint.Unit | None): Target pint unit for the
             result. If `None`, the result is rendered in SI base units.
             Defaults to None.
@@ -261,9 +316,18 @@ def sym_evalf(
     if mode not in _VALID_MODES:
         raise ValueError(f"mode must be one of {_VALID_MODES}, got {mode!r}")
     subs = subs or {}
+    expr, _inferred_symbol = _resolve_formula(expr, subs)
+    if output_symbol is None:
+        if _inferred_symbol is None:
+            raise ValueError(
+                "output_symbol is required when evaluating a bare sympy "
+                "expression. Pass a sympy.Eq instead and the output symbol "
+                "is inferred from the equation."
+            )
+        output_symbol = _inferred_symbol
 
     # Step 1: Symbolic LaTeX (formula with symbols).
-    expression_latex = latex(expr)
+    expression_latex = sympy.latex(expr)
 
     # Step 2: Build the substituted LaTeX (formula with numbers).
     # Why placeholders instead of substituting values directly?
@@ -287,7 +351,7 @@ def sym_evalf(
     for canonical_pos, orig_idx in enumerate(canonical_order):
         placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
     sub_map = dict(zip(input_symbols, placeholder_syms))
-    rendered = latex(expr.subs(sub_map, simultaneous=True))
+    rendered = sympy.latex(expr.subs(sub_map, simultaneous=True))
 
     wrappable = [not q.dimensionless for q in input_quantities]
     formatteds_var = [
@@ -341,7 +405,7 @@ def sym_evalf(
         output_sym = output_symbol
     else:
         output_sym = sympy.Symbol(str(output_symbol))
-    sym_latex = latex(output_sym)
+    sym_latex = sympy.latex(output_sym)
     # `full_latex` is the BARE LaTeX (no `$` delimiters). SymbolicEvaluation._repr_latex_
     # adds `$$...$$` for the default display rendering. Callers embedding the
     # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
@@ -366,9 +430,16 @@ def sym_evalf(
 
     return SymbolicEvaluation(output_quantity, full_latex, output_sym)
 
-# Method bindings on sympy.Expr so users can write `expr.sym_evalf(...)`.
-# Bind the functions directly (not via lambdas) so introspection tools
-# — `help`, marimo's 'View live docs', IDE hovers — see the real
-# signature and docstring rather than a generic `lambda(**kw)`.
+# Method bindings so users can write `expr.sym_evalf(...)`,
+# `equation.sym_evalf(...)`, or `expr.quantity_evalf(...)`.
+#
+# sym_evalf accepts an equation (it infers the output symbol from the
+# equation), so it's bound on Equality as well as Expr — mirroring how
+# sympy's own `.subs`/`.evalf` live on Basic and work on both. quantity_evalf
+# is the bare-value fast path (no label to infer) and stays expression-only,
+# so it's bound on Expr alone. Bind the functions directly (not via lambdas)
+# so introspection tools — `help`, marimo's 'View live docs', IDE hovers —
+# see the real signature and docstring rather than a generic `lambda(**kw)`.
 sympy.Expr.quantity_evalf = quantity_evalf
 sympy.Expr.sym_evalf = sym_evalf
+sympy.Equality.sym_evalf = sym_evalf

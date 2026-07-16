@@ -3,8 +3,8 @@
 How to cut a new release of symeval and publish it to PyPI.
 
 ```bash
-uv run task release 0.#.#   # bumps version, commits, tags, pushes, creates GitHub release
-uv run task pypi            # cleans dist/, builds wheel, publishes to PyPI
+uv run task release 0.#.#  # build & test (pre_release), bump version, commit, tag, push, creat GitHub release
+uv run task pypi           # clean dist/, build wheel, publish to PyPI
 ```
 
 ## One-time setup
@@ -22,11 +22,13 @@ uv run task pypi            # cleans dist/, builds wheel, publishes to PyPI
 ## Per-release flow
 
 ```bash
-uv run task release 0.#.#   # bumps version, commits, tags, pushes, creates GitHub release
-uv run task pypi            # cleans dist/, builds wheel, publishes to PyPI
+uv run task release 0.#.#   # build & test (pre_release), bump version, commit, tag, push, creat GitHub release
+uv run task pypi            # clean dist/, build wheel, publish to PyPI
 ```
 
 That's it. Two commands.
+
+Taskipy runs a `pre_<name>` hook before its tasks. That's how `pre_release` (build & test) is automatically run by before `release`.
 
 ## What each command does
 
