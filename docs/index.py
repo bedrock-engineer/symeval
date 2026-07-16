@@ -1,0 +1,1007 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "pint",
+#     "polars",
+#     "symeval",
+#     "sympy",
+# ]
+# ///
+
+import marimo
+
+__generated_with = "0.23.14"
+app = marimo.App(width="columns")
+
+
+@app.cell(column=0, hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # SymEval
+
+    Symbolic, unit-aware evaluation of SymPy equations.
+
+    > SymPy is a Python library for symbolic mathematics.
+
+    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations and then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result:
+
+    1. equation;
+    2. quantities substituted;
+    3. result.
+
+    Below some examples that start with the basics and progressively show more powerful SymEval features and usecases.
+
+    ## Axial stress under a compressive force
+    """)
+    return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    import polars as pl
+    import sympy
+
+    from pint import Quantity
+
+    from symeval import quantity_evalf
+    from sympy import Symbol
+
+    return Quantity, Symbol, mo, pl, quantity_evalf, sympy
+
+
+@app.cell
+def _(Symbol, sympy):
+    axial_stress_eq = sympy.Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+    axial_stress_eq
+    return (axial_stress_eq,)
+
+
+@app.cell
+def _(Quantity, Symbol):
+    fa_inputs = {
+        Symbol("F"): Quantity(-680, "kN"),
+        Symbol("A"): Quantity(10_580, "mm^2"),
+    }
+    fa_inputs
+    return (fa_inputs,)
+
+
+@app.cell
+def _(axial_stress_eq, fa_inputs):
+    axial_stress = axial_stress_eq.sym_evalf(
+        subs=fa_inputs,
+        output_unit="MPa",
+    )
+    axial_stress
+    return
+
+
+@app.cell
+def _(axial_stress_eq, fa_inputs):
+    # You can specify the number of decimal places of your result, and render mode.
+    # verbose: adds an extra line showing all values converted to SI base units.
+    axial_stress_eq.sym_evalf(
+        subs=fa_inputs,
+        output_unit="MPa",
+        decimals=2,
+        mode="verbose",
+    )
+    return
+
+
+@app.cell
+def _(axial_stress_eq, fa_inputs):
+    # one_line: collapse the derivation onto a single line.
+    axial_stress_eq.sym_evalf(
+        subs=fa_inputs,
+        output_unit="MPa",
+        decimals=1,
+        mode="one_line",
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## `quantity_evalf()` on a `DataFrame`
+
+    Now suppose you have done a structural analysis, which gave you the axial forces acting on the members (building columns and beams), and now you want to calculate what the resulting axial stresses on these members are. So, let's:
+
+    1. create a `polars.DataFrame` with the forces and cross-sectional areas of these members;
+    2. calculate the axial stresses using `quantity_evalf()` on the `DataFrame`;
+    3. symbolicly evaluate the axial stress in the member which we select from a `marimo.ui.table` widget.
+    """)
+    return
+
+
+@app.cell
+def _(Quantity, Symbol, axial_stress_eq, mo, pl, quantity_evalf):
+    # 1. Forces are in kN, areas in mm^2.
+    members = pl.DataFrame(
+        {
+            "member_type": ["column", "column", "brace", "strut", "tie"],
+            "section": ["W14x90", "HSS8x8x5/8", "HSS6x6x3/8", "L4x4", "C8x11.5"],
+            "F_kN": [-720.0, -680, 340.0, -110.0, 250.0],
+            "A_mm2": [17_100.0, 10_580, 4_890.0, 1_870.0, 2_168.0],
+        }
+    )
+
+    # 2. Vectorise via polars: build a Quantity per row, evaluate to MPa, take the
+    # magnitude. Returning the bare float keeps the column polars-native.
+    _axial_stress_expr = axial_stress_eq.rhs
+
+    def _stress_MPa(row):
+        return quantity_evalf(
+            expr=_axial_stress_expr,
+            subs={
+                Symbol("F"): Quantity(row["F_kN"], "kN"),
+                Symbol("A"): Quantity(row["A_mm2"], "mm^2"),
+            },
+            output_unit="MPa",
+        ).magnitude
+
+    # Apply the vectorized function to the polars dataframe to calculate the axial stresses in the members.
+    members_with_stress = members.with_columns(
+        pl.struct(["F_kN", "A_mm2"])
+        .map_elements(_stress_MPa, return_dtype=pl.Float64)
+        .round(2)
+        .alias("sigma_MPa")
+    )
+
+    # 3a. Create a marimo ui element in which you can select the member for which
+    # you want to symbolicly evaluate the calculation.
+    selected_member_to_symeval = mo.ui.table(
+        members_with_stress, selection="single", initial_selection=[1]
+    )
+    selected_member_to_symeval
+    return (selected_member_to_symeval,)
+
+
+@app.cell
+def _(Quantity, Symbol, axial_stress_eq, selected_member_to_symeval):
+    # 3b. Do the symbolic evaluation for the selected member
+    _sel_row = selected_member_to_symeval.value
+    axial_stress_eq.sym_evalf(
+        subs={
+            Symbol("F"): Quantity(_sel_row["F_kN"][0], "kN"),
+            Symbol("A"): Quantity(_sel_row["A_mm2"][0], "mm^2"),
+        },
+        output_unit="MPa",
+        decimals=1,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Axial Resistance of Steel HSS Member
+    As per CSA S16-17
+
+    This is the example calculation that Connor Ferster, the author of [`handcalcs`](https://github.com/connorferster/handcalcs) (huge [inspiration](https://github.com/bedrock-engineer/symeval#inspiration) for SymEval), shows in [this "Engineering Calculations: Handcalcs-on-Jupyter vs. Excel" YouTube tutorial](https://www.youtube.com/watch?v=n9Uzy3Eb-XI).
+
+    This example shows how you can define an entire table of inputs using marimo ui elements and then chain the result from one equation into the next.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, sympy):
+    (
+        compressive_force,
+        beam_length,
+        effective_length_factor,
+        elastic_modulus,
+        yield_strength,
+        strain_hardening_exponent,
+        strength_reduction_factor,
+        cross_sectional_area,
+        radius_gyration,
+    ) = sympy.symbols(r"C_f L k E F_y n \phi_s A r_y")
+
+    # Input table: each row carries its sympy.Symbol, unit, and default value/step.
+    # The mo.ui.number elements and the markdown table are both derived from this input table.
+    input_table = [
+        {"section": "Loads"},
+        {
+            "name": "Compressive force",
+            "symbol": compressive_force,
+            "unit": "kN",
+            "value": 680,
+        },
+        {"section": "Member geometry"},
+        {
+            "name": "Beam length",
+            "symbol": beam_length,
+            "unit": "m",
+            "value": 6.5,
+            "step": 0.1,
+        },
+        {
+            "name": "Effective length factor",
+            "symbol": effective_length_factor,
+            "value": 1,
+            "step": 0.1,
+        },
+        {"section": "Material properties"},
+        {
+            "name": "Elastic modulus",
+            "symbol": elastic_modulus,
+            "unit": "GPa",
+            "value": 200,
+        },
+        {
+            "name": "Yield strength",
+            "symbol": yield_strength,
+            "unit": "MPa",
+            "value": 400,
+        },
+        {
+            "name": "Strain-hardening exponent",
+            "symbol": strain_hardening_exponent,
+            "value": 1.34,
+            "step": 0.01,
+        },
+        {
+            "name": "Strength reduction factor",
+            "symbol": strength_reduction_factor,
+            "value": 0.85,
+            "step": 0.05,
+        },
+        {"section": "Member section properties"},
+        {
+            "name": "Cross-sectional area",
+            "symbol": cross_sectional_area,
+            "unit": "mm^2",
+            "value": 10_580,
+        },
+        {
+            "name": "Radius of gyration about the y-axis",
+            "symbol": radius_gyration,
+            "unit": "mm",
+            "value": 76.1,
+            "step": 0.1,
+        },
+    ]
+
+    input_uis = mo.ui.dictionary(
+        {
+            s["name"]: mo.ui.number(value=s["value"], step=s.get("step"))
+            for s in input_table
+            if "name" in s
+        }
+    )
+
+    def _table_row(s):
+        if "section" in s:
+            return f"| **{s['section']}** |  |  |  |  |"
+        unit = f"${s['unit']}$" if s.get("unit") else ""
+        return (
+            f"| {s['name']} | ${s['symbol']}$ | = | {input_uis[s['name']]} | {unit} |"
+        )
+
+    input_table_md = mo.md(
+        "### Inputs\n"
+        "|     |     |     |     |     |\n"
+        "|--------------|--------|---|-----|---|\n"
+        + "\n".join(_table_row(s) for s in input_table)
+    )
+    return (
+        beam_length,
+        compressive_force,
+        cross_sectional_area,
+        effective_length_factor,
+        elastic_modulus,
+        input_table,
+        input_table_md,
+        input_uis,
+        radius_gyration,
+        strain_hardening_exponent,
+        strength_reduction_factor,
+        yield_strength,
+    )
+
+
+@app.cell(hide_code=True)
+def _(input_table_md, mo):
+    mo.md(f"""
+    {input_table_md}
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    Quantity,
+    beam_length,
+    compressive_force,
+    cross_sectional_area,
+    effective_length_factor,
+    elastic_modulus,
+    input_table,
+    input_uis,
+    mo,
+    radius_gyration,
+    strain_hardening_exponent,
+    strength_reduction_factor,
+    sympy,
+    yield_strength,
+):
+    # Like before, create a dictionary with sympy.Symbol keys and pint.Quantity values:
+    symbolic_quantities = {
+        s["symbol"]: Quantity(input_uis[s["name"]].value, s.get("unit"))
+        for s in input_table
+        if "name" in s
+    }
+    # then define the equation:
+    _euler_buckling_eq = sympy.Eq(
+        sympy.Symbol("F_e"),
+        (sympy.pi**2 * elastic_modulus)
+        / ((beam_length * effective_length_factor / radius_gyration) ** 2),
+    )
+    # and symbolically evaluate it:
+    euler_buckling_stress = _euler_buckling_eq.sym_evalf(
+        subs=symbolic_quantities,
+        output_unit="GPa",
+        decimals=3,
+        mode="one_line",
+    )
+    # But now, in order to chain the Euler buckling stress into the next equation,
+    # add it to the dictionary with symbolic quantities:
+    symbolic_quantities[euler_buckling_stress.symbol] = euler_buckling_stress.quantity
+
+    # Rinse and repeat:
+    # Lambda factor
+    _lambda_factor_eq = sympy.Eq(
+        sympy.Symbol(r"\lambda"),
+        (sympy.sqrt(yield_strength / euler_buckling_stress.symbol))
+        ** (2 * strain_hardening_exponent),
+    )
+    lambda_factor = _lambda_factor_eq.sym_evalf(
+        subs=symbolic_quantities,
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
+
+    # Axial resistance
+    _axial_resistance_eq = sympy.Eq(
+        sympy.Symbol("C_r"),
+        (strength_reduction_factor * cross_sectional_area * yield_strength)
+        / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent)),
+    )
+    axial_resistance = _axial_resistance_eq.sym_evalf(
+        subs=symbolic_quantities,
+        output_unit="MN",
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
+
+    # Demand capacity ratio
+    _dcr_eq = sympy.Eq(
+        sympy.Symbol("DCR"),
+        compressive_force / axial_resistance.symbol,
+    )
+    dcr = _dcr_eq.sym_evalf(
+        subs=symbolic_quantities,
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[dcr.symbol] = dcr.quantity
+
+    # Show the whole calulation:
+    mo.vstack(
+        [
+            mo.md("### Calculation"),
+            mo.hstack(
+                [
+                    mo.md("Euler buckling stress"),
+                    mo.md(rf"$\displaystyle {euler_buckling_stress.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+            mo.hstack(
+                [
+                    mo.md(r"$\lambda$ factor"),
+                    mo.md(rf"$\displaystyle {lambda_factor.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+            mo.hstack(
+                [
+                    mo.md("Axial resistance"),
+                    mo.md(rf"$\displaystyle {axial_resistance.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+            mo.hstack(
+                [
+                    mo.md("Demand capacity ratio"),
+                    mo.md(rf"$\displaystyle {dcr.latex}$"),
+                ],
+                widths=[1, 4],
+                align="center",
+                gap=2,
+            ),
+        ],
+        gap=2,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(R_q, ideal_gas_law, mo, sympy):
+    mo.md(rf"""
+    ## Ideal Gas Law
+
+    When solving the ideal gas law 
+
+    $${sympy.latex(ideal_gas_law)}$$
+
+    you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
+
+    | Name | Symbol | SI-unit |
+    |------|--------|---------|
+    | Pressure | $P$ | $Pa$ |
+    | Volume | $V$ | $m^3$ |
+    | Temperature | $T$ | $K$ |
+    | Number of gas particles | $n$ | $mol$ |
+
+    Now, given that SymEval is built on top of SymPy, SymEval will first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`.
+
+    The marimo ui elements combined with the piston widget are meant to give an [explorable explanation](https://worrydream.com/ExplorableExplanations/) of and some intuition for the ideal gas law.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(Quantity, sympy):
+    # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
+    P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
+    ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
+    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+
+    ideal_gas_law_vars = {
+        "P (kPa)": (P_sym, "kPa"),
+        "V (Liters)": (V_sym, "l"),
+        "T (K)": (T_sym, "K"),
+        "n (mol)": (n_sym, "mol"),
+    }
+    ideal_gas_law_options = list(ideal_gas_law_vars)
+    return (
+        P_sym,
+        R_q,
+        R_sym,
+        T_sym,
+        V_sym,
+        ideal_gas_law,
+        ideal_gas_law_options,
+        ideal_gas_law_vars,
+        n_sym,
+    )
+
+
+@app.cell(hide_code=True)
+def _(ideal_gas_law_options, mo):
+    solve_for_radio = mo.ui.radio(
+        options=ideal_gas_law_options,
+        value="P (kPa)",
+    )
+    return (solve_for_radio,)
+
+
+@app.cell(hide_code=True)
+def _(mo, solve_for_radio):
+    P_input = mo.ui.slider(
+        start=1,
+        stop=500,
+        step=1,
+        value=101.325,
+        debounce=True,
+        include_input=True,
+        disabled=solve_for_radio.value == "P (kPa)",
+    )
+    V_input = mo.ui.slider(
+        start=5,
+        stop=100,
+        step=0.5,
+        value=22.4,
+        debounce=True,
+        include_input=True,
+        disabled=solve_for_radio.value == "V (Liters)",
+    )
+    T_input = mo.ui.slider(
+        start=100,
+        stop=1000,
+        step=1,
+        value=273.15,
+        debounce=True,
+        include_input=True,
+        disabled=solve_for_radio.value == "T (K)",
+    )
+    n_input = mo.ui.slider(
+        start=0.1,
+        stop=10,
+        step=0.1,
+        value=1.0,
+        debounce=True,
+        include_input=True,
+        disabled=solve_for_radio.value == "n (mol)",
+    )
+
+    igl_inputs = {
+        "P (kPa)": P_input,
+        "V (Liters)": V_input,
+        "T (K)": T_input,
+        "n (mol)": n_input,
+    }
+
+    mo.hstack(
+        [solve_for_radio, mo.vstack([P_input, V_input, T_input, n_input])],
+        align="center",
+        gap=2,
+    )
+    return P_input, T_input, V_input, igl_inputs, n_input
+
+
+@app.cell(hide_code=True)
+def _(
+    P_input,
+    P_sym,
+    Quantity,
+    R_q,
+    R_sym,
+    T_input,
+    T_sym,
+    V_input,
+    V_sym,
+    ideal_gas_law,
+    ideal_gas_law_vars,
+    igl_inputs,
+    mo,
+    n_input,
+    n_sym,
+    piston_js,
+    solve_for_radio,
+):
+    # Which variable are we solving for? Everything else is a known input.
+    _solve_for_label = solve_for_radio.value
+    _solve_for_sym, _solve_for_unit = ideal_gas_law_vars[_solve_for_label]
+
+    # Knowns: every slider value except the one we're solving for, plus R.
+    _knowns = {
+        _sym: Quantity(igl_inputs[_label].value, _unit)
+        for _label, (_sym, _unit) in ideal_gas_law_vars.items()
+        if _sym != _solve_for_sym
+    }
+    _knowns[R_sym] = R_q
+
+    # The equation infers its unknown (the one symbol with no value in subs),
+    # solves for it, and evaluates — no manual sympy.solve, no output_symbol.
+    igl_sym_eval = ideal_gas_law.sym_evalf(
+        subs=_knowns,
+        output_unit=_solve_for_unit,
+        decimals=2,
+    )
+
+    # Knowns plus the solved unknown: the full set the piston widget renders.
+    _symbolic_quantities = {**_knowns, _solve_for_sym: igl_sym_eval.quantity}
+
+    # Put the knowns, unknowns and their slider bounds into JavaScript constants
+    _js_consts = f"""
+    const P = {_symbolic_quantities[P_sym].magnitude};
+    const V = {_symbolic_quantities[V_sym].magnitude};
+    const T = {_symbolic_quantities[T_sym].magnitude};
+    const n = {_symbolic_quantities[n_sym].magnitude};
+
+    const V_MIN = {V_input.start}, V_MAX = {V_input.stop};
+    const P_MIN = {P_input.start}, P_MAX = {P_input.stop};
+    const T_MIN = {T_input.start}, T_MAX = {T_input.stop};
+    const N_MIN = {n_input.start}, N_MAX = {n_input.stop};
+    """
+
+    # Out Of Bounds detection: when the widget cannot display the value that
+    # was solved for, this happens for example when the weight can't become bigger,
+    # but P can. Note: only the solve-for variable can land out of range.
+    _solve_for_input = igl_inputs[_solve_for_label]
+    _solve_for_value = float(igl_sym_eval.magnitude)
+    # Out Of Bounds message & HTML
+    # T is exempt: the particle speed follows the raw T at any value, so the visual
+    # stays honest outside the slider range. Only the tint saturates.
+    _oob_msg = ""
+    if str(_solve_for_sym) != "T":
+        if _solve_for_value < _solve_for_input.start:
+            _oob_msg = (
+                f"\U0001f4a5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
+                f"below min ({_solve_for_input.start}). Visual is floored; see symbolic evaluation."
+            )
+        elif _solve_for_value > _solve_for_input.stop:
+            _oob_msg = (
+                f"\U0001f4a5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
+                f"above max ({_solve_for_input.stop}). Visual is capped; see symbolic evaluation."
+            )
+    _oob_html = (
+        f'<div style="position:absolute;top:4px;left:4px;right:4px;'
+        f"font-family:sans-serif;font-size:10.5px;line-height:1.25;"
+        f"background:rgba(255,238,238,0.75);border:1px solid #d33;"
+        f'border-radius:4px;padding:3px 6px;color:#900;">{_oob_msg}</div>'
+        if _oob_msg
+        else ""
+    )
+
+    _piston_html = f"""<!doctype html>
+    <html>
+    <body style="margin:0;padding:0;background:#ffffff">
+    <div style="position:relative;width:270px;height:360px;">
+      <canvas id="piston-canvas" width="270" height="360" style="display:block;"></canvas>
+      {_oob_html}
+    </div>
+    <script>
+    {_js_consts}
+    {piston_js}
+    </script>
+    </body></html>"""
+
+    _piston_iframe = mo.iframe(_piston_html, width="290px", height="380px")
+
+    mo.hstack(
+        [_piston_iframe, mo.vstack([ideal_gas_law, igl_sym_eval])],
+        align="center",
+        gap=2,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    piston_js = r"""
+    // piston_js
+    // Canvas and cylinder dimensions
+    const c = document.getElementById("piston-canvas");
+    const ctx2d = c.getContext("2d");
+    const W = c.width;
+    const H = c.height;
+    const CYL_X = 70;
+    const CYL_W = 130;
+    const TOP_MARGIN = 110;
+    const BOTTOM_MARGIN = 20;
+    const CYL_BOTTOM = H - BOTTOM_MARGIN;
+
+    // Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
+    const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
+    const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
+    const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
+    const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
+
+    // V -> gas column height
+    // V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
+    // gasHeight & pistonY scale linearly across the V-slider range
+    const GAS_MIN = 10;
+    const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
+    const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
+    const pistonY = CYL_BOTTOM - gasHeight;
+
+    // P -> trapezoidal weight block size
+    // Until the middle of the P-range, the weight grows in all directions
+    // as P increases. At higher P's the weight only scales vertically.
+    const WEIGHT_W_MIN = 40;
+    const WEIGHT_W_MAX = CYL_W - 6;
+    const WEIGHT_H_MIN = 18;
+    const WEIGHT_H_MID = 45;
+    const WEIGHT_H_MAX = 90;
+    const PHASE_SPLIT = 0.5;
+    let weightWBottom, weightH;
+    if (p01 <= PHASE_SPLIT) {
+      const k = p01 / PHASE_SPLIT;
+      weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
+      weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
+    } else {
+      const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
+      weightWBottom = WEIGHT_W_MAX;
+      weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
+    }
+    const weightWTop = weightWBottom * 0.55;
+
+    // T -> particle speed + warm/cool tint
+    const speed = Math.sqrt(T) * 0.11;
+    const tintR = Math.round(80 + t01 * (240 - 80));
+    const tintG = Math.round(140 - t01 * 80);
+    const tintB = Math.round(240 - t01 * 200);
+    const tint = `rgb(${tintR},${tintG},${tintB})`;
+
+    // n -> particle count
+    const N_PARTICLES_MIN = 4;
+    const N_PARTICLES_MAX = 250;
+    const nParticles = Math.max(
+      N_PARTICLES_MIN,
+      Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
+    );
+
+    const particles = [];
+    for (let i = 0; i < nParticles; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      particles.push({
+        x: CYL_X + 4 + Math.random() * (CYL_W - 8),
+        y: pistonY + 4 + Math.random() * (gasHeight - 8),
+        vx: Math.cos(ang),
+        vy: Math.sin(ang),
+      });
+    }
+
+    function draw() {
+      ctx2d.clearRect(0, 0, W, H);
+
+      ctx2d.strokeStyle = "#888";
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.moveTo(CYL_X, TOP_MARGIN);
+      ctx2d.lineTo(CYL_X, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
+      ctx2d.stroke();
+
+      const cx = CYL_X + CYL_W / 2;
+      const wBL = cx - weightWBottom / 2;
+      const wBR = cx + weightWBottom / 2;
+      const wTL = cx - weightWTop / 2;
+      const wTR = cx + weightWTop / 2;
+      const wBY = pistonY - 4;
+      const wTY = wBY - weightH;
+      ctx2d.fillStyle = "#5a5a5a";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1.5;
+      ctx2d.beginPath();
+      ctx2d.moveTo(wBL, wBY);
+      ctx2d.lineTo(wBR, wBY);
+      ctx2d.lineTo(wTR, wTY);
+      ctx2d.lineTo(wTL, wTY);
+      ctx2d.closePath();
+      ctx2d.fill();
+      ctx2d.stroke();
+
+      // Ring handle: outer radius AND thickness both scale with P. Inner hole
+      // is always smaller than the ring thickness, so the ring reads as a
+      // chunky rim at all sizes.
+      const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
+      const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
+      const ringInnerR = Math.max(1, ringOuterR - ringThickness);
+      const ringCenterY = wTY - ringOuterR + 2;
+      ctx2d.fillStyle = "#333";
+      ctx2d.beginPath();
+      ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
+      ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
+      ctx2d.closePath();
+      ctx2d.fill();
+
+      ctx2d.fillStyle = "#fff";
+      const fontSize = Math.min(18, weightH * 0.55);
+      ctx2d.font = fontSize + "px sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.textBaseline = "middle";
+      ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
+
+      ctx2d.fillStyle = "#aaa";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1;
+      ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
+      ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
+
+      ctx2d.fillStyle = tint;
+      for (const p of particles) {
+        const mag = Math.hypot(p.vx, p.vy) || 1;
+        const sx = (p.vx / mag) * speed;
+        const sy = (p.vy / mag) * speed;
+        p.x += sx;
+        p.y += sy;
+        if (p.x < CYL_X + 3) {
+          p.x = CYL_X + 3;
+          p.vx = Math.abs(p.vx);
+        } else if (p.x > CYL_X + CYL_W - 3) {
+          p.x = CYL_X + CYL_W - 3;
+          p.vx = -Math.abs(p.vx);
+        }
+        if (p.y < pistonY + 5) {
+          p.y = pistonY + 5;
+          p.vy = Math.abs(p.vy);
+        } else if (p.y > CYL_BOTTOM - 3) {
+          p.y = CYL_BOTTOM - 3;
+          p.vy = -Math.abs(p.vy);
+        }
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    // piston_js
+    """
+    return (piston_js,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    1. Edit the JavaScript code of the piston here with syntax highlighting.
+    2. Copy the JS code into the string in the `piston_js` variable in the Python cell above.
+
+    ```js
+    // piston_js
+    // Canvas and cylinder dimensions
+    const c = document.getElementById("piston-canvas");
+    const ctx2d = c.getContext("2d");
+    const W = c.width;
+    const H = c.height;
+    const CYL_X = 70;
+    const CYL_W = 130;
+    const TOP_MARGIN = 110;
+    const BOTTOM_MARGIN = 20;
+    const CYL_BOTTOM = H - BOTTOM_MARGIN;
+
+    // Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
+    const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
+    const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
+    const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
+    const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
+
+    // V -> gas column height
+    // V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
+    // gasHeight & pistonY scale linearly across the V-slider range
+    const GAS_MIN = 10;
+    const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
+    const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
+    const pistonY = CYL_BOTTOM - gasHeight;
+
+    // P -> trapezoidal weight block size
+    // Until the middle of the P-range, the weight grows in all directions
+    // as P increases. At higher P's the weight only scales vertically.
+    const WEIGHT_W_MIN = 40;
+    const WEIGHT_W_MAX = CYL_W - 6;
+    const WEIGHT_H_MIN = 18;
+    const WEIGHT_H_MID = 45;
+    const WEIGHT_H_MAX = 90;
+    const PHASE_SPLIT = 0.5;
+    let weightWBottom, weightH;
+    if (p01 <= PHASE_SPLIT) {
+      const k = p01 / PHASE_SPLIT;
+      weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
+      weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
+    } else {
+      const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
+      weightWBottom = WEIGHT_W_MAX;
+      weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
+    }
+    const weightWTop = weightWBottom * 0.55;
+
+    // T -> particle speed + warm/cool tint
+    const speed = Math.sqrt(T) * 0.11;
+    const tintR = Math.round(80 + t01 * (240 - 80));
+    const tintG = Math.round(140 - t01 * 80);
+    const tintB = Math.round(240 - t01 * 200);
+    const tint = `rgb(${tintR},${tintG},${tintB})`;
+
+    // n -> particle count
+    const N_PARTICLES_MIN = 4;
+    const N_PARTICLES_MAX = 250;
+    const nParticles = Math.max(
+      N_PARTICLES_MIN,
+      Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
+    );
+
+    const particles = [];
+    for (let i = 0; i < nParticles; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      particles.push({
+        x: CYL_X + 4 + Math.random() * (CYL_W - 8),
+        y: pistonY + 4 + Math.random() * (gasHeight - 8),
+        vx: Math.cos(ang),
+        vy: Math.sin(ang),
+      });
+    }
+
+    function draw() {
+      ctx2d.clearRect(0, 0, W, H);
+
+      ctx2d.strokeStyle = "#888";
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.moveTo(CYL_X, TOP_MARGIN);
+      ctx2d.lineTo(CYL_X, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
+      ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
+      ctx2d.stroke();
+
+      const cx = CYL_X + CYL_W / 2;
+      const wBL = cx - weightWBottom / 2;
+      const wBR = cx + weightWBottom / 2;
+      const wTL = cx - weightWTop / 2;
+      const wTR = cx + weightWTop / 2;
+      const wBY = pistonY - 4;
+      const wTY = wBY - weightH;
+      ctx2d.fillStyle = "#5a5a5a";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1.5;
+      ctx2d.beginPath();
+      ctx2d.moveTo(wBL, wBY);
+      ctx2d.lineTo(wBR, wBY);
+      ctx2d.lineTo(wTR, wTY);
+      ctx2d.lineTo(wTL, wTY);
+      ctx2d.closePath();
+      ctx2d.fill();
+      ctx2d.stroke();
+
+      // Ring handle: outer radius AND thickness both scale with P. Inner hole
+      // is always smaller than the ring thickness, so the ring reads as a
+      // chunky rim at all sizes.
+      const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
+      const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
+      const ringInnerR = Math.max(1, ringOuterR - ringThickness);
+      const ringCenterY = wTY - ringOuterR + 2;
+      ctx2d.fillStyle = "#333";
+      ctx2d.beginPath();
+      ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
+      ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
+      ctx2d.closePath();
+      ctx2d.fill();
+
+      ctx2d.fillStyle = "#fff";
+      const fontSize = Math.min(18, weightH * 0.55);
+      ctx2d.font = fontSize + "px sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.textBaseline = "middle";
+      ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
+
+      ctx2d.fillStyle = "#aaa";
+      ctx2d.strokeStyle = "#333";
+      ctx2d.lineWidth = 1;
+      ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
+      ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
+
+      ctx2d.fillStyle = tint;
+      for (const p of particles) {
+        const mag = Math.hypot(p.vx, p.vy) || 1;
+        const sx = (p.vx / mag) * speed;
+        const sy = (p.vy / mag) * speed;
+        p.x += sx;
+        p.y += sy;
+        if (p.x < CYL_X + 3) {
+          p.x = CYL_X + 3;
+          p.vx = Math.abs(p.vx);
+        } else if (p.x > CYL_X + CYL_W - 3) {
+          p.x = CYL_X + CYL_W - 3;
+          p.vx = -Math.abs(p.vx);
+        }
+        if (p.y < pistonY + 5) {
+          p.y = pistonY + 5;
+          p.vy = Math.abs(p.vy);
+        } else if (p.y > CYL_BOTTOM - 3) {
+          p.y = CYL_BOTTOM - 3;
+          p.vy = -Math.abs(p.vy);
+        }
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    // piston_js
+    ```
+    """)
+    return
+
+
+if __name__ == "__main__":
+    app.run()
