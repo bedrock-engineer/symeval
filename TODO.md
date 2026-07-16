@@ -23,9 +23,6 @@ Guide and inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
 
-TODO:
-- Is it possible to create a taskipy task to export the code and output of certain (named) cells from `symeval_mo.py`?
-
 ### Website
 I want to create a docs website. I like the [Diataxis](https://diataxis.fr/) approach, which is largely adopted by some of the projects that are an example to me when it comes to docs:
 - https://quarto.org

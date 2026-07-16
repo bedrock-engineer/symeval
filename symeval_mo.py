@@ -39,29 +39,37 @@ def _(mo):
 
 @app.cell
 def _():
-    from sympy import Eq, Symbol
+    import marimo as mo
+    import polars as pl
+    # import sympy
 
-    axial_stress_eq = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
-    axial_stress_eq
-    return Symbol, axial_stress_eq
+    from pint import Quantity
+
+    # from symeval import quantity_evalf
+    from sympy import Symbol
+
+    return Quantity, Symbol, mo, pl
 
 
 @app.cell
-def _(Symbol):
-    from pint import Quantity
+def _(Symbol, sympy):
+    axial_stress_eq = sympy.Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+    axial_stress_eq
+    return (axial_stress_eq,)
 
+
+@app.cell
+def _(Quantity, Symbol):
     fa_inputs = {
         Symbol("F"): Quantity(-680, "kN"),
         Symbol("A"): Quantity(10_580, "mm^2"),
     }
     fa_inputs
-    return Quantity, fa_inputs
+    return (fa_inputs,)
 
 
 @app.cell
 def _(axial_stress_eq, fa_inputs):
-    # from symeval import sym_evalf
-
     axial_stress = axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
@@ -110,11 +118,7 @@ def _(mo):
 
 
 @app.cell
-def _(Quantity, Symbol, axial_stress_eq, quantity_evalf):
-    import marimo as mo
-    import polars as pl
-    # from symeval import quantity_evalf
-
+def _(Quantity, Symbol, axial_stress_eq, mo, pl, quantity_evalf):
     # 1. Forces are in kN, areas in mm^2.
     members = pl.DataFrame(
         {
@@ -143,6 +147,7 @@ def _(Quantity, Symbol, axial_stress_eq, quantity_evalf):
     members_with_stress = members.with_columns(
         pl.struct(["F_kN", "A_mm2"])
         .map_elements(_stress_MPa, return_dtype=pl.Float64)
+        .round(2)
         .alias("sigma_MPa")
     )
 
@@ -152,7 +157,7 @@ def _(Quantity, Symbol, axial_stress_eq, quantity_evalf):
         members_with_stress, selection="single", initial_selection=[1]
     )
     selected_member_to_symeval
-    return mo, selected_member_to_symeval
+    return (selected_member_to_symeval,)
 
 
 @app.cell
@@ -185,8 +190,6 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo, sympy):
-    # import sympy
-
     (
         compressive_force,
         beam_length,
