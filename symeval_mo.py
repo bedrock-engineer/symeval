@@ -193,70 +193,79 @@ def _(a_q, f_q, mo, sympy):
         radius_gyration,
     ) = sympy.symbols(r"C_f L k E F_y n \phi_s A r_y")
 
-    input_uis = mo.ui.dictionary(
-        {
-            "Compressive force": mo.ui.number(value=-f_q.magnitude),
-            "Beam length": mo.ui.number(value=6.5, step=0.1),
-            "Effective length factor": mo.ui.number(value=1, step=0.1),
-            "Elastic modulus": mo.ui.number(value=200),
-            "Yield strength": mo.ui.number(value=400),
-            "Strain-hardening exponent": mo.ui.number(value=1.34, step=0.01),
-            "Strength reduction factor": mo.ui.number(value=0.85, step=0.05),
-            "Cross-sectional area": mo.ui.number(value=a_q.magnitude),
-            "Radius of gyration about the y-axis": mo.ui.number(
-                value=76.1, step=0.1
-            ),
-        }
-    )
-
+    # Single source of truth for the input table: each row carries its symbol,
+    # unit, and default value/step. The mo.ui.number elements and the rendered
+    # markdown table both derive from this, so nothing is restated by hand.
     input_table = [
         {"section": "Loads"},
         {
             "name": "Compressive force",
             "symbol": compressive_force,
             "unit": "kN",
+            "value": -f_q.magnitude,
         },
         {"section": "Member geometry"},
         {
             "name": "Beam length",
             "symbol": beam_length,
             "unit": "m",
+            "value": 6.5,
+            "step": 0.1,
         },
         {
             "name": "Effective length factor",
             "symbol": effective_length_factor,
+            "value": 1,
+            "step": 0.1,
         },
         {"section": "Material properties"},
         {
             "name": "Elastic modulus",
             "symbol": elastic_modulus,
             "unit": "GPa",
+            "value": 200,
         },
         {
             "name": "Yield strength",
             "symbol": yield_strength,
             "unit": "MPa",
+            "value": 400,
         },
         {
             "name": "Strain-hardening exponent",
             "symbol": strain_hardening_exponent,
+            "value": 1.34,
+            "step": 0.01,
         },
         {
             "name": "Strength reduction factor",
             "symbol": strength_reduction_factor,
+            "value": 0.85,
+            "step": 0.05,
         },
         {"section": "Member section properties"},
         {
             "name": "Cross-sectional area",
             "symbol": cross_sectional_area,
             "unit": "mm^2",
+            "value": a_q.magnitude,
         },
         {
             "name": "Radius of gyration about the y-axis",
             "symbol": radius_gyration,
             "unit": "mm",
+            "value": 76.1,
+            "step": 0.1,
         },
     ]
+
+    input_uis = mo.ui.dictionary(
+        {
+            s["name"]: mo.ui.number(value=s["value"], step=s.get("step"))
+            for s in input_table
+            if "name" in s
+        }
+    )
 
 
     def _table_row(s):
