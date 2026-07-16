@@ -18,73 +18,76 @@ app = marimo.App(width="columns")
 @app.cell(column=0, hide_code=True)
 def _(mo):
     mo.md(r"""
-    # symeval
+    # SymEval
 
-    Symbolic evaluation for engineering calculations.
+    Symbolic, unit-aware evaluation of SymPy equations.
 
-    Renders the three-step chain:
-    **symbolic → numbers with units → result** as LaTeX.
-    """)
-    return
+    > SymPy is a Python library for symbolic mathematics.
 
+    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations and then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result:
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
+    1. equation;
+    2. quantities substituted;
+    3. result.
+
+    Below some examples that start with the basics and progressively show more powerful SymEval features and usecases.
+
     ## Axial stress under a compressive force
     """)
     return
 
 
 @app.cell
-def _(sym_evalf):
-    from pint import Quantity
-    from sympy import Symbol
-    # from symeval import sym_evalf
+def _():
+    from sympy import Eq, Symbol
 
-    sigma = sym_evalf(
-        expr=Symbol("F") / Symbol("A"),
-        subs={Symbol("F"): Quantity(-680, "kN"), Symbol("A"): Quantity(10_580, "mm^2")},
-        output_symbol=r"\sigma",
-        output_unit="MPa",
-    )
-    sigma
-    return Quantity, Symbol
+    axial_stress_eq = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+    axial_stress_eq
+    return Symbol, axial_stress_eq
 
 
 @app.cell
 def _(Symbol):
-    # You can also first specify a sympy expression:
-    f_sym = Symbol("F")
-    a_sym = Symbol("A")
-    sigma_expr = f_sym / a_sym
-    sigma_expr
-    return a_sym, f_sym, sigma_expr
+    from pint import Quantity
+
+    fa_inputs = {
+        Symbol("F"): Quantity(-680, "kN"),
+        Symbol("A"): Quantity(10_580, "mm^2"),
+    }
+    fa_inputs
+    return Quantity, fa_inputs
 
 
 @app.cell
-def _(Quantity, a_sym, f_sym, sigma_expr):
-    # And then call sym_evalf as a method on that expression. Moreover, you can
-    # specify the number of decimal places of your result, and the render mode:
+def _(axial_stress_eq, fa_inputs):
+    # from symeval import sym_evalf
+
+    axial_stress = axial_stress_eq.sym_evalf(
+        subs=fa_inputs,
+        output_unit="MPa",
+    )
+    axial_stress
+    return
+
+
+@app.cell
+def _(axial_stress_eq, fa_inputs):
+    # You can specify the number of decimal places of your result, and render mode.
     # verbose: adds an extra line showing all values converted to SI base units.
-    f_q = Quantity(-680, "kN")
-    a_q = Quantity(10_580, "mm^2")
-    sigma_expr.sym_evalf(
-        subs={f_sym: f_q, a_sym: a_q},
-        output_symbol=r"\sigma",
+    axial_stress_eq.sym_evalf(
+        subs=fa_inputs,
         output_unit="MPa",
         decimals=2,
         mode="verbose",
     )
-    return a_q, f_q
+    return
 
 
 @app.cell
-def _(a_q, a_sym, f_q, f_sym, sigma_expr):
+def _(axial_stress_eq, fa_inputs):
     # one_line: collapse the derivation onto a single line.
-    sigma_expr.sym_evalf(
-        subs={f_sym: f_q, a_sym: a_q},
-        output_symbol=r"\sigma",
+    axial_stress_eq.sym_evalf(
+        subs=fa_inputs,
         output_unit="MPa",
         decimals=1,
         mode="one_line",
@@ -97,7 +100,7 @@ def _(mo):
     mo.md(r"""
     ## `quantity_evalf()` on a `DataFrame`
 
-    Now suppose I have done a structural analysis, which gave me the axial forces acting on the members, and now I want to calculate what the resulting axial stresses on these members are. So, let's:
+    Now suppose you have done a structural analysis, which gave you the axial forces acting on the members (building columns and beams), and now you want to calculate what the resulting axial stresses on these members are. So, let's:
 
     1. create a `polars.DataFrame` with the forces and cross-sectional areas of these members;
     2. calculate the axial stresses using `quantity_evalf()` on the `DataFrame`;
@@ -107,7 +110,7 @@ def _(mo):
 
 
 @app.cell
-def _(Quantity, a_q, a_sym, f_q, f_sym, quantity_evalf, sigma_expr):
+def _(Quantity, Symbol, axial_stress_eq, quantity_evalf):
     import marimo as mo
     import polars as pl
     # from symeval import quantity_evalf
@@ -117,20 +120,21 @@ def _(Quantity, a_q, a_sym, f_q, f_sym, quantity_evalf, sigma_expr):
         {
             "member_type": ["column", "column", "brace", "strut", "tie"],
             "section": ["W14x90", "HSS8x8x5/8", "HSS6x6x3/8", "L4x4", "C8x11.5"],
-            "F_kN": [-720.0, f_q.magnitude, 340.0, -110.0, 250.0],
-            "A_mm2": [17_100.0, a_q.magnitude, 4_890.0, 1_870.0, 2_168.0],
+            "F_kN": [-720.0, -680, 340.0, -110.0, 250.0],
+            "A_mm2": [17_100.0, 10_580, 4_890.0, 1_870.0, 2_168.0],
         }
     )
 
-
     # 2. Vectorise via polars: build a Quantity per row, evaluate to MPa, take the
     # magnitude. Returning the bare float keeps the column polars-native.
+    _axial_stress_expr = axial_stress_eq.rhs
+
     def _stress_MPa(row):
         return quantity_evalf(
-            expr=sigma_expr,
+            expr=_axial_stress_expr,
             subs={
-                f_sym: Quantity(row["F_kN"], "kN"),
-                a_sym: Quantity(row["A_mm2"], "mm^2"),
+                Symbol("F"): Quantity(row["F_kN"], "kN"),
+                Symbol("A"): Quantity(row["A_mm2"], "mm^2"),
             },
             output_unit="MPa",
         ).magnitude
@@ -142,7 +146,6 @@ def _(Quantity, a_q, a_sym, f_q, f_sym, quantity_evalf, sigma_expr):
         .alias("sigma_MPa")
     )
 
-
     # 3a. Create a marimo ui element in which you can select the member for which
     # you want to symbolicly evaluate the calculation.
     selected_member_to_symeval = mo.ui.table(
@@ -152,16 +155,15 @@ def _(Quantity, a_q, a_sym, f_q, f_sym, quantity_evalf, sigma_expr):
     return mo, selected_member_to_symeval
 
 
-@app.cell(hide_code=True)
-def _(Quantity, a_sym, f_sym, selected_member_to_symeval, sigma_expr):
+@app.cell
+def _(Quantity, Symbol, axial_stress_eq, selected_member_to_symeval):
     # 3b. Do the symbolic evaluation for the selected member
     _sel_row = selected_member_to_symeval.value
-    sigma_expr.sym_evalf(
+    axial_stress_eq.sym_evalf(
         subs={
-            f_sym: Quantity(_sel_row["F_kN"][0], "kN"),
-            a_sym: Quantity(_sel_row["A_mm2"][0], "mm^2"),
+            Symbol("F"): Quantity(_sel_row["F_kN"][0], "kN"),
+            Symbol("A"): Quantity(_sel_row["A_mm2"][0], "mm^2"),
         },
-        output_symbol=r"\sigma",
         output_unit="MPa",
         decimals=1,
     )
@@ -174,13 +176,17 @@ def _(mo):
     ## Axial Resistance of Steel HSS Member
     As per CSA S16-17
 
-    This is the example calculation that Connor Ferster, the author of [`handcalcs`](https://github.com/connorferster/handcalcs), shows in [this "Engineering Calculations: Handcalcs-on-Jupyter vs. Excel" YouTube tutorial](https://www.youtube.com/watch?v=n9Uzy3Eb-XI).
+    This is the example calculation that Connor Ferster, the author of [`handcalcs`](https://github.com/connorferster/handcalcs) (huge [inspiration](https://github.com/bedrock-engineer/symeval#inspiration) for SymEval), shows in [this "Engineering Calculations: Handcalcs-on-Jupyter vs. Excel" YouTube tutorial](https://www.youtube.com/watch?v=n9Uzy3Eb-XI).
+
+    This example shows how you can define an entire table of inputs using marimo ui elements and then chain the result from one equation into the next.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(a_q, f_q, mo, sympy):
+def _(mo, sympy):
+    # import sympy
+
     (
         compressive_force,
         beam_length,
@@ -193,16 +199,15 @@ def _(a_q, f_q, mo, sympy):
         radius_gyration,
     ) = sympy.symbols(r"C_f L k E F_y n \phi_s A r_y")
 
-    # Single source of truth for the input table: each row carries its symbol,
-    # unit, and default value/step. The mo.ui.number elements and the rendered
-    # markdown table both derive from this, so nothing is restated by hand.
+    # Input table: each row carries its sympy.Symbol, unit, and default value/step.
+    # The mo.ui.number elements and the markdown table are both derived from this input table.
     input_table = [
         {"section": "Loads"},
         {
             "name": "Compressive force",
             "symbol": compressive_force,
             "unit": "kN",
-            "value": -f_q.magnitude,
+            "value": 680,
         },
         {"section": "Member geometry"},
         {
@@ -248,7 +253,7 @@ def _(a_q, f_q, mo, sympy):
             "name": "Cross-sectional area",
             "symbol": cross_sectional_area,
             "unit": "mm^2",
-            "value": a_q.magnitude,
+            "value": 10_580,
         },
         {
             "name": "Radius of gyration about the y-axis",
@@ -267,15 +272,15 @@ def _(a_q, f_q, mo, sympy):
         }
     )
 
-
     def _table_row(s):
         if "section" in s:
             return f"| **{s['section']}** |  |  |  |  |"
         unit = f"${s['unit']}$" if s.get("unit") else ""
-        return f"| {s['name']} | ${s['symbol']}$ | = | {input_uis[s['name']]} | {unit} |"
+        return (
+            f"| {s['name']} | ${s['symbol']}$ | = | {input_uis[s['name']]} | {unit} |"
+        )
 
-
-    mo.md(
+    input_table_md = mo.md(
         "### Inputs\n"
         "|     |     |     |     |     |\n"
         "|--------------|--------|---|-----|---|\n"
@@ -288,6 +293,7 @@ def _(a_q, f_q, mo, sympy):
         effective_length_factor,
         elastic_modulus,
         input_table,
+        input_table_md,
         input_uis,
         radius_gyration,
         strain_hardening_exponent,
@@ -297,7 +303,94 @@ def _(a_q, f_q, mo, sympy):
 
 
 @app.cell(hide_code=True)
-def _(axial_resistance, dcr, euler_buckling_stress, lambda_factor, mo):
+def _(input_table_md, mo):
+    mo.md(f"""
+    {input_table_md}
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    Quantity,
+    beam_length,
+    compressive_force,
+    cross_sectional_area,
+    effective_length_factor,
+    elastic_modulus,
+    input_table,
+    input_uis,
+    mo,
+    radius_gyration,
+    strain_hardening_exponent,
+    strength_reduction_factor,
+    sympy,
+    yield_strength,
+):
+    # Like before, create a dictionary with sympy.Symbol keys and pint.Quantity values:
+    symbolic_quantities = {
+        s["symbol"]: Quantity(input_uis[s["name"]].value, s.get("unit"))
+        for s in input_table
+        if "name" in s
+    }
+    # then define the equation:
+    _euler_buckling_eq = sympy.Eq(
+        sympy.Symbol("F_e"),
+        (sympy.pi**2 * elastic_modulus)
+        / ((beam_length * effective_length_factor / radius_gyration) ** 2),
+    )
+    # and symbolically evaluate it:
+    euler_buckling_stress = _euler_buckling_eq.sym_evalf(
+        subs=symbolic_quantities,
+        output_unit="GPa",
+        decimals=3,
+        mode="one_line",
+    )
+    # But now, in order to chain the Euler buckling stress into the next equation,
+    # add it to the dictionary with symbolic quantities:
+    symbolic_quantities[euler_buckling_stress.symbol] = euler_buckling_stress.quantity
+
+    # Rinse and repeat:
+    # Lambda factor
+    _lambda_factor_eq = sympy.Eq(
+        sympy.Symbol(r"\lambda"),
+        (sympy.sqrt(yield_strength / euler_buckling_stress.symbol))
+        ** (2 * strain_hardening_exponent),
+    )
+    lambda_factor = _lambda_factor_eq.sym_evalf(
+        subs=symbolic_quantities,
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
+
+    # Axial resistance
+    _axial_resistance_eq = sympy.Eq(
+        sympy.Symbol("C_r"),
+        (strength_reduction_factor * cross_sectional_area * yield_strength)
+        / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent)),
+    )
+    axial_resistance = _axial_resistance_eq.sym_evalf(
+        subs=symbolic_quantities,
+        output_unit="MN",
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
+
+    # Demand capacity ratio
+    _dcr_eq = sympy.Eq(
+        sympy.Symbol("DCR"),
+        compressive_force / axial_resistance.symbol,
+    )
+    dcr = _dcr_eq.sym_evalf(
+        subs=symbolic_quantities,
+        decimals=3,
+        mode="one_line",
+    )
+    symbolic_quantities[dcr.symbol] = dcr.quantity
+
+    # Show the whole calulation:
     mo.vstack(
         [
             mo.md("### Calculation"),
@@ -343,90 +436,14 @@ def _(axial_resistance, dcr, euler_buckling_stress, lambda_factor, mo):
     return
 
 
-@app.cell
-def _(
-    Quantity,
-    beam_length,
-    compressive_force,
-    cross_sectional_area,
-    effective_length_factor,
-    elastic_modulus,
-    input_table,
-    input_uis,
-    radius_gyration,
-    strain_hardening_exponent,
-    strength_reduction_factor,
-    sympy,
-    yield_strength,
-):
-    # Create a dictionary with `sympy.Symbol` as keys and the input values as values
-    _symbolic_quantities = {
-        s["symbol"]: Quantity(input_uis[s["name"]].value, s.get("unit"))
-        for s in input_table
-        if "name" in s
-    }
-
-    # Define the Euler buckling stress sympy expression
-    _euler_buckling_expr = (sympy.pi**2 * elastic_modulus) / (
-        (beam_length * effective_length_factor / radius_gyration) ** 2
-    )
-    # Symbolically evaluate the Euler buckling stress
-    euler_buckling_stress = _euler_buckling_expr.sym_evalf(
-        subs=_symbolic_quantities,
-        output_symbol=sympy.Symbol("F_e"),
-        output_unit="GPa",
-        decimals=3,
-        mode="one_line",
-    )
-    # Add the resulting Euler buckling stress to the dictionary with symbolic quantities
-    # such that it can be used in subsequent `.sym_evalf`s
-    _symbolic_quantities[euler_buckling_stress.symbol] = euler_buckling_stress.quantity
-
-    # Same for the lambda factor: def expression; sym_evalf; add result to symbolic quantities dict
-    _lambda_factor_expr = (
-        sympy.sqrt(yield_strength / euler_buckling_stress.symbol)
-    ) ** (2 * strain_hardening_exponent)
-    lambda_factor = _lambda_factor_expr.sym_evalf(
-        subs=_symbolic_quantities,
-        output_symbol=sympy.Symbol(r"\lambda"),
-        decimals=3,
-        mode="one_line",
-    )
-    _symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
-
-    # Axial resistance
-    _axial_resistance_expr = (
-        strength_reduction_factor * cross_sectional_area * yield_strength
-    ) / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent))
-    axial_resistance = _axial_resistance_expr.sym_evalf(
-        subs=_symbolic_quantities,
-        output_symbol=sympy.Symbol("C_r"),
-        output_unit="MN",
-        decimals=3,
-        mode="one_line",
-    )
-    _symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
-
-    # Demand capacity ratio
-    _dcr_expr = compressive_force / axial_resistance.symbol
-    dcr = _dcr_expr.sym_evalf(
-        subs=_symbolic_quantities,
-        output_symbol=sympy.Symbol("DCR"),
-        decimals=3,
-        mode="one_line",
-    )
-    _symbolic_quantities[dcr.symbol] = dcr.quantity
-    return axial_resistance, dcr, euler_buckling_stress, lambda_factor
-
-
 @app.cell(hide_code=True)
-def _(R_q, ideal_gas_law, latex, mo):
+def _(R_q, ideal_gas_law, mo, sympy):
     mo.md(rf"""
     ## Ideal Gas Law
 
     When solving the ideal gas law 
 
-    $${latex(ideal_gas_law)}$$
+    $${sympy.latex(ideal_gas_law)}$$
 
     you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
 
@@ -437,9 +454,47 @@ def _(R_q, ideal_gas_law, latex, mo):
     | Temperature | $T$ | $K$ |
     | Number of gas particles | $n$ | $mol$ |
 
-    Now, given that `symeval` is built on top of `sympy` we can now first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`:
+    Now, given that SymEval is built on top of SymPy, SymEval will first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`.
+
+    The marimo ui elements combined with the piston widget are meant to give an [explorable explanation](https://worrydream.com/ExplorableExplanations/) of and some intuition for the ideal gas law.
     """)
     return
+
+
+@app.cell(hide_code=True)
+def _(Quantity, sympy):
+    # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
+    P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
+    ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
+    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+
+    ideal_gas_law_vars = {
+        "P (kPa)": (P_sym, "kPa"),
+        "V (Liters)": (V_sym, "l"),
+        "T (K)": (T_sym, "K"),
+        "n (mol)": (n_sym, "mol"),
+    }
+    ideal_gas_law_options = list(ideal_gas_law_vars)
+    return (
+        P_sym,
+        R_q,
+        R_sym,
+        T_sym,
+        V_sym,
+        ideal_gas_law,
+        ideal_gas_law_options,
+        ideal_gas_law_vars,
+        n_sym,
+    )
+
+
+@app.cell(hide_code=True)
+def _(ideal_gas_law_options, mo):
+    solve_for_radio = mo.ui.radio(
+        options=ideal_gas_law_options,
+        value="P (kPa)",
+    )
+    return (solve_for_radio,)
 
 
 @app.cell(hide_code=True)
@@ -515,31 +570,29 @@ def _(
     n_sym,
     piston_js,
     solve_for_radio,
-    sympy,
 ):
-    # First symbolically evaluate the value of the variable we're solving for.
-    # Then feed the knowns and unknown into the piston widget.
-    _symbolic_quantities = {
-        _sym: Quantity(igl_inputs[_label].value, _unit)
-        for _label, (_sym, _unit) in ideal_gas_law_vars.items()
-    }
-    _symbolic_quantities[R_sym] = R_q
-
-    # Put the variable of Ideal Gas Law that we're solving for on the
-    # left hand side of the IGL equation.
+    # Which variable are we solving for? Everything else is a known input.
     _solve_for_label = solve_for_radio.value
     _solve_for_sym, _solve_for_unit = ideal_gas_law_vars[_solve_for_label]
-    _solution = sympy.solve(ideal_gas_law, _solve_for_sym)[0]
 
-    # Symbolically evaluate the Ideal Gas Law for variable we solved for
-    igl_sym_eval = _solution.sym_evalf(
-        subs=_symbolic_quantities,
-        output_symbol=_solve_for_sym,
+    # Knowns: every slider value except the one we're solving for, plus R.
+    _knowns = {
+        _sym: Quantity(igl_inputs[_label].value, _unit)
+        for _label, (_sym, _unit) in ideal_gas_law_vars.items()
+        if _sym != _solve_for_sym
+    }
+    _knowns[R_sym] = R_q
+
+    # The equation infers its unknown (the one symbol with no value in subs),
+    # solves for it, and evaluates — no manual sympy.solve, no output_symbol.
+    igl_sym_eval = ideal_gas_law.sym_evalf(
+        subs=_knowns,
         output_unit=_solve_for_unit,
         decimals=2,
     )
-    # Put the result back into the dictionary with symbolic quantities
-    _symbolic_quantities[_solve_for_sym] = igl_sym_eval.quantity
+
+    # Knowns plus the solved unknown: the full set the piston widget renders.
+    _symbolic_quantities = {**_knowns, _solve_for_sym: igl_sym_eval.quantity}
 
     # Put the knowns, unknowns and their slider bounds into JavaScript constants
     _js_consts = f"""
@@ -566,20 +619,21 @@ def _(
     if str(_solve_for_sym) != "T":
         if _solve_for_value < _solve_for_input.start:
             _oob_msg = (
-                f"\U0001F4A5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
+                f"\U0001f4a5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
                 f"below min ({_solve_for_input.start}). Visual is floored; see symbolic evaluation."
             )
         elif _solve_for_value > _solve_for_input.stop:
             _oob_msg = (
-                f"\U0001F4A5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
+                f"\U0001f4a5 Solved <b>{_solve_for_label}</b> = {_solve_for_value:.3g}, "
                 f"above max ({_solve_for_input.stop}). Visual is capped; see symbolic evaluation."
             )
     _oob_html = (
         f'<div style="position:absolute;top:4px;left:4px;right:4px;'
-        f'font-family:sans-serif;font-size:10.5px;line-height:1.25;'
-        f'background:rgba(255,238,238,0.75);border:1px solid #d33;'
+        f"font-family:sans-serif;font-size:10.5px;line-height:1.25;"
+        f"background:rgba(255,238,238,0.75);border:1px solid #d33;"
         f'border-radius:4px;padding:3px 6px;color:#900;">{_oob_msg}</div>'
-        if _oob_msg else ""
+        if _oob_msg
+        else ""
     )
 
     _piston_html = f"""<!doctype html>
@@ -946,42 +1000,6 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(Quantity, mo, sympy):
-    # Define Ideal Gas Law sympy.Symbols and Equation
-    P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
-    ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
-    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
-
-    # Maps each radio label to the sympy.Symbol it selects and the unit its slider
-    # is in. Single source of truth: the radio options, the symbol lookup and the
-    # units all derive from this, so nothing depends on list position.
-    ideal_gas_law_vars = {
-        "P (kPa)": (P_sym, "kPa"),
-        "V (Liters)": (V_sym, "l"),
-        "T (K)": (T_sym, "K"),
-        "n (mol)": (n_sym, "mol"),
-    }
-
-    # Define ui inputs.
-    ideal_gas_law_options = list(ideal_gas_law_vars)
-    solve_for_radio = mo.ui.radio(
-        options=ideal_gas_law_options,
-        value="P (kPa)",
-    )
-    return (
-        P_sym,
-        R_q,
-        R_sym,
-        T_sym,
-        V_sym,
-        ideal_gas_law,
-        ideal_gas_law_vars,
-        n_sym,
-        solve_for_radio,
-    )
-
-
 @app.cell(column=1, hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -1009,13 +1027,12 @@ def _():
 
     import pint
     import sympy
-    from sympy import latex
 
-    return Literal, latex, pint, sympy
+    return Literal, pint, sympy
 
 
 @app.cell
-def _(Literal, latex, pint, sympy):
+def _(Literal, pint, sympy):
     ## EXPORT
 
     def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
@@ -1028,6 +1045,49 @@ def _(Literal, latex, pint, sympy):
         base = quantity.to_base_units()
         sympy_units = sympy.sympify(f"{base.units:~D}")
         return base.magnitude * sympy_units
+
+    def _resolve_formula(
+        formula: "sympy.Expr | sympy.Equality",
+        subs: dict,
+    ) -> "tuple[sympy.Expr, sympy.Symbol | None]":
+        """Resolve a *formula* (expression or equation) into `(expression, output_symbol)`.
+
+        A bare `sympy.Expr` passes through unchanged, with `None` for the output
+        symbol (the caller must supply `output_symbol` itself).
+
+        A `sympy.Eq` is solved for its single unknown — the one free symbol that
+        has no value in `subs` (everything in `subs` is a known input). When that
+        unknown is already isolated on one side of the equation, the other side is
+        returned verbatim so the rendered formula keeps the shape the user wrote;
+        otherwise `sympy.solve` isolates it.
+
+        Raises:
+            ValueError: If the equation does not have exactly one unknown, or if
+                solving it does not yield a unique solution.
+        """
+        if not isinstance(formula, sympy.Equality):
+            return formula, None
+        unknowns = formula.free_symbols - set(subs)
+        if len(unknowns) != 1:
+            raise ValueError(
+                "Expected exactly one unknown — a free symbol of the equation with "
+                "no value in `subs`. Found "
+                f"{sorted(map(str, unknowns))}. Provide `subs` values for every "
+                "symbol except the one to solve for."
+            )
+        (unknown,) = unknowns
+        if formula.lhs == unknown:
+            return formula.rhs, unknown
+        if formula.rhs == unknown:
+            return formula.lhs, unknown
+        solutions = sympy.solve(formula, unknown)
+        if len(solutions) != 1:
+            raise ValueError(
+                f"Solving for {unknown} gave {len(solutions)} solutions "
+                f"({solutions}); symeval needs a unique one. Solve the equation "
+                "yourself and pass the branch you want."
+            )
+        return solutions[0], unknown
 
     def quantity_evalf(
         expr: sympy.Expr,
@@ -1044,7 +1104,9 @@ def _(Literal, latex, pint, sympy):
         `verbose` all work without being listed here individually.
 
         Args:
-            expr (sympy.Expr): The sympy expression to evaluate.
+            expr (sympy.Expr): The sympy expression to evaluate. Equations are
+                not accepted here — use `sym_evalf` for a `sympy.Eq`, or solve
+                it first and pass the resulting expression.
             subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
                 `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
                 inputs). Same shape as sympy.evalf's `subs` kwarg, but values
@@ -1065,6 +1127,12 @@ def _(Literal, latex, pint, sympy):
                 else in SI base units.
         """
         subs = subs or {}
+        if isinstance(expr, sympy.Equality):
+            raise TypeError(
+                "quantity_evalf evaluates a bare expression, not an equation. "
+                "Use sym_evalf for a sympy.Eq (it infers the output symbol), or "
+                "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
+            )
         target_ureg = next(
             (q._REGISTRY for q in subs.values() if isinstance(q, pint.Quantity)),
             pint.get_application_registry(),
@@ -1147,7 +1215,7 @@ def _(Literal, latex, pint, sympy):
         binds to the whole quantity, not just the unit.
         """
         for ph, fmt, wrap in zip(placeholder_syms, formatteds, wrappable):
-            ph_latex = latex(ph)
+            ph_latex = sympy.latex(ph)
             plain = rf"\medspace{fmt}"
             if wrap:
                 wrapped = rf"\medspace\left({fmt}\right)"
@@ -1214,10 +1282,10 @@ def _(Literal, latex, pint, sympy):
             return str(self.quantity)
 
     def sym_evalf(
-        expr: sympy.Expr,
+        expr: "sympy.Expr | sympy.Equality",
         *,
         subs: dict[sympy.Symbol, pint.Quantity] | None = None,
-        output_symbol: str | sympy.Symbol,
+        output_symbol: str | sympy.Symbol | None = None,
         output_unit: str | pint.Unit | None = None,
         decimals: int | None = None,
         mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
@@ -1229,15 +1297,20 @@ def _(Literal, latex, pint, sympy):
         derivation attached to the returned `SymbolicEvaluation`.
 
         Args:
-            expr (sympy.Expr): The sympy expression to evaluate.
+            expr (sympy.Expr | sympy.Equality): The expression to evaluate,
+                or a `sympy.Eq` whose single unknown (the free symbol absent from
+                `subs`) is solved for. For an equation the output symbol is
+                inferred, so `output_symbol` may be omitted.
             subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
                 `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
                 inputs). Same shape as sympy.evalf's `subs` kwarg. Defaults to
                 None (no substitutions).
-            output_symbol (str | sympy.Symbol): LaTeX label for the output — a
-                string like `r"\\sigma"` or a `sympy.Symbol`. The label appears
-                on the left of every line of the rendered chain. Required;
-                keyword-only.
+            output_symbol (str | sympy.Symbol | None): LaTeX label for the
+                output — a string like `r"\\sigma"` or a `sympy.Symbol`. The label
+                appears on the left of every line of the rendered chain.
+                Keyword-only. Required for a bare expression; for an equation it
+                defaults to the inferred unknown, and an explicit value overrides
+                only the rendered label.
             output_unit (str | pint.Unit | None): Target pint unit for the
                 result. If `None`, the result is rendered in SI base units.
                 Defaults to None.
@@ -1270,9 +1343,18 @@ def _(Literal, latex, pint, sympy):
         if mode not in _VALID_MODES:
             raise ValueError(f"mode must be one of {_VALID_MODES}, got {mode!r}")
         subs = subs or {}
+        expr, _inferred_symbol = _resolve_formula(expr, subs)
+        if output_symbol is None:
+            if _inferred_symbol is None:
+                raise ValueError(
+                    "output_symbol is required when evaluating a bare sympy "
+                    "expression. Pass a sympy.Eq instead and the output symbol "
+                    "is inferred from the equation."
+                )
+            output_symbol = _inferred_symbol
 
         # Step 1: Symbolic LaTeX (formula with symbols).
-        expression_latex = latex(expr)
+        expression_latex = sympy.latex(expr)
 
         # Step 2: Build the substituted LaTeX (formula with numbers).
         # Why placeholders instead of substituting values directly?
@@ -1296,7 +1378,7 @@ def _(Literal, latex, pint, sympy):
         for canonical_pos, orig_idx in enumerate(canonical_order):
             placeholder_syms[orig_idx] = sympy.Symbol(f"SymEvalPH{canonical_pos}Z")
         sub_map = dict(zip(input_symbols, placeholder_syms))
-        rendered = latex(expr.subs(sub_map, simultaneous=True))
+        rendered = sympy.latex(expr.subs(sub_map, simultaneous=True))
 
         wrappable = [not q.dimensionless for q in input_quantities]
         formatteds_var = [
@@ -1350,7 +1432,7 @@ def _(Literal, latex, pint, sympy):
             output_sym = output_symbol
         else:
             output_sym = sympy.Symbol(str(output_symbol))
-        sym_latex = latex(output_sym)
+        sym_latex = sympy.latex(output_sym)
         # `full_latex` is the BARE LaTeX (no `$` delimiters). SymbolicEvaluation._repr_latex_
         # adds `$$...$$` for the default display rendering. Callers embedding the
         # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
@@ -1375,12 +1457,19 @@ def _(Literal, latex, pint, sympy):
 
         return SymbolicEvaluation(output_quantity, full_latex, output_sym)
 
-    # Method bindings on sympy.Expr so users can write `expr.sym_evalf(...)`.
-    # Bind the functions directly (not via lambdas) so introspection tools
-    # — `help`, marimo's 'View live docs', IDE hovers — see the real
-    # signature and docstring rather than a generic `lambda(**kw)`.
+    # Method bindings so users can write `expr.sym_evalf(...)`,
+    # `equation.sym_evalf(...)`, or `expr.quantity_evalf(...)`.
+    #
+    # sym_evalf accepts an equation (it infers the output symbol from the
+    # equation), so it's bound on Equality as well as Expr — mirroring how
+    # sympy's own `.subs`/`.evalf` live on Basic and work on both. quantity_evalf
+    # is the bare-value fast path (no label to infer) and stays expression-only,
+    # so it's bound on Expr alone. Bind the functions directly (not via lambdas)
+    # so introspection tools — `help`, marimo's 'View live docs', IDE hovers —
+    # see the real signature and docstring rather than a generic `lambda(**kw)`.
     sympy.Expr.quantity_evalf = quantity_evalf
     sympy.Expr.sym_evalf = sym_evalf
+    sympy.Equality.sym_evalf = sym_evalf
     return quantity_evalf, sym_evalf
 
 
@@ -1416,14 +1505,6 @@ def _(mo):
     precision and to suppress float-conversion noise (pint computing
     `100 mm² → 9.999...e-5 m²` instead of `1e-4 m²` is a real artifact of float
     unit ratios).
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
- 
     """)
     return
 
@@ -1661,6 +1742,181 @@ def _(Quantity, stress_calc, sym_evalf, sympy):
             assert "one_line" in str(e)
         else:
             raise AssertionError("Expected ValueError for invalid mode")
+
+    return
+
+
+@app.cell
+def _(Quantity):
+    def ideal_gas_R():
+        return Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+
+    return (ideal_gas_R,)
+
+
+@app.cell
+def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
+    def test_sym_evalf_equation_infers_output_symbol():
+        """Eq with a bare-symbol LHS infers the output symbol from that LHS."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        result = sympy.Eq(sigma, F / A).sym_evalf(
+            subs={F: Quantity(-680, "kN"), A: Quantity(10_580, "mm^2")},
+            output_unit="MPa",
+            decimals=2,
+        )
+        assert result.symbol == sigma
+        assert abs(result.quantity.magnitude - (-64.27)) < 0.01
+        assert r"\sigma" in result._repr_latex_()
+
+    def test_sym_evalf_equation_solves_embedded_unknown():
+        """Eq whose unknown is embedded (P*V = nRT) is solved before evaluating."""
+        P, V, n, R, T = sympy.symbols("P V n R T")
+        igl = sympy.Eq(P * V, R * T * n)
+        knowns = {
+            V: Quantity(22.4, "l"),
+            R: ideal_gas_R(),
+            T: Quantity(273.15, "K"),
+            n: Quantity(1, "mol"),
+        }
+        result = igl.sym_evalf(subs=knowns, output_unit="kPa", decimals=2)
+        assert result.symbol == P
+        assert abs(result.quantity.magnitude - 101.39) < 0.01
+
+    def test_sym_evalf_equation_solve_for_is_data_driven():
+        """The same equation solves for whichever symbol is left out of subs."""
+        P, V, n, R, T = sympy.symbols("P V n R T")
+        igl = sympy.Eq(P * V, R * T * n)
+        result = igl.sym_evalf(
+            subs={
+                P: Quantity(101.325, "kPa"),
+                V: Quantity(22.4, "l"),
+                R: ideal_gas_R(),
+                T: Quantity(273.15, "K"),
+            },
+            output_unit="mol",
+            decimals=3,
+        )
+        assert result.symbol == n
+        assert abs(result.quantity.magnitude - 1.0) < 0.01
+
+    def test_sym_evalf_equation_unknown_on_rhs():
+        """The unknown may sit on the RHS; the LHS is then the expression."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        result = sympy.Eq(F / A, sigma).sym_evalf(
+            subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
+            output_unit="MPa",
+            decimals=1,
+        )
+        assert result.symbol == sigma
+        assert abs(result.quantity.magnitude - 500.0) < 0.1
+
+    def test_sym_evalf_equation_matches_expression_latex():
+        """Eq(sym, expr) renders identically to expr.sym_evalf(output_symbol=sym)."""
+        E, k, L, r_y = sympy.symbols("E k L r_y")
+        F_e = sympy.Symbol("F_e")
+        expr = (sympy.pi**2 * E) / ((k * L / r_y) ** 2)
+        subs = {
+            E: Quantity(200, "GPa"),
+            k: Quantity(1, ""),
+            L: Quantity(6.5, "m"),
+            r_y: Quantity(76.1, "mm"),
+        }
+        from_eq = (
+            sympy.Eq(F_e, expr)
+            .sym_evalf(subs=subs, output_unit="GPa", decimals=3)
+            .latex
+        )
+        from_expr = expr.sym_evalf(
+            subs=subs, output_symbol=F_e, output_unit="GPa", decimals=3
+        ).latex
+        assert from_eq == from_expr
+
+    def test_sym_evalf_equation_explicit_output_symbol_overrides_label():
+        """An explicit output_symbol overrides the inferred label on an equation."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        result = sympy.Eq(sigma, F / A).sym_evalf(
+            subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
+            output_symbol=r"\tau",
+            output_unit="MPa",
+            decimals=1,
+        )
+        assert abs(result.quantity.magnitude - 500.0) < 0.1
+        assert r"\tau" in result._repr_latex_()
+
+    def test_sym_evalf_bare_expr_requires_output_symbol():
+        """A bare expression still needs output_symbol; omitting it raises."""
+        F, A = sympy.symbols("F A")
+        try:
+            (F / A).sym_evalf(
+                subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
+                output_unit="MPa",
+            )
+        except ValueError as e:
+            assert "output_symbol" in str(e)
+        else:
+            raise AssertionError("Expected ValueError for missing output_symbol")
+
+    def test_sym_evalf_equation_multiple_unknowns_raises():
+        """More than one unresolved symbol is ambiguous and raises."""
+        P, V, n, R, T = sympy.symbols("P V n R T")
+        try:
+            sympy.Eq(P * V, R * T * n).sym_evalf(
+                subs={V: Quantity(22.4, "l"), R: ideal_gas_R()},
+                output_unit="kPa",
+            )
+        except ValueError as e:
+            assert "exactly one unknown" in str(e)
+        else:
+            raise AssertionError("Expected ValueError for multiple unknowns")
+
+    def test_sym_evalf_equation_no_unknown_raises():
+        """If every symbol has a value there is nothing to solve for; raises."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        try:
+            sympy.Eq(sigma, F / A).sym_evalf(
+                subs={
+                    sigma: Quantity(1, "Pa"),
+                    F: Quantity(1, "N"),
+                    A: Quantity(1, "m^2"),
+                },
+                output_unit="Pa",
+            )
+        except ValueError as e:
+            assert "exactly one unknown" in str(e)
+        else:
+            raise AssertionError("Expected ValueError for no unknown")
+
+    def test_sym_evalf_equation_non_unique_solution_raises():
+        """An equation with several solutions (sigma**2 = F) raises."""
+        F, sigma = sympy.symbols("F sigma")
+        try:
+            sympy.Eq(sigma**2, F).sym_evalf(
+                subs={F: Quantity(4, "Pa**2")}, output_unit="Pa"
+            )
+        except ValueError as e:
+            assert "solutions" in str(e)
+        else:
+            raise AssertionError("Expected ValueError for non-unique solution")
+
+    def test_quantity_evalf_rejects_equation():
+        """quantity_evalf is expression-only; handing it an Eq raises TypeError."""
+        P, V, n, R, T = sympy.symbols("P V n R T")
+        try:
+            quantity_evalf(
+                sympy.Eq(P * V, R * T * n),
+                subs={V: Quantity(22.4, "l")},
+            )
+        except TypeError as e:
+            assert "sym_evalf" in str(e)
+        else:
+            raise AssertionError("Expected TypeError for Eq passed to quantity_evalf")
+
+    def test_evalf_method_bindings():
+        """sym_evalf is bound on Expr and Equality; quantity_evalf on Expr only."""
+        assert hasattr(sympy.Expr, "sym_evalf")
+        assert hasattr(sympy.Expr, "quantity_evalf")
+        assert hasattr(sympy.Equality, "sym_evalf")
+        assert not hasattr(sympy.Equality, "quantity_evalf")
 
     return
 
