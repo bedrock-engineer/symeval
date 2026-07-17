@@ -271,11 +271,18 @@ _VALID_MODES = ("multi_line", "verbose", "one_line")
 class SymbolicEvaluation:
     """A pint Quantity with an attached LaTeX rendering for marimo/Jupyter.
 
-    Returned by `sym_evalf`. Delegates the common Quantity surface
-    (magnitude, units, dimensionality, m, m_as, to, to_base_units) to
-    `self.quantity`. `_repr_latex_` returns the rendered LaTeX. `.symbol`
-    is the output sympy.Symbol: reference it when building a later equation and
-    pair it with `.quantity` in that evaluation's `subs` to chain calculations.
+    Returned by `sym_evalf`. Transparent wrapper around `self.quantity`: any
+    attribute or method not defined here (magnitude, units, to, to_reduced_units,
+    m_as, ...) is delegated to the quantity through `__getattr__`. This class defines no
+    arithmetic or comparison operators; do math on `.quantity`. (Because the
+    delegated magnitude/units make the wrapper quack like a Quantity, pint may
+    still duck-type it in arithmetic and hand back a plain Quantity, which is
+    fine.) What this class adds: `.latex` (the rendered working), `.symbol`
+    (the output sympy.Symbol), and `_repr_latex_`.
+
+    `.symbol` is the output sympy.Symbol: reference it when building a later
+    equation and pair it with `.quantity` in that evaluation's `subs` to chain
+    calculations.
     """
 
     def __init__(
@@ -288,30 +295,14 @@ class SymbolicEvaluation:
         self.latex = latex
         self.symbol = symbol
 
-    @property
-    def magnitude(self):
-        return self.quantity.magnitude
-
-    @property
-    def units(self):
-        return self.quantity.units
-
-    @property
-    def dimensionality(self):
-        return self.quantity.dimensionality
-
-    @property
-    def m(self):
-        return self.quantity.m
-
-    def m_as(self, unit):
-        return self.quantity.m_as(unit)
-
-    def to(self, *args, **kwargs):
-        return self.quantity.to(*args, **kwargs)
-
-    def to_base_units(self):
-        return self.quantity.to_base_units()
+    def __getattr__(self, name: str):
+        # __getattr__ runs only when normal lookup fails, so the real attributes
+        # (quantity, latex, symbol) never route here. Everything else -- the whole
+        # Quantity surface -- delegates to the quantity. Guard `quantity` itself so
+        # a half-built instance raises cleanly instead of recursing forever.
+        if name == "quantity":
+            raise AttributeError(name)
+        return getattr(self.quantity, name)
 
     def _repr_latex_(self) -> str:
         # Always wrap as display math so the default rendering is the larger
