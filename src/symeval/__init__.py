@@ -1,8 +1,7 @@
 __all__ = ['quantity_evalf', 'SymbolicEvaluation', 'sym_evalf']
 
 
-import textwrap
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 import pint
@@ -29,7 +28,7 @@ def _resolve_formula(
     A bare `sympy.Expr` passes through unchanged, with `None` for the output
     symbol (the caller must supply `output_symbol` itself).
 
-    A `sympy.Eq` is solved for its single unknown — the one free symbol that
+    A `sympy.Eq` is solved for its single unknown, the one free symbol that
     has no value in `subs` (everything in `subs` is a known input). When that
     unknown is already isolated on one side of the equation, the other side is
     returned verbatim so the rendered formula keeps the shape the user wrote;
@@ -44,7 +43,7 @@ def _resolve_formula(
     unknowns = formula.free_symbols - set(subs)
     if len(unknowns) != 1:
         raise ValueError(
-            "Expected exactly one unknown — a free symbol of the equation with "
+            "Expected exactly one unknown: a free symbol of the equation with "
             "no value in `subs`. Found "
             f"{sorted(map(str, unknowns))}. Provide `subs` values for every "
             "symbol except the one to solve for."
@@ -74,22 +73,21 @@ def quantity_evalf(
     Mirrors `sympy.Expr.evalf`'s signature. Any extra keyword arguments are
     captured by Python's `**evalf_kwargs` (a standard mechanism for
     collecting unmatched kwargs into a dict) and forwarded verbatim to
-    `expr.evalf(...)` — so `n`, `maxn`, `chop`, `strict`, `quiet`, and
+    `expr.evalf(...)`, so `n`, `maxn`, `chop`, `strict`, `quiet`, and
     `verbose` all work without being listed here individually.
 
     Args:
         expr (sympy.Expr): The sympy expression to evaluate. Equations are
-            not accepted here — use `sym_evalf` for a `sympy.Eq`, or solve
+            not accepted here; use `sym_evalf` for a `sympy.Eq`, or solve
             it first and pass the resulting expression.
         subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
-            `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
-            inputs). Same shape as sympy.evalf's `subs` kwarg, but values
+            `sympy.Symbol` to `pint.Quantity` (a dimensionless input is still a quantity, `Quantity(x, "")`). Same shape as sympy.evalf's `subs` kwarg, but values
             carry units. Defaults to None (no substitutions).
         output_unit (str | pint.Unit | None): Target pint unit for the
             result (e.g. `"MPa"` or `ureg.MPa`). If `None`, the result is
             returned in SI base units. Defaults to None. The result's
             registry is the registry of the input `pint.Quantity` values
-            in `subs`; with empty subs (or all-scalar subs),
+            in `subs`; with empty subs,
             `pint.get_application_registry()` is used as a fallback.
         **evalf_kwargs: Forwarded verbatim to `expr.evalf(...)`. Useful
             kwargs include `n` (digits of precision), `chop` (round tiny
@@ -97,7 +95,7 @@ def quantity_evalf(
             unevaluated result).
 
     Returns:
-        pint.Quantity: The computed quantity — in `output_unit` if given,
+        pint.Quantity: The computed quantity, in `output_unit` if given,
             else in SI base units.
     """
     subs = subs or {}
@@ -121,7 +119,7 @@ def quantity_evalf(
 def _strip_si_prefixes(quantity: pint.Quantity) -> pint.Quantity:
     """Convert a quantity to its SI-prefix-free equivalent (kN -> N, MPa -> Pa, mm -> m).
 
-    `kg` is left as-is because it is itself the SI base unit for mass — even
+    `kg` is left as-is because it is itself the SI base unit for mass, even
     though pint internally represents it as kilo*gram.
     """
     if quantity.dimensionless:
@@ -314,7 +312,7 @@ _MODES = {
 }
 
 class SymbolicEvaluation:
-    """A pint Quantity with an attached LaTeX rendering for marimo/Jupyter.
+    """A pint Quantity wrapper with an attached LaTeX rendering for marimo/Jupyter.
 
     Returned by `sym_evalf`. Transparent wrapper around `self.quantity`: any
     attribute or method not defined here (magnitude, units, to, to_reduced_units,
@@ -381,11 +379,10 @@ def sym_evalf(
             `subs`) is solved for. For an equation the output symbol is
             inferred, so `output_symbol` may be omitted.
         subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
-            `sympy.Symbol` to `pint.Quantity` (or a scalar for dimensionless
-            inputs). Same shape as sympy.evalf's `subs` kwarg. Defaults to
+            `sympy.Symbol` to `pint.Quantity` (a dimensionless input is still a quantity, `Quantity(x, "")`). Same shape as sympy.evalf's `subs` kwarg. Defaults to
             None (no substitutions).
         output_symbol (str | sympy.Symbol | None): LaTeX label for the
-            output — a string like `r"\\sigma"` or a `sympy.Symbol`. The label
+            output: a string like `r"\\sigma"` or a `sympy.Symbol`. The label
             appears on the left of every line of the rendered working.
             Keyword-only. Required for a bare expression; for an equation it
             defaults to the inferred unknown, and an explicit value overrides
@@ -398,12 +395,12 @@ def sym_evalf(
         mode (Literal["multi_line", "verbose", "one_line"]): Rendering
             style, defaults to `"multi_line"`:
 
-            - `"multi_line"`: three lines — symbolic, substituted with
+            - `"multi_line"`: three lines: symbolic form, substituted form with
               units, then result.
-            - `"verbose"`: four lines — multi_line plus an extra
-              substituted-in-SI-base line in scientific notation.
-            - `"one_line"`: a single line —
-              `Symbol = formula = substituted = result`, with just the
+            - `"verbose"`: four lines: multi_line plus an extra
+              substituted form in SI base units, in scientific notation.
+            - `"one_line"`: a single line,
+              `symbol = symbolic form = substituted form = result`, with just the
               variable's unit on the right (no prefix-stripped dual).
         **evalf_kwargs: Forwarded to `expr.evalf(...)` via
             `quantity_evalf`. Useful kwargs: `n` (digits of precision),
@@ -416,7 +413,10 @@ def sym_evalf(
             chaining into downstream sympy expressions.
 
     Raises:
-        ValueError: If `mode` is not one of the allowed values.
+        ValueError: If `output_symbol` is omitted for a bare expression; if
+            an equation has zero or more than one unknown (a free symbol
+            absent from `subs`); if solving the equation yields no unique
+            solution; or if `mode` is not one of the allowed values.
     """
     if mode not in _MODES:
         raise ValueError(f"mode must be one of {tuple(_MODES)}, got {mode!r}")
@@ -483,11 +483,11 @@ def sym_evalf(
 # `equation.sym_evalf(...)`, or `expr.quantity_evalf(...)`.
 #
 # sym_evalf accepts an equation (it infers the output symbol from the
-# equation), so it's bound on Equality as well as Expr — mirroring how
+# equation), so it's bound on Equality as well as Expr, mirroring how
 # sympy's own `.subs`/`.evalf` live on Basic and work on both. quantity_evalf
 # is the bare-value fast path (no label to infer) and stays expression-only,
 # so it's bound on Expr alone. Bind the functions directly (not via lambdas)
-# so introspection tools — `help`, marimo's 'View live docs', IDE hovers —
+# so introspection tools (`help`, marimo's 'View live docs', IDE hovers)
 # see the real signature and docstring rather than a generic `lambda(**kw)`.
 sympy.Expr.quantity_evalf = quantity_evalf
 sympy.Expr.sym_evalf = sym_evalf
