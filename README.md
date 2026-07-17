@@ -1,28 +1,35 @@
 # symeval
 
-Write a [`sympy`](https://docs.sympy.org) expression, fill in [`pint`](https://pint.readthedocs.io/) quantities, and get the full derivation, that is (1) formula, (2) substituted values with units, and (3) the result with unit — rendered as LaTeX in your [`marimo`](https://docs.marimo.io) or Jupyter notebook.
+Write a [`sympy`](https://docs.sympy.org) equation, fill in [`pint`](https://pint.readthedocs.io/) quantities, and get the full working, that is (1) the symbolic form, (2) the substituted form with units, and (3) the result with its unit, rendered as LaTeX in your [`marimo`](https://docs.marimo.io) or Jupyter notebook.
 
-- ✨ **Crystal-clear** — shows the full derivation: formula, values with units, and result
-- 🐍 **Pure Python** — drop into your *interactive* notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL)
-- 📏 **Unit-aware** — `pint` quantities carry units through every step and convert to your chosen output unit
-- 🧮 **Sympy-native** — rearrange or simplify your formula symbolically first, then evaluate
-- 📊 **DataFrame-ready** — use `quantity_evalf()` to compute a new unit-aware column on a `DataFrame`
+- ✨ **Crystal-clear**: shows the full working, that is symbolic form, substituted form, and result
+- 🐍 **Pure Python**: drop into your *interactive* notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL)
+- 📏 **Unit-aware**: `pint` quantities carry units through every step and convert to your chosen output unit
+- 🧮 **Sympy-native**: rearrange or simplify your formula symbolically first, then evaluate
+- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a new unit-aware column on a `DataFrame`
 
 ```sh
 pip install symeval
 ```
 
+📖 **[Documentation](https://bedrock-engineer.github.io/symeval)**
+
 ## Axial stress under a compressive force
+
+Define the formula as a `sympy.Eq`, fill in `pint` quantities, and `sym_evalf`
+renders the working. The output symbol is taken from the equation, so you do not
+pass it separately:
 
 ```python
 from pint import Quantity
-from sympy import Symbol
+from sympy import Eq, Symbol
 from symeval import sym_evalf
 
-sigma = sym_evalf(
-    expr=Symbol("F") / Symbol("A"),
+axial_stress = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+
+sym_evalf(
+    axial_stress,
     subs={Symbol("F"): Quantity(-680, "kN"), Symbol("A"): Quantity(10_580, "mm^2")},
-    output_symbol=r"\sigma",
     output_unit="MPa",
     decimals=2,
 )
@@ -34,19 +41,15 @@ $$\begin{align*}
 \sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
-You can also build the `sympy` expression first and call `.sym_evalf()` as a method — useful when you want to do symbolic math before filling in numbers. Pass `mode=` to choose the rendering style; `mode="verbose"` adds an extra line showing all values converted to SI base units:
+You can also call `.sym_evalf()` as a method on the equation. Pass `mode=` to
+choose the rendering style; `mode="verbose"` adds an extra line to the working,
+showing all values converted to SI base units:
 
 ```python
-f_sym, a_sym = Symbol("F"), Symbol("A")
-sigma_expr = f_sym / a_sym
+axial_stress = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+fa = {Symbol("F"): Quantity(-680, "kN"), Symbol("A"): Quantity(10_580, "mm^2")}
 
-sigma_expr.sym_evalf(
-    subs={f_sym: Quantity(-680, "kN"), a_sym: Quantity(10_580, "mm^2")},
-    output_symbol=r"\sigma",
-    output_unit="MPa",
-    decimals=2,
-    mode="verbose",
-)
+axial_stress.sym_evalf(subs=fa, output_unit="MPa", decimals=2, mode="verbose")
 ```
 
 $$\begin{align*}
@@ -56,32 +59,28 @@ $$\begin{align*}
 \sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
-`mode="one_line"` collapses the derivation onto a single line:
+`mode="one_line"` collapses the working onto a single line:
 
 ```python
-sigma_expr.sym_evalf(
-    subs={f_sym: Quantity(-680, "kN"), a_sym: Quantity(10_580, "mm^2")},
-    output_symbol=r"\sigma",
-    output_unit="MPa",
-    decimals=1,
-    mode="one_line",
-)
+axial_stress.sym_evalf(subs=fa, output_unit="MPa", decimals=1, mode="one_line")
 ```
 
 $$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}$$
 
 ## `quantity_evalf()` on a DataFrame
 
-`quantity_evalf` is the numeric-only sibling of `sym_evalf` — same unit-aware evaluation, no LaTeX overhead. It's useful for applying a formula across every row of a DataFrame:
+`quantity_evalf` is the numeric-only sibling of `sym_evalf`, that is the same
+unit-aware evaluation without the working. It takes an expression rather than an
+equation, so pass the equation's right-hand side (`axial_stress.rhs`). This makes
+it useful for applying a formula across every row of a DataFrame:
 
 ```python
 import polars as pl
 from pint import Quantity
-from sympy import Symbol
+from sympy import Eq, Symbol
 from symeval import quantity_evalf
 
-f_sym, a_sym = Symbol("F"), Symbol("A")
-sigma_expr = f_sym / a_sym
+axial_stress = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
 
 members = pl.DataFrame({
     "member_type": ["column", "column", "brace", "strut", "tie"],
@@ -92,8 +91,8 @@ members = pl.DataFrame({
 
 def stress_MPa(row):
     return quantity_evalf(
-        sigma_expr,
-        subs={f_sym: Quantity(row["F_kN"], "kN"), a_sym: Quantity(row["A_mm2"], "mm^2")},
+        axial_stress.rhs,
+        subs={Symbol("F"): Quantity(row["F_kN"], "kN"), Symbol("A"): Quantity(row["A_mm2"], "mm^2")},
         output_unit="MPa",
     ).magnitude
 
@@ -112,12 +111,11 @@ members_with_stress = members.with_columns(
 | strut | L4x4 | -110.00 | 1870.00 | -58.82 |
 | tie | C8x11.5 | 250.00 | 2168.00 | 115.31 |
 
-Then use `sym_evalf` to show the full derivation for any row you want to inspect:
+Then use `sym_evalf` to show the full working for any row you want to inspect:
 
 ```python
-sigma_expr.sym_evalf(
-    subs={f_sym: Quantity(-680, "kN"), a_sym: Quantity(10_580, "mm^2")},
-    output_symbol=r"\sigma",
+axial_stress.sym_evalf(
+    subs={Symbol("F"): Quantity(-680, "kN"), Symbol("A"): Quantity(10_580, "mm^2")},
     output_unit="MPa",
     decimals=1,
 )
@@ -129,10 +127,11 @@ $$\begin{align*}
 \sigma &= -6.4\times 10^{7}\ \mathrm{Pa} = -64.3\ \mathrm{MPa}
 \end{align*}$$
 
-
 ## Axial resistance of a steel HSS member
 
-A worked example from CSA S16-17. Each `sym_evalf` result feeds into the next — `F_e` into $\lambda$, $\lambda$ into $C_r$, $C_r$ into $DCR$ — so the LaTeX rendering captures the full audit trail of a multi-step engineering check:
+A worked example from CSA S16-17. Each symbolic evaluation is chained into the
+next, that is `F_e` into $\lambda$, $\lambda$ into $C_r$, $C_r$ into $DCR$, so the
+working captures every step of a multi-step engineering check:
 
 $$F_{e} = \frac{\pi^{2} E r_{y}^{2}}{L^{2} k^{2}} = \frac{\pi^{2} \,200\ \mathrm{GPa} \,\left(76.1\ \mathrm{mm}\right)^{2}}{\,\left(6.5\ \mathrm{m}\right)^{2} \,1^{2}} = 0.271\ \mathrm{GPa}$$
 
@@ -146,7 +145,8 @@ See `symeval_mo.py` for the full reactive marimo notebook with input UIs.
 
 ## Ideal Gas Law: symbolic rearrangement
 
-Starting from $PV = nRT$, `sympy.solve` rearranges the equation symbolically for any variable, then the resulting expression feeds straight into `sym_evalf`:
+Starting from $PV = nRT$ as a `sympy.Eq`, `sym_evalf` solves for the single
+unknown and evaluates, so you never write the rearranged form by hand:
 
 $$\begin{align*}
 P &= \frac{R T n}{V} \\
@@ -162,14 +162,14 @@ Built and maintained by [Joost Gevaert](https://github.com/JoostGevaert) at [Bed
 
 ## Feedback & contributing
 
-Found a bug or have a feature request? [Open an issue](https://github.com/bedrock-engineer/symeval/issues) — pull requests are welcome too. The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`CLAUDE.md`](CLAUDE.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
+Found a bug or have a feature request? [Open an issue](https://github.com/bedrock-engineer/symeval/issues), pull requests are welcome too. The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`CLAUDE.md`](CLAUDE.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
 
 ## Inspiration
 
-- [handcalcs](https://github.com/connorferster/handcalcs) — renders Python calculation code as LaTeX in Jupyter
-- [CalcPad](https://calcpad-ce.org) — engineering calculations DSL with symbolic/numeric workflow
+- [handcalcs](https://github.com/connorferster/handcalcs), renders Python calculation code as LaTeX in Jupyter
+- [CalcPad](https://calcpad-ce.org), engineering calculations DSL with symbolic/numeric workflow
 - Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache License 2.0, see [LICENSE](LICENSE).
