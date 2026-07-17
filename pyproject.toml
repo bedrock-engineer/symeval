@@ -1,6 +1,6 @@
 [project]
 name = "symeval"
-version = "0.3.2"
+version = "0.4.0"
 description = "Symbolic evaluation for engineering calculations — renders expression → numbers with units → result as LaTeX"
 readme = "README.md"
 authors = []
@@ -40,7 +40,7 @@ build = "uvx marimo -y export session symeval_mo.py && uvx mobuild export symeva
 docs = "uv run scripts/extract_getting_started.py && uv run scripts/examples_to_qmd.py"
 docs_preview = "uv run --group docs quarto preview docs/"
 docs_render = "uv run --group docs quarto render docs/"
-test = "uvx --with marimo --with sympy --with pint pytest symeval_mo.py"
+test = "uvx --with sympy --with pint --with marimo --with polars pytest symeval_mo.py"
 clean = "bash -c 'rm -rf dist/'"
 pre_release = "task build && task test"
 release = """bash -c '\
