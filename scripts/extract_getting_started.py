@@ -4,7 +4,7 @@
 #     "marimo",
 # ]
 # ///
-"""Extract the examples column of ``symeval_mo.py`` into the Quarto docs.
+"""Extract the examples column of ``symeval_mo.py`` into a standalone notebook.
 
 ``symeval_mo.py`` is laid out in three marimo columns:
 
@@ -12,20 +12,27 @@
     column 1 — the library implementation (the ``## EXPORT`` cells)
     column 2 — the tests
 
-This script slices out column 0 and writes it, in two steps, to:
+This script slices out column 0 and writes it as a self-contained, single-column
+marimo notebook to:
 
-    docs/index.py   — a standalone, single-column marimo notebook
-    docs/index.qmd  — the same notebook exported to Quarto markdown
+    examples/getting_started.py
 
 The examples call ``sym_evalf`` / ``quantity_evalf`` and use ``sympy``; in the
 source notebook those names come from the implementation column, so their
 imports sit commented-out. Here we uncomment them (and repair the cell's
-``return`` tuple) so the docs notebook pulls them from the installed
-``symeval`` package instead, making it self-contained.
+``return`` tuple) so the notebook pulls them from the installed ``symeval``
+package instead, making it self-contained and openable in molab.
+
+The source notebook is a three-column marimo app (``App(width="columns")``); the
+extracted notebook is a plain single-column notebook, so the ``width="columns"``
+layout and the ``column=0`` cell marker are stripped.
+
+The generated ``.py`` is the source for the docs website: ``examples_to_qmd.py``
+renders it (and the other ``examples/*.py``) to Quarto ``.qmd`` pages.
 
 Run it with uv so the inline dependency metadata above provisions marimo::
 
-    uv run scripts/extract_docs.py
+    uv run scripts/extract_getting_started.py
 """
 
 from __future__ import annotations
@@ -37,11 +44,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE = REPO_ROOT / "symeval_mo.py"
-NOTEBOOK = REPO_ROOT / "docs" / "index.py"
-QMD = REPO_ROOT / "docs" / "index.qmd"
+NOTEBOOK = REPO_ROOT / "examples" / "getting_started.py"
 
 # The implementation column defines these inline, so the examples import them
-# commented-out. In the standalone docs notebook they come from the package.
+# commented-out. In the standalone notebook they come from the package.
 _COMMENTED_IMPORT = re.compile(
     r"^(?P<indent>[ \t]*)#[ \t]*"
     r"(?P<stmt>(?:import|from)[ \t]+(?:sympy|symeval)\b.*)$",
@@ -52,11 +58,11 @@ _FOOTER = 'if __name__ == "__main__":\n    app.run()\n'
 
 
 def _rewrite_docs_dependencies(header: str) -> str:
-    """Fix the PEP 723 dependency list for the standalone docs notebook.
+    """Fix the PEP 723 dependency list for the standalone notebook.
 
     The source notebook lists ``pytest`` (for its test column) and defines the
-    library inline. The docs notebook has no tests and imports the library, so
-    it drops ``pytest`` and adds ``symeval``.
+    library inline. The standalone notebook has no tests and imports the
+    library, so it drops ``pytest`` and adds ``symeval``.
     """
     block = re.search(
         r"(?P<open># dependencies = \[\n)(?P<body>(?:#.*\n)*?)(?P<close># \]\n)",
@@ -72,6 +78,24 @@ def _rewrite_docs_dependencies(header: str) -> str:
         f"{header[: block.start()]}{block['open']}{body}"
         f"{block['close']}{header[block.end() :]}"
     )
+
+
+def _single_column(header: str) -> str:
+    """Drop the multi-column layout from the ``marimo.App`` definition."""
+    return re.sub(r"marimo\.App\(\s*width=\"columns\"\s*\)", "marimo.App()", header)
+
+
+def _strip_column_marker(column_zero: str) -> str:
+    """Remove the ``column=0`` marker from the first cell decorator.
+
+    marimo tags only the first cell of each column with ``column=N``. In a
+    single-column notebook that marker is meaningless, so ``@app.cell(column=0,
+    hide_code=True)`` becomes ``@app.cell(hide_code=True)`` and a lone
+    ``@app.cell(column=0)`` collapses back to ``@app.cell``.
+    """
+    column_zero = re.sub(r"(@app\.cell\()column=\d+,\s*", r"\1", column_zero)
+    column_zero = re.sub(r"@app\.cell\(column=\d+\)", "@app.cell", column_zero)
+    return column_zero
 
 
 def _bound_names(import_stmt: str) -> list[str]:
@@ -107,7 +131,7 @@ def _repair_import_cell_return(text: str, activated: list[str]) -> str:
 
 
 def extract_examples_column(source: str) -> str:
-    """Return a standalone notebook holding only the first (examples) column."""
+    """Return a standalone single-column notebook holding the examples column."""
     first_cell = re.search(r"^@app\.(?:cell|function)\b", source, re.MULTILINE)
     next_column = re.search(r"^@app\.cell\(column=1\b", source, re.MULTILINE)
     if first_cell is None or next_column is None:
@@ -116,10 +140,11 @@ def extract_examples_column(source: str) -> str:
             "a `@app.cell(column=1 ...)` cell marking the start of column 1."
         )
 
-    header = _rewrite_docs_dependencies(source[: first_cell.start()])
-    column_zero = source[first_cell.start() : next_column.start()]
+    header = _single_column(_rewrite_docs_dependencies(source[: first_cell.start()]))
+    column_zero = _strip_column_marker(source[first_cell.start() : next_column.start()])
 
     activated: list[str] = []
+
     def _uncomment(match: re.Match[str]) -> str:
         activated.extend(_bound_names(match.group("stmt")))
         return f"{match.group('indent')}{match.group('stmt')}"
@@ -144,13 +169,6 @@ def main() -> None:
     # API change until the matching release is published.
     subprocess.run([sys.executable, "-m", "marimo", "check", str(NOTEBOOK)], check=True)
     print(f"Checked {NOTEBOOK.relative_to(REPO_ROOT)}: valid marimo notebook")
-
-    subprocess.run(
-        [sys.executable, "-m", "marimo", "export", "md", "--flavor", "qmd",
-         str(NOTEBOOK), "-o", str(QMD), "-f"],
-        check=True,
-    )
-    print(f"Wrote {QMD.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

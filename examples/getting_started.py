@@ -12,10 +12,10 @@
 import marimo
 
 __generated_with = "0.23.14"
-app = marimo.App(width="columns")
+app = marimo.App()
 
 
-@app.cell(column=0, hide_code=True)
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     # SymEval
