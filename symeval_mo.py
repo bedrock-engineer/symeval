@@ -1262,8 +1262,6 @@ def _():
         input_symbols = list(subs.keys())
         input_quantities = list(subs.values())
 
-        # Placeholder indices follow the canonical sort order of the input symbols,
-        # so sympy.Mul ordering matches between the symbolic and substituted forms.
         canonical_order = sorted(
             range(len(input_symbols)), key=lambda i: input_symbols[i].sort_key()
         )
@@ -1278,8 +1276,6 @@ def _():
                 quantity, decimals, si_stripped=si_stripped
             )
             ph_latex = sympy.latex(placeholder)
-            # Wrap a unit-carrying value in \left(...\right) when it sits under an
-            # exponent, so the power binds to the whole quantity, not just the unit.
             if not quantity.dimensionless:
                 wrapped = rf"\medspace\left({formatted}\right)"
                 rendered = rendered.replace(f"{ph_latex}^", f"{wrapped}^")
@@ -1361,17 +1357,13 @@ def _():
             self.symbol = symbol
 
         def __getattr__(self, name: str):
-            # __getattr__ runs only when normal lookup fails, so the real attributes
-            # (quantity, latex, symbol) never route here. Everything else -- the whole
-            # Quantity surface -- delegates to the quantity. Guard `quantity` itself so
-            # a half-built instance raises cleanly instead of recursing forever.
+            # Guard `quantity` so a half-built instance raises cleanly instead of
+            # recursing. (__getattr__ runs only when normal attribute lookup fails.)
             if name == "quantity":
                 raise AttributeError(name)
             return getattr(self.quantity, name)
 
         def _repr_latex_(self) -> str:
-            # Always wrap as display math so the default rendering is the larger
-            # block form. Inline embeds use `result.latex` directly with `$...$`.
             return f"$$ {self.latex} $$"
 
         def __repr__(self):
@@ -1454,32 +1446,24 @@ def _():
                 )
             output_symbol = _inferred_symbol
 
-        # Step 1: Symbolic LaTeX (formula with symbols).
         expression_latex = sympy.latex(expr)
 
-        # Step 2: the substituted form (formula with numbers spliced in).
         substituted_latex = _render_substituted(expr, subs, decimals)
 
-        # Step 2.5 (verbose only): the substituted form in SI base units.
         si_substituted_latex = (
             _render_substituted(expr, subs, decimals, si_stripped=True)
             if wants_si
             else None
         )
 
-        # Step 3: Numerical evaluation. Delegate to quantity_evalf, which forwards
-        # the evalf kwargs.
         output_quantity = quantity_evalf(
             expr, subs=subs, output_unit=output_unit, **evalf_kwargs
         )
 
-        # Result line: the value in its own unit, plus a prefix-stripped
-        # scientific dual when the unit carries an SI prefix (see _format_result).
         output_var_unit_latex, output_dual_latex = _format_result(
             output_quantity, decimals
         )
 
-        # Coerce output_symbol to a sympy.Symbol for both rendering and chaining.
         if isinstance(output_symbol, sympy.Symbol):
             output_sym = output_symbol
         else:
