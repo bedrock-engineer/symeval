@@ -1288,7 +1288,52 @@ def _():
             rendered = rendered.replace(ph_latex, rf"\medspace{formatted}")
         return rendered
 
-    _VALID_MODES = ("multi_line", "verbose", "one_line")
+    @dataclass
+    class _Working:
+        """The pieces of one symbolic evaluation's working, before layout.
+
+        `symbol` is the output label; `symbolic` the formula with symbols;
+        `substituted` the formula with numbers. `result_value` is the result in its
+        own unit and `result_dual` the same with a prefix-stripped scientific dual
+        (equal to `result_value` when the unit carries no SI prefix). `si_substituted`
+        is the extra SI-base line, present only in verbose mode.
+        """
+
+        symbol: str
+        symbolic: str
+        substituted: str
+        result_value: str
+        result_dual: str
+        si_substituted: "str | None" = None
+
+    def _layout_one_line(working: _Working) -> str:
+        """Arrange a working on one line: symbol = formula = numbers = result."""
+        return (
+            f"{working.symbol} = {working.symbolic}"
+            f" = {working.substituted} = {working.result_value}"
+        )
+
+    def _layout_align(working: _Working) -> str:
+        """Arrange a working as a stacked LaTeX `align*` block.
+
+        Includes the SI-base substituted line when the working carries one (verbose).
+        """
+        lines = [
+            rf"{working.symbol} &= {working.symbolic} \\",
+            rf"&= {working.substituted} \\",
+        ]
+        if working.si_substituted is not None:
+            lines.append(rf"&= {working.si_substituted} \\")
+        lines.append(rf"{working.symbol} &= {working.result_dual}")
+        return "\\begin{align*}\n" + "\n".join(lines) + "\n\\end{align*}"
+
+    # The one place a mode is defined: its layout, and whether it carries the SI line.
+    # Adding a mode is one entry here (plus a layout function if the arrangement is new).
+    _MODES = {
+        "one_line": (_layout_one_line, False),
+        "multi_line": (_layout_align, False),
+        "verbose": (_layout_align, True),
+    }
 
     class SymbolicEvaluation:
         """A pint Quantity with an attached LaTeX rendering for marimo/Jupyter.
@@ -1395,8 +1440,9 @@ def _():
         Raises:
             ValueError: If `mode` is not one of the allowed values.
         """
-        if mode not in _VALID_MODES:
-            raise ValueError(f"mode must be one of {_VALID_MODES}, got {mode!r}")
+        if mode not in _MODES:
+            raise ValueError(f"mode must be one of {tuple(_MODES)}, got {mode!r}")
+        layout, wants_si = _MODES[mode]
         subs = subs or {}
         expr, _inferred_symbol = _resolve_formula(expr, subs)
         if output_symbol is None:
@@ -1415,11 +1461,11 @@ def _():
         substituted_latex = _render_substituted(expr, subs, decimals)
 
         # Step 2.5 (verbose only): the substituted form in SI base units.
-        si_substituted_latex = None
-        if mode == "verbose":
-            si_substituted_latex = _render_substituted(
-                expr, subs, decimals, si_stripped=True
-            )
+        si_substituted_latex = (
+            _render_substituted(expr, subs, decimals, si_stripped=True)
+            if wants_si
+            else None
+        )
 
         # Step 3: Numerical evaluation. Delegate to quantity_evalf, which forwards
         # the evalf kwargs.
@@ -1443,23 +1489,15 @@ def _():
         # adds `$$...$$` for the default display rendering. Callers embedding the
         # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
         # `$${...}$$` for display).
-        if mode == "one_line":
-            full_latex = (
-                f"{sym_latex} = {expression_latex}"
-                f" = {substituted_latex}"
-                f" = {output_var_unit_latex}"
-            )
-        else:
-            align_lines = [
-                rf"{sym_latex} &= {expression_latex} \\",
-                rf"&= {substituted_latex} \\",
-            ]
-            if mode == "verbose":
-                align_lines.append(rf"&= {si_substituted_latex} \\")
-            align_lines.append(rf"{sym_latex} &= {output_dual_latex}")
-            full_latex = (
-                "\\begin{align*}\n" + "\n".join(align_lines) + "\n\\end{align*}"
-            )
+        working = _Working(
+            symbol=sym_latex,
+            symbolic=expression_latex,
+            substituted=substituted_latex,
+            result_value=output_var_unit_latex,
+            result_dual=output_dual_latex,
+            si_substituted=si_substituted_latex,
+        )
+        full_latex = layout(working)
 
         return SymbolicEvaluation(output_quantity, full_latex, output_sym)
 
