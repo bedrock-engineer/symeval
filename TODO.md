@@ -55,7 +55,26 @@ I want to build a [quarto-marimo](https://github.com/marimo-team/quarto-marimo) 
 - Bedrock-wide **DTCG design-token** pipeline (Style Dictionary) as the upstream source for `_brand.yml`.
 - Note: quarto's automatic project-input discovery came up empty with the PyPI-bundled binary here, so `_quarto.yml` lists explicit render globs.
 
+#### Feedback
+- Improve the home page. See https://docs.marimo.io/#quickstart
+    - How to install -> push people toward using uv and marimo
+        - uv add symeval (Is there a command line way to add a package to the Inline Dependency Metadata (IDM)?)
+        - uvx marimo edit --sandbox => add a package in the GUI (or is there a way to add a package to a marimo notebook running in a sandbox, which then also adds that to the IDM?)
+        - another modern way? What does uv pip install actually do? Doesn't add the package to IDM or pyproject.toml, right? so not a good idea for reproducibility.
+- SymEval is how SymEval should be formatted in prose, and `symeval` when talking about SymEval's usage in code. Put a note of this somewhere. Should that go in @CONTEXT.md or AGENTS.md or somewhere else? /grill-with-docs
+- Logo not visible. I guess because same color as the banner at the top?
+- Nav from the home page is weird. Not clear how to get to the explanations or reference from the home page
+- When the window is small, the 
+- light / dark makes no sense, because they are completely different themes, not a light / dark version of the same theme.
+- Getting started doesn't need a > Tutorial
+- Upon reading the docs, "get the full working" does sound weird to me. I have the idea that not everybody is going to really get what's meant with it. What would be better, clearer wording? /grill-with-docs
+- Lots of feedback on the Getting started guide, its interactive elements and code.
+
 ### CONTRIBUTING.md
-Would this be a good place to document how people should contribute new notebook examples to SymEval?
-And would this therefore also be the right place to document how to run a dev server for the docs website?
-Or should we actually make a section/chapter in the docs on contributing new example notebooks?
+
+Done: `CONTRIBUTING.md` documents dev setup, tests, the docs dev server
+(`task docs_preview`, with the regenerate-on-notebook-change loop), and adding a
+worked example. The published docs stay user-facing; contributing is surfaced by
+a short note in the README and a callout on the docs landing, both linking to
+`CONTRIBUTING.md`. `AGENTS.md` points at `pyproject.toml` / `CONTRIBUTING.md` for
+commands rather than duplicating them.

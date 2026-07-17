@@ -19,17 +19,17 @@ LaTeX in your [marimo](https://docs.marimo.io) or Jupyter notebook.
 pip install symeval
 ```
 
-## Why symeval
+## Highlights
 
-- **Crystal-clear.** Shows the full working: symbolic form, substituted form, and result.
-- **Pure Python.** Drop it into your interactive notebooks and other Python code. No special syntax, no cell magic, no domain-specific language.
-- **Unit-aware.** Pint quantities carry units through every step and convert to your chosen output unit.
-- **SymPy-native.** Rearrange or simplify your formula symbolically first, then evaluate.
-- **DataFrame-ready.** Use `quantity_evalf()` to compute a new unit-aware column on a DataFrame.
+- ✨ **Crystal-clear**: shows the full working, that is symbolic form, substituted form, and result.
+- 🐍 **Pure Python**: drop into your interactive notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL).
+- 📏 **Unit-aware**: pint quantities carry units through every step and convert to your chosen output unit.
+- 🧮 **Sympy-native**: rearrange or simplify your formula symbolically first, then evaluate.
+- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a new unit-aware column on a DataFrame.
 
-## Axial stress under a compressive force
+## Quickstart
 
-Define the equation, substitute quantities, and symeval renders how the result
+Define the equation, substitute quantities, and SymEval renders how the result
 is reached:
 
 ```python
@@ -41,7 +41,10 @@ axial_stress = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
 
 sym_evalf(
     axial_stress,
-    subs={Symbol("F"): Quantity(-680, "kN"), Symbol("A"): Quantity(10_580, "mm^2")},
+    subs={
+        Symbol("F"): Quantity(-680, "kN"), 
+        Symbol("A"): Quantity(10_580, "mm^2")
+    },
     output_unit="MPa",
     decimals=2,
 )
@@ -56,3 +59,9 @@ $$\begin{align*}
 The output symbol comes from the equation, so you do not pass it separately.
 Head to the [tutorial](getting-started.qmd) for the reactive walkthrough,
 or read [how symeval works](explanation.qmd) for the ideas behind it.
+
+::: {.callout-note appearance="simple"}
+Have an engineering calculation worth sharing? Contributions of worked example
+notebooks are welcome, see
+[CONTRIBUTING](https://github.com/bedrock-engineer/symeval/blob/main/CONTRIBUTING.md).
+:::
