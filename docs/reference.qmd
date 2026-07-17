@@ -1,0 +1,127 @@
+---
+title: API reference
+---
+
+The public surface is small: two functions and one result object. Both functions
+are also available as methods on any SymPy expression or equation, so you can
+build a formula symbolically and evaluate it in place.
+
+## `sym_evalf`
+
+```python
+sym_evalf(
+    expr,
+    *,
+    subs=None,
+    output_symbol=None,
+    output_unit=None,
+    decimals=None,
+    mode="multi_line",
+    **evalf_kwargs,
+) -> SymbolicEvaluation
+```
+
+Numerically evaluates a formula with unit-aware
+[Pint](https://pint.readthedocs.io/) quantities and attaches the **working**:
+the symbolic form, the substituted form, and the result, rendered as LaTeX.
+
+Call it as a function, or as a method on a SymPy expression or equation:
+
+```python
+from symeval import sym_evalf
+
+sym_evalf(equation, subs=values, output_unit="MPa")
+equation.sym_evalf(subs=values, output_unit="MPa")   # equivalent
+```
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `expr` | `sympy.Expr \| sympy.Eq` | The formula to evaluate. A `sympy.Eq` is solved for its single unknown (the free symbol not present in `subs`), and its output symbol is inferred. |
+| `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (or a scalar for dimensionless inputs). Same shape as SymPy's `evalf` `subs`. |
+| `output_symbol` | `str \| sympy.Symbol \| None` | LaTeX label for the result, for example `r"\sigma"`. Required for a bare expression; for an equation it defaults to the inferred unknown and an explicit value overrides only the label. |
+| `output_unit` | `str \| pint.Unit \| None` | Target unit for the result. When `None`, the result is rendered in SI base units. |
+| `decimals` | `int \| None` | Decimal places for the result and substituted lines. `None` uses Pint's natural formatting. |
+| `mode` | `"multi_line" \| "verbose" \| "one_line"` | Rendering style, see below. |
+| `**evalf_kwargs` | | Forwarded to `expr.evalf(...)`, for example `n` (digits of precision), `chop`, `strict`. |
+
+Returns a [`SymbolicEvaluation`](#symbolicevaluation).
+
+### Rendering modes
+
+`mode="multi_line"` (the default) renders the working as three lines: the
+symbolic form, the substituted form, then the result.
+
+$$\begin{align*}
+\sigma &= \frac{F}{A} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
+\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+\end{align*}$$
+
+`mode="verbose"` adds a fourth line showing every value converted to SI base
+units in scientific notation, useful when you want to audit the unit
+conversions.
+
+$$\begin{align*}
+\sigma &= \frac{F}{A} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
+&= \frac{\,-6.800\times 10^{5}\ \mathrm{N}}{\,1.058\times 10^{-2}\ \mathrm{m}^{2}} \\
+\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+\end{align*}$$
+
+`mode="one_line"` collapses the working onto a single line.
+
+$$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}$$
+
+## `quantity_evalf`
+
+```python
+quantity_evalf(
+    expr,
+    *,
+    subs=None,
+    output_unit=None,
+    **evalf_kwargs,
+) -> pint.Quantity
+```
+
+The numeric-only sibling of `sym_evalf`: the same unit-aware evaluation without
+the LaTeX rendering. Returns a bare `pint.Quantity`, which makes it well suited
+to computing a new column across every row of a DataFrame.
+
+`quantity_evalf` takes an expression, not an equation: it has no output symbol to
+infer. Pass a `sympy.Eq` to `sym_evalf`, or evaluate the equation's right-hand
+side (`equation.rhs`).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `expr` | `sympy.Expr` | The expression to evaluate. |
+| `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (or a scalar). |
+| `output_unit` | `str \| pint.Unit \| None` | Target unit for the result. When `None`, the result is in SI base units. |
+| `**evalf_kwargs` | | Forwarded to `expr.evalf(...)`. |
+
+Returns a `pint.Quantity` in `output_unit` if given, otherwise in SI base units.
+
+## `SymbolicEvaluation`
+
+The symbolic evaluation returned by `sym_evalf`. It renders as LaTeX in marimo
+and Jupyter through `_repr_latex_`, and exposes three attributes for **chaining**
+one symbolic evaluation into the next:
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `.quantity` | `pint.Quantity` | The result quantity with its unit. |
+| `.latex` | `str` | The working, rendered as LaTeX. |
+| `.symbol` | `sympy.Symbol` | The output symbol, ready to reference in a later formula. |
+
+Because `.symbol` and `.quantity` are plain SymPy and Pint objects, chaining
+reads as a straight sequence: each result becomes a symbol and a value in the
+`subs` of the next symbolic evaluation. See the
+[tutorial](getting-started.qmd) for a worked chain.
+
+## The registry
+
+symeval bundles no `UnitRegistry`. It reads the registry off the Pint quantities
+you pass in (`quantity._REGISTRY`), so results land in your registry. When
+`subs` is empty, it falls back to `pint.get_application_registry()`. Create your
+quantities with `pint.Quantity` (or your own `UnitRegistry`) and symeval follows
+along.

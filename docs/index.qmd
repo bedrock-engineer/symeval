@@ -7,11 +7,11 @@ toc: false
 ---
 
 Write a [SymPy](https://docs.sympy.org) equation, fill in
-[Pint](https://pint.readthedocs.io/) quantities, and get the full derivation:
-the formula, the substituted values with units, and the result, rendered as
+[Pint](https://pint.readthedocs.io/) quantities, and get the full working:
+the symbolic form, the substituted form, and the result, rendered as
 LaTeX in your [marimo](https://docs.marimo.io) or Jupyter notebook.
 
-[Get started](examples/getting-started.qmd){.btn .btn-primary}
+[Get started](getting-started.qmd){.btn .btn-primary}
 [GitHub](https://github.com/bedrock-engineer/symeval){.btn .btn-outline-secondary}
 [PyPI](https://pypi.org/project/symeval/){.btn .btn-outline-secondary}
 
@@ -21,7 +21,7 @@ pip install symeval
 
 ## Why symeval
 
-- **Crystal-clear.** Shows the full derivation: formula, values with units, and result.
+- **Crystal-clear.** Shows the full working: symbolic form, substituted form, and result.
 - **Pure Python.** Drop it into your interactive notebooks and other Python code. No special syntax, no cell magic, no domain-specific language.
 - **Unit-aware.** Pint quantities carry units through every step and convert to your chosen output unit.
 - **SymPy-native.** Rearrange or simplify your formula symbolically first, then evaluate.
@@ -54,5 +54,5 @@ $$\begin{align*}
 \end{align*}$$
 
 The output symbol comes from the equation, so you do not pass it separately.
-Head to the [tutorial](examples/getting-started.qmd) for the reactive walkthrough,
+Head to the [tutorial](getting-started.qmd) for the reactive walkthrough,
 or read [how symeval works](explanation.qmd) for the ideas behind it.

@@ -25,15 +25,11 @@ website:
       - section: "Getting started"
         contents:
           - text: "Tutorial"
-            href: examples/getting-started.qmd
+            href: getting-started.qmd
       - section: "Explanation"
         contents:
           - text: "How symeval works"
             href: explanation.qmd
-      - section: "Examples"
-        contents:
-          - text: "Axial resistance of a steel HSS member"
-            href: examples/axial-resistance-of-steel-hss-member.qmd
       - section: "Reference"
         contents:
           - text: "API reference"

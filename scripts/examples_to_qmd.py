@@ -9,7 +9,11 @@
 Each example notebook becomes one documentation page. The pipeline is:
 
     examples/<name>.py  --marimo export-->  (marimo-flavoured qmd)  --transform-->
-    docs/examples/<name-kebab>.qmd
+    docs/<name-kebab>.qmd            (primary pages, e.g. getting_started)
+    docs/examples/<name-kebab>.qmd   (worked-examples gallery)
+
+Primary pages (``PRIMARY_PAGES``) render to the docs root; the rest land in the
+``docs/examples/`` gallery.
 
 Two transforms turn marimo's export into a page the quarto-marimo extension
 (>= 0.4.x) actually renders as reactive islands:
@@ -48,7 +52,13 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLES = REPO_ROOT / "examples"
-OUT_DIR = REPO_ROOT / "docs" / "examples"
+DOCS = REPO_ROOT / "docs"
+EXAMPLES_OUT = DOCS / "examples"
+
+# Notebooks that are primary pages rather than gallery examples render to the
+# docs root (getting_started -> docs/getting-started.qmd). Everything else lands
+# in docs/examples/ (the worked-examples gallery).
+PRIMARY_PAGES = {"getting_started"}
 
 # The molab "Open in <name>" badge opens a GitHub-hosted notebook in molab by
 # appending its GitHub blob URL to molab.marimo.io. The badge only resolves once
@@ -147,8 +157,13 @@ def build_page(name: str, exported: str) -> str:
     )
 
 
+def output_path(stem: str) -> Path:
+    """Where the ``.qmd`` for ``examples/<stem>.py`` is written."""
+    directory = DOCS if stem in PRIMARY_PAGES else EXAMPLES_OUT
+    return directory / f"{stem.replace('_', '-')}.qmd"
+
+
 def main() -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
     notebooks = sorted(EXAMPLES.glob("*.py"))
     if not notebooks:
         raise SystemExit(f"No example notebooks found in {EXAMPLES}")
@@ -164,7 +179,8 @@ def main() -> None:
         page = build_page(nb.stem, tmp_path.read_text())
         tmp_path.unlink(missing_ok=True)
 
-        out = OUT_DIR / f"{nb.stem.replace('_', '-')}.qmd"
+        out = output_path(nb.stem)
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(page)
         print(f"Wrote {out.relative_to(REPO_ROOT)}")
 

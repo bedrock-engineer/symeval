@@ -44,7 +44,6 @@ def _():
     import sympy
 
     from pint import Quantity
-
     from symeval import quantity_evalf
     from sympy import Symbol
 
@@ -85,7 +84,7 @@ def _(axial_stress_eq, fa_inputs):
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
-        decimals=2,
+        decimals=5,
         mode="verbose",
     )
     return
@@ -93,7 +92,7 @@ def _(axial_stress_eq, fa_inputs):
 
 @app.cell
 def _(axial_stress_eq, fa_inputs):
-    # one_line: collapse the derivation onto a single line.
+    # one_line: collapse the working onto a single line.
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
@@ -587,7 +586,7 @@ def _(
     _knowns[R_sym] = R_q
 
     # The equation infers its unknown (the one symbol with no value in subs),
-    # solves for it, and evaluates — no manual sympy.solve, no output_symbol.
+    # solves for it, and evaluates: no manual sympy.solve, no output_symbol.
     igl_sym_eval = ideal_gas_law.sym_evalf(
         subs=_knowns,
         output_unit=_solve_for_unit,

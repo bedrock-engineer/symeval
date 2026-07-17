@@ -1,0 +1,80 @@
+---
+title: How symeval works
+---
+
+symeval sits on top of two libraries that each do one job well, and does nothing
+more than connect them. [SymPy](https://docs.sympy.org/) holds the formula as
+symbols, so you can rearrange or simplify it before any numbers exist.
+[Pint](https://pint.readthedocs.io/) holds the numbers as quantities, so a value
+carries its unit through every operation. symeval evaluates the SymPy formula
+with Pint quantities and renders the working as LaTeX.
+
+## The working
+
+Every symbolic evaluation renders the same **working**: the steps you would write
+out by hand when you want a calculation to be checkable. It has three parts:
+
+1. **Symbolic form.** The formula shown with symbols, untouched.
+2. **Substituted form.** Each symbol replaced by the Pint quantity you supplied,
+   so the units are visible while the structure of the symbolic form stays
+   intact.
+3. **Result.** The evaluated quantity, converted to the output unit you asked
+   for.
+
+$$\begin{align*}
+\sigma &= \frac{F}{A} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
+\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+\end{align*}$$
+
+The value of showing the working, rather than only the answer, is that a reviewer
+can follow the reasoning: the formula is stated, the inputs are visible with
+their units, and the result is traceable back to both.
+
+## Why symbols and quantities are kept separate
+
+Keeping the formula symbolic until the last moment is what lets you do algebra
+first. Starting from the ideal gas law as an equation, SymPy can solve for any
+variable before a single number is filled in:
+
+$$P V = n R T \quad\longrightarrow\quad P = \frac{R T n}{V}$$
+
+symeval leans on this directly. Give `sym_evalf` a `sympy.Eq` and it solves for
+the single unknown (the free symbol not present in your substitutions), then
+evaluates. You never write the rearranged form by hand, so it cannot drift from
+the equation you started with.
+
+Keeping the numbers as Pint quantities is what makes the units correct rather
+than merely annotated. Because each input is a real quantity, the substituted
+line shows genuine units, unit conversions happen inside the evaluation, and a
+mismatch (adding a length to a pressure, say) is an error rather than a wrong
+number that looks plausible.
+
+## Chaining one evaluation into the next
+
+A single symbolic evaluation is useful; **chaining** several is where engineering
+checks live. `sym_evalf` returns a `SymbolicEvaluation` whose `.symbol` and
+`.quantity` are a plain SymPy symbol and a plain Pint quantity. So the result of
+one step drops straight into the `subs` of the next, and each intermediate value
+renders its own working. A multi-step check becomes a readable sequence of
+symbolic evaluations rather than one opaque number. The
+[tutorial](getting-started.qmd) works through a chained calculation, feeding the
+axial resistance of a steel member into a demand-over-capacity ratio.
+
+## No bundled registry
+
+symeval defines no unit registry of its own. It reads the registry from the Pint
+quantities you pass in, so every result lands in the same registry your inputs
+came from. This keeps symeval out of the way in a codebase that already has its
+own `UnitRegistry`, and it means there is never a second, conflicting notion of
+what a millimetre is. When there is nothing to read a registry from, symeval
+falls back to Pint's application registry.
+
+## Rendering without a runtime dependency
+
+symeval renders through `_repr_latex_`, the same hook Jupyter and marimo already
+look for. There is no dependency on a marimo runtime and no cell magic, so the
+same `SymbolicEvaluation` object displays in a marimo notebook, a Jupyter
+notebook, or anywhere else that understands the LaTeX representation. In plain
+Python the object still holds the computed quantity and the rendered LaTeX as
+attributes.
