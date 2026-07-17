@@ -22,6 +22,14 @@ dev = [
     "pytest>=9.0.3",
     "taskipy>=1.14",
 ]
+# The docs website toolchain. `quarto-cli` is a PyPI wheel that bundles the
+# Quarto binary (>= 1.9.20 is required by the quarto-marimo extension), so the
+# whole site builds through uv with no system-level Quarto install.
+docs = [
+    "quarto-cli>=1.9.20",
+    "marimo>=0.23.14",
+    "polars>=1.40.1",
+]
 
 [tool.taskipy.tasks]
 # Tasks needing positional args (release) wrap their body in `bash -c '…' --`
@@ -29,7 +37,9 @@ dev = [
 # wherever git is (Git for Windows ships Git Bash).
 install = "uv sync --group dev"
 build = "uvx marimo -y export session symeval_mo.py && uvx mobuild export symeval_mo.py src/symeval/__init__.py"
-docs = "uv run scripts/extract_docs.py"
+docs = "uv run scripts/extract_getting_started.py && uv run scripts/examples_to_qmd.py"
+docs_preview = "uv run --group docs quarto preview docs/"
+docs_render = "uv run --group docs quarto render docs/"
 test = "uvx --with marimo --with sympy --with pint pytest symeval_mo.py"
 clean = "bash -c 'rm -rf dist/'"
 pre_release = "task build && task test"

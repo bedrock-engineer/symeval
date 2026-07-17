@@ -1,0 +1,54 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "symeval"
+  description: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
+  site-url: "https://bedrock-engineer.github.io/symeval"
+  repo-url: "https://github.com/bedrock-engineer/symeval"
+  favicon: assets/favicon_io/favicon.ico
+  navbar:
+    logo: assets/symeval-logo.svg
+    logo-alt: "symeval"
+    right:
+      - icon: github
+        href: "https://github.com/bedrock-engineer/symeval"
+        aria-label: GitHub
+      - text: PyPI
+        href: "https://pypi.org/project/symeval/"
+        aria-label: PyPI
+  sidebar:
+    style: floating
+    search: true
+    contents:
+      - section: "Getting started"
+        contents:
+          - text: "Tutorial"
+            href: examples/getting-started.qmd
+      - section: "Explanation"
+        contents:
+          - text: "How symeval works"
+            href: explanation.qmd
+      - section: "Examples"
+        contents:
+          - text: "Axial resistance of a steel HSS member"
+            href: examples/axial-resistance-of-steel-hss-member.qmd
+      - section: "Reference"
+        contents:
+          - text: "API reference"
+            href: reference.qmd
+
+format:
+  html:
+    theme:
+      light:
+        - cosmo
+        - brand
+      dark:
+        - slate
+        - brand
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    html-math-method: mathjax

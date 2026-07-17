@@ -1,0 +1,36 @@
+# Bedrock brand, consumed natively by Quarto (and portable to Shiny/Typst).
+# Colours mirror the Bedrock palette; fonts mirror bedrock.engineer (IBM Plex).
+# The full 50-900 scales live in the reference Style Dictionary; here we keep the
+# primary tones plus the light/dark anchors the theme needs.
+meta:
+  name: Bedrock
+
+color:
+  palette:
+    green: "#63805e"   # mygreen 500  — primary
+    teal: "#538f99"    # myteal 400   — secondary
+    brown: "#998468"   # mybrown 400
+    gray: "#868b85"    # mygray 400
+    dark: "#171719"    # mygray 900   — dark background / light-mode text
+    light: "#e6e6e6"   # mygray 50
+  primary: green
+  secondary: teal
+  foreground: dark
+  background: white
+
+typography:
+  fonts:
+    - family: IBM Plex Sans
+      source: google
+    - family: IBM Plex Sans Condensed
+      source: google
+    - family: IBM Plex Mono
+      source: google
+  base: IBM Plex Sans
+  headings:
+    family: IBM Plex Sans Condensed
+    weight: 500
+  monospace: IBM Plex Mono
+
+logo:
+  image: assets/symeval-logo.svg
