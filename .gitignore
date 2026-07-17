@@ -205,3 +205,24 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Quarto
+#   Rendered site (output-dir) and the render cache. The `.qmd` sources, the
+#   `_extensions/` extension, and `docs/assets/` are tracked; everything Quarto
+#   generates is not.
+/docs/_site/
+/docs/.quarto/
+.quarto/
+
+#   Stray outputs from single-file `quarto render` (a project build lands its
+#   HTML and supporting files in `_site/`, but rendering one file drops them
+#   next to the source).
+/docs/*.html
+/docs/examples/*.html
+/docs/**/*_files/
+/docs/libs/
+
+#   The quarto-marimo engine ships as a small loader shim (marimo-engine.js,
+#   tracked) that downloads the real engine bundle from GitHub releases and
+#   caches it next to itself on first render. The cache is not source.
+/docs/_extensions/**/marimo-engine-v*.js
