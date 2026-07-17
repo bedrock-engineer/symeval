@@ -1,6 +1,12 @@
 project:
   type: website
   output-dir: _site
+  # Explicit render globs: quarto's automatic project-input discovery comes up
+  # empty with the PyPI-bundled quarto binary in some environments, so we list
+  # the inputs. Globs still auto-include new pages (e.g. examples added later).
+  render:
+    - "*.qmd"
+    - "examples/*.qmd"
 
 website:
   title: "symeval"

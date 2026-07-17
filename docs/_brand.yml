@@ -31,6 +31,3 @@ typography:
     family: IBM Plex Sans Condensed
     weight: 500
   monospace: IBM Plex Mono
-
-logo:
-  image: assets/symeval-logo.svg
