@@ -1,0 +1,30 @@
+/*-- scss:defaults --*/
+// Bedrock palette for the SIDEBAR-ONLY nav variant. Same mapping as theme.scss
+// (links/primary/code -> Bedrock green), but the logo rule targets the sidebar
+// logo instead of the navbar logo.
+$bedrock-green: #63805e;
+$bedrock-green-600: #4b6647; // darker green for hover / code
+$bedrock-gray: #868b85;
+$bedrock-brown: #806040;
+
+$primary: $bedrock-green;
+$link-color: $bedrock-green;
+$link-hover-color: $bedrock-green-600;
+$code-color: $bedrock-green-600;
+$text-muted: $bedrock-gray;
+
+/*-- scss:rules --*/
+// Match bedrock-web-old: smaller external-link icon.
+a.external::after {
+  background-size: 0.5em;
+}
+
+// Show and size the sidebar logo at all widths. Quarto hides it below the `lg`
+// breakpoint with a `d-none` utility (display:none !important); beating that
+// needs both !important AND higher specificity than a single class, hence the
+// parent `.sidebar-logo-link`.
+.sidebar-logo-link .sidebar-logo {
+  display: inline-block !important;
+  max-height: 2.5rem;
+  width: auto;
+}

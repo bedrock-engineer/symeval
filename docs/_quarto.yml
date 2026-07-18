@@ -56,4 +56,4 @@ format:
     toc: true
     code-copy: true
     code-overflow: wrap
-    html-math-method: mathjax
+    html-math-method: katex

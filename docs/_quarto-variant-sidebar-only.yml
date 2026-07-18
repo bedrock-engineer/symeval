@@ -7,10 +7,9 @@
 #
 # Trade-offs vs navbar-only:
 #   + One left sidebar, like the quarto-marimo docs; scales to many pages.
-#   - Quarto hides the sidebar logo on narrow screens (it is desktop-only); the
-#     collapsed top bar then shows the "SymEval" title text instead of the logo.
-#   - The logo-size rule in theme.scss targets the NAVBAR logo, so here the logo
-#     uses its default size unless you repoint that rule at `.sidebar-logo`.
+#   - Uses theme-sidebar.scss (not theme.scss): same Bedrock palette, but the
+#     logo rule targets the sidebar logo and forces it visible at all widths
+#     (Quarto hides the sidebar logo below `lg` by default).
 #   - index.qmd is listed first so the sidebar also renders on the landing page.
 # =============================================================================
 
@@ -55,8 +54,8 @@ format:
   html:
     theme:
       - cosmo
-      - theme.scss
+      - theme-sidebar-only.scss
     toc: true
     code-copy: true
     code-overflow: wrap
-    html-math-method: mathjax
+    html-math-method: katex
