@@ -1,20 +1,17 @@
-# Bedrock brand, consumed natively by Quarto (and portable to Shiny/Typst).
-# Colours mirror the Bedrock palette; fonts mirror bedrock.engineer (IBM Plex).
-# The full 50-900 scales live in the reference Style Dictionary; here we keep the
-# primary tones plus the light/dark anchors the theme needs.
+# Bedrock brand, matching bedrock.engineer: sage-green accent, gray/brown
+# neutrals, IBM Plex typography. Consumed natively by Quarto (and portable to
+# Shiny/Typst). theme.scss maps these onto the finer Bootstrap variables (links,
+# code) the way the bedrock-web-old Quarto site does.
 meta:
   name: Bedrock
 
 color:
   palette:
-    green: "#63805e"   # mygreen 500  — primary
-    teal: "#538f99"    # myteal 400   — secondary
-    brown: "#998468"   # mybrown 400
-    gray: "#868b85"    # mygray 400
-    dark: "#171719"    # mygray 900   — dark background / light-mode text
-    light: "#e6e6e6"   # mygray 50
+    green: "#63805e"   # Bedrock green (accent / primary)
+    gray: "#868b85"    # neutral (gray-9)
+    brown: "#806040"   # tertiary
+    dark: "#1c211b"    # near-black text (gray-12)
   primary: green
-  secondary: teal
   foreground: dark
   background: white
 

@@ -20,8 +20,8 @@ Longer, more complete demos:
 
 ### README.md
 - Populate README with getting_started.py output.
-    - Make sure to align the LaTeX from the Euler buckling stress chain (What's the vocab for this again?)
-    - Where do all those `\,`'s come from? In VSCode they don't render, so the README looks nice, but on GitHub and PyPI there's comma's all over the place.
+    - Align the LaTeX from the Euler buckling stress working (the chained calculation).
+    - The `\,` are thin-space separators that `sympy.latex` emits. MathJax renders them as spaces (VSCode preview, the docs site), but PyPI renders no math at all and shows the raw source, so the `$$...$$` blocks look like commas everywhere. Direction: render the working to images (PNG/SVG) for the README rather than raw LaTeX.
 - piston widget .gif. Make the .gif with remotion?
 
 Guide and inspiration:
@@ -29,22 +29,13 @@ Guide and inspiration:
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
 
 ### Website
-I want to create a docs website. I like the [Diataxis](https://diataxis.fr/) approach, which is largely adopted by some of the projects that are an example to me when it comes to docs:
+
+Diataxis-style docs. Inspiration:
 - https://quarto.org
 - https://docs.marimo.io
 - https://docs.pyvista.org/user-guide/data_model
 - https://fastapi.tiangolo.com & https://sqlmodel.tiangolo.com & https://typer.tiangolo.com
-- https://geopandas.org/en/stable, although it's not intuitive enough to me how to get to the core concept explanation:
-    Flow: Getting Started → Installation → Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts
-
-I want to build a [quarto-marimo](https://github.com/marimo-team/quarto-marimo) docs website. The pages that are marimo notebooks need to be both a .qmd as well as a .py file though, because otherwise it's not possible to create [Open in molab](https://molab.marimo.io/github) badges. I think I want to create a folder with example notebooks (.py) and a separate docs folder with the rest of the documentation in .qmd files, where some of those also contain some Python or marimo cells.
-
-#### Built (v1)
-
-- Quarto website rooted in `docs/`, built through uv (`quarto-cli` in the `docs` dependency group); tasks `docs`, `docs_preview`, `docs_render`.
-- Source of truth is `.py`: `symeval_mo.py` col 0 -> `examples/getting_started.py` (script 1), then `examples/*.py` -> `docs/**.qmd` (script 2, which rewrites marimo's cell fences to the extension's `python {.marimo}` syntax and adds molab badges).
-- Pages: landing (`index.qmd`), tutorial (`getting-started.qmd`, reactive), explanation, reference. Diataxis grouped sidebar, `_brand.yml` (Bedrock palette + IBM Plex), light/dark.
-- GitHub Pages deploy workflow (`.github/workflows/docs.yml`). **One-time repo setting: Settings -> Pages -> Source: GitHub Actions.**
+- https://geopandas.org/en/stable (Flow: Getting Started → Installation → Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts)
 
 #### Follow-ups
 
@@ -55,26 +46,27 @@ I want to build a [quarto-marimo](https://github.com/marimo-team/quarto-marimo) 
 - Bedrock-wide **DTCG design-token** pipeline (Style Dictionary) as the upstream source for `_brand.yml`.
 - Note: quarto's automatic project-input discovery came up empty with the PyPI-bundled binary here, so `_quarto.yml` lists explicit render globs.
 
-#### Feedback
-- Improve the home page. See https://docs.marimo.io/#quickstart
-    - How to install -> push people toward using uv and marimo
-        - uv add symeval (Is there a command line way to add a package to the Inline Dependency Metadata (IDM)?)
-        - uvx marimo edit --sandbox => add a package in the GUI (or is there a way to add a package to a marimo notebook running in a sandbox, which then also adds that to the IDM?)
-        - another modern way? What does uv pip install actually do? Doesn't add the package to IDM or pyproject.toml, right? so not a good idea for reproducibility.
-- SymEval is how SymEval should be formatted in prose, and `symeval` when talking about SymEval's usage in code. Put a note of this somewhere. Should that go in @CONTEXT.md or AGENTS.md or somewhere else? /grill-with-docs
-- Logo not visible. I guess because same color as the banner at the top?
-- Nav from the home page is weird. Not clear how to get to the explanations or reference from the home page
-- When the window is small, the 
-- light / dark makes no sense, because they are completely different themes, not a light / dark version of the same theme.
-- Getting started doesn't need a > Tutorial
-- Upon reading the docs, "get the full working" does sound weird to me. I have the idea that not everybody is going to really get what's meant with it. What would be better, clearer wording? /grill-with-docs
-- Lots of feedback on the Getting started guide, its interactive elements and code.
+#### Feedback (site review)
 
-### CONTRIBUTING.md
+- **Home page** install/quickstart section pushing uv + marimo (see https://docs.marimo.io/#quickstart):
+    - Add to a notebook's Inline Dependency Metadata from the CLI: `uv add --script <nb>.py symeval` (and `uv remove --script`).
+    - `uvx marimo edit --sandbox <nb>.py`: adding a package via the GUI writes it into the notebook's IDM.
+    - `uv pip install` only installs into the environment (no `pyproject.toml`/IDM change), so avoid it for reproducibility.
+- **SymEval** (prose) vs `symeval` (code): sweep the prose, keep code/package lowercase, and record the rule. Where: `CONTEXT.md` (shared vocab). [decide — grill]
+- **"get the full working"** reads oddly and may not be clear to everyone. Find clearer user-facing wording (ripples into `CONTEXT.md`). [decide — grill]
+- More feedback coming on the Getting started guide, its interactive elements and code.
+- If a dark theme is added back later, the logo (black line-art + green accent) will need a theme-aware / light variant to stay visible.
 
-Done: `CONTRIBUTING.md` documents dev setup, tests, the docs dev server
-(`task docs_preview`, with the regenerate-on-notebook-change loop), and adding a
-worked example. The published docs stay user-facing; contributing is surfaced by
-a short note in the README and a callout on the docs landing, both linking to
-`CONTRIBUTING.md`. `AGENTS.md` points at `pyproject.toml` / `CONTRIBUTING.md` for
-commands rather than duplicating them.
+Nav: navbar-only (no sidebar). One top bar carries the logo + "SymEval" brand
+(links home, shown on desktop and mobile), the page links (Getting started / How
+symeval works / API reference), search, and GitHub/PyPI. Collapses to a single
+hamburger on narrow screens, so no navbar + sidebar double bar. A navbar +
+sidebar together stacked two bars; a 4-page site needs only the navbar. Logo
+enlarged (2.75rem) and nudged up slightly. If the examples gallery grows, revisit
+whether a left sidebar is worth reintroducing.
+
+Bedrock styling (matching bedrock.engineer, following the bedrock-web-old recipe):
+`cosmo` base + `theme.scss` mapping the Bedrock palette onto links/primary/code
+(links are now Bedrock green `#63805e`, not the theme's default), `_brand.yml`
+with green/gray/brown + IBM Plex, light-only. Full parity with the new Astro site
+(bedrock-web) is not achievable in Quarto, but colors/fonts/accents now match.

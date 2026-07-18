@@ -9,47 +9,50 @@ project:
     - "examples/*.qmd"
 
 website:
-  title: "symeval"
+  title: "SymEval"
   description: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
   site-url: "https://bedrock-engineer.github.io/symeval"
   repo-url: "https://github.com/bedrock-engineer/symeval"
   favicon: assets/favicon_io/favicon.ico
+  page-navigation: true
+  back-to-top-navigation: true
+  # Navbar-only: the logo + "SymEval" brand (links home) and the page links all
+  # live in one top bar, so it stays put on every page, shows the logo on
+  # desktop and mobile, and collapses to a single hamburger on narrow screens.
+  # A navbar + sidebar together would stack two bars; a 4-page site needs only
+  # the navbar.
   navbar:
+    background: light
     logo: assets/symeval-logo.svg
-    logo-alt: "symeval"
+    logo-alt: "SymEval home"
+    title: "SymEval"
+    search: true
+    left:
+      - text: "Getting started"
+        href: getting-started.qmd
+      - text: "How symeval works"
+        href: explanation.qmd
+      - text: "API reference"
+        href: reference.qmd
     right:
       - icon: github
         href: "https://github.com/bedrock-engineer/symeval"
         aria-label: GitHub
-      - text: PyPI
+      - icon: box-seam
         href: "https://pypi.org/project/symeval/"
         aria-label: PyPI
-  sidebar:
-    style: floating
-    search: true
-    contents:
-      - section: "Getting started"
-        contents:
-          - text: "Tutorial"
-            href: getting-started.qmd
-      - section: "Explanation"
-        contents:
-          - text: "How symeval works"
-            href: explanation.qmd
-      - section: "Reference"
-        contents:
-          - text: "API reference"
-            href: reference.qmd
+
+# Apply the Bedrock brand to the light theme only; no dark variant for now.
+# cosmo is the base bedrock.engineer's Quarto site uses; theme.scss maps the
+# Bedrock palette onto links/primary/code.
+brand:
+  light: _brand.yml
 
 format:
   html:
     theme:
-      light:
-        - cosmo
-        - brand
-      dark:
-        - slate
-        - brand
+      - cosmo
+      - theme.scss
     toc: true
     code-copy: true
     code-overflow: wrap

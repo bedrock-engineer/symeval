@@ -1,0 +1,62 @@
+# =============================================================================
+# NAV VARIANT B — NAVBAR + SIDEBAR (classic docs layout)
+#
+# To try it: copy this whole file's contents over docs/_quarto.yml, then
+# `uv run task docs_render` (or docs_preview). The current live config is
+# navbar-only; this adds a left sidebar for page nav under a brand navbar.
+#
+# Trade-offs vs navbar-only:
+#   + Rich desktop layout: brand navbar on top, page nav in a left sidebar
+#     (this is how larger docs sites like FastAPI look).
+#   - On narrow screens the navbar AND the sidebar each render their own bar
+#     (the "double bar"): both can carry a title/search. This is the layout
+#     that produced the double navbar.
+# =============================================================================
+
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+    - "examples/*.qmd"
+
+website:
+  title: "SymEval"
+  description: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
+  site-url: "https://bedrock-engineer.github.io/symeval"
+  repo-url: "https://github.com/bedrock-engineer/symeval"
+  favicon: assets/favicon_io/favicon.ico
+  page-navigation: true
+  back-to-top-navigation: true
+  navbar:
+    background: light
+    logo: assets/symeval-logo.svg
+    logo-alt: "SymEval home"
+    title: "SymEval"
+    search: true
+    right:
+      - icon: github
+        href: "https://github.com/bedrock-engineer/symeval"
+        aria-label: GitHub
+      - icon: box-seam
+        href: "https://pypi.org/project/symeval/"
+        aria-label: PyPI
+  sidebar:
+    style: floating
+    contents:
+      - href: getting-started.qmd
+      - href: explanation.qmd
+      - href: reference.qmd
+
+brand:
+  light: _brand.yml
+
+format:
+  html:
+    theme:
+      - cosmo
+      - theme.scss
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    html-math-method: mathjax

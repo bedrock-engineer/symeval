@@ -1,0 +1,28 @@
+/*-- scss:defaults --*/
+// Bedrock palette, mapped onto Bootstrap/Quarto variables so the accent shows
+// where it matters (links, primary, code). Mirrors the bedrock-web-old theme.
+$bedrock-green: #63805e;
+$bedrock-green-600: #4b6647; // darker green for hover / code
+$bedrock-gray: #868b85;
+$bedrock-brown: #806040;
+
+$primary: $bedrock-green;
+$link-color: $bedrock-green;
+$link-hover-color: $bedrock-green-600;
+$code-color: $bedrock-green-600;
+$text-muted: $bedrock-gray;
+
+/*-- scss:rules --*/
+// Match bedrock-web-old: smaller external-link icon.
+a.external::after {
+  background-size: 0.5em;
+}
+
+// Larger navbar logo (Quarto's default is small next to the title), nudged up
+// slightly so it sits a touch above the "SymEval" text baseline.
+.navbar-brand .navbar-logo {
+  max-height: 2.75rem;
+  height: 2.75rem;
+  width: auto;
+  transform: translateY(-0.25rem);
+}
