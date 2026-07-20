@@ -4,22 +4,19 @@ subtitle: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX
 toc: false
 ---
 
-Write a [SymPy](https://docs.sympy.org) equation, fill in
-[Pint](https://pint.readthedocs.io/) quantities, and get the full working:
-the symbolic form, the substituted form, and the result, rendered as
-LaTeX in your [marimo](https://docs.marimo.io) or Jupyter notebook.
+Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint.readthedocs.io/) quantities, and SymEval shows how you arrive at the result the way you were taught in school:
 
-[Get started](getting-started.qmd){.btn .btn-primary}
-[GitHub](https://github.com/bedrock-engineer/symeval){.btn .btn-outline-secondary}
-[PyPI](https://pypi.org/project/symeval/){.btn .btn-outline-secondary}
+|  |  |
+|-----------------------------------------|-------------------------------|
+| 1\. Formula | $\rho = \dfrac{m}{V}$ |
+| 2\. Formula with substituted quantities (value + unit) | $\rho = \dfrac{0.998\ \mathrm{kg}}{1\ \mathrm{L}}$ |
+| 3\. Result (density of water) | $\rho = 998\ \dfrac{\mathrm{kg}}{\mathrm{m}^3}$ |
 
-```sh
-pip install symeval
-```
+[Get started](getting-started.qmd){.btn .btn-primary} [GitHub](https://github.com/bedrock-engineer/symeval){.btn .btn-outline-secondary} [PyPI](https://pypi.org/project/symeval/){.btn .btn-outline-secondary}
 
 ## Highlights
 
-- ✨ **Crystal-clear**: shows the full working, that is symbolic form, substituted form, and result.
+- ✨ **Crystal-clear**: shows every step: the formula, the values substituted with units, then the result.
 - 🐍 **Pure Python**: drop into your interactive notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL).
 - 📏 **Unit-aware**: pint quantities carry units through every step and convert to your chosen output unit.
 - 🧮 **Sympy-native**: rearrange or simplify your formula symbolically first, then evaluate.
@@ -27,39 +24,68 @@ pip install symeval
 
 ## Quickstart
 
-Define the equation, substitute quantities, and SymEval renders how the result
-is reached:
+SymEval is especially powerful inside Python notebooks, and these docs are opinionated. [We](https://bedrock.engineer/about/ "SymEval authors") strongly recommend [marimo](https://docs.marimo.io "marimo docs") rather than Jupyter notebooks, and [uv](https://docs.astral.sh/uv/ "uv docs") for managing Python.
 
-```python
-from pint import Quantity
-from sympy import Eq, Symbol
-from symeval import sym_evalf
+The only thing you need to create a reproducible marimo notebook, i.e. a notebook that runs anywhere, is uv ([installation instructions](https://docs.astral.sh/uv/getting-started/installation/ "uv installation instructions")).
 
-axial_stress = Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+Run the command below to open a marimo notebook called `usains_speed.py`:
 
-sym_evalf(
-    axial_stress,
-    subs={
-        Symbol("F"): Quantity(-680, "kN"), 
-        Symbol("A"): Quantity(10_580, "mm^2")
-    },
-    output_unit="MPa",
-    decimals=2,
-)
+``` sh
+uvx marimo edit --sandbox usains_speed.py
 ```
 
+::: {.callout-note collapse="true"}
+## `uvx` and marimo's `--sandbox` flag
+
+`uvx` runs a Python package as a [tool](https://docs.astral.sh/uv/guides/tools/ "uv's "Using tools" guide") in a temporary isolated environment, allowing you to run the `marimo` Command Line Interface (CLI) directly without any manual setup.
+
+------------------------------------------------------------------------
+
+When running marimo with the `--sandbox` flag, marimo:
+
+1.  tracks the packages and versions used by your notebook, saving them in the notebook file as inline script metadata;
+2.  runs in an isolated virtual environment ("sandbox") that only contains the notebook dependencies.
+
+In this way you can share your marimo notebook with anyone, and they'll be able to run it anywhere. See marimo's [Inlining dependencies](https://docs.marimo.io/guides/package_management/inlining_dependencies/ "marimo's "Inlining dependencies" guide") guide for more information.
+:::
+
+Copy-paste the code below into a Python cell, and click install when prompted in the pop-up. This will install the packages and add them to the inline script metadata, which keeps the notebook reproducible.
+
+``` python
+from pint import Quantity
+from symeval import sym_evalf
+from sympy import Equality, Symbol
+
+speed_eq = Equality(Symbol("v"), Symbol("d") / Symbol("t"))
+
+usains_speed = sym_evalf(
+    speed_eq,
+    subs={
+        Symbol("d"): Quantity(100, "m"), 
+        Symbol("t"): Quantity(9.58, "s")
+    },
+    output_unit="km/h",     # Play around with the unit!
+    decimals=1              # Defaults to 3
+)
+usains_speed
+```
+
+You should now see the symbolic evaluation of Usain Bolt's world record speed on the 100-meter dash in km/h:
+
 $$\begin{align*}
-\sigma &= \frac{F}{A} \\
-&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+v &= \frac{d}{t} \\
+&= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
+v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
 \end{align*}$$
 
-The output symbol comes from the equation, so you do not pass it separately.
-Head to the [tutorial](getting-started.qmd) for the reactive walkthrough,
-or read [how symeval works](explanation.qmd) for the ideas behind it.
+Head to the [Getting started tutorial](getting-started.qmd) for a reactive walkthrough, or read [how symeval works](explanation.qmd) for the ideas behind SymEval.
 
 ::: {.callout-note appearance="simple"}
-Have an engineering calculation worth sharing? Contributions of worked example
-notebooks are welcome, see
-[CONTRIBUTING](https://github.com/bedrock-engineer/symeval/blob/main/CONTRIBUTING.md).
+Have an engineering calculation worth sharing? Contributions of worked example notebooks are welcome, see [CONTRIBUTING](https://github.com/bedrock-engineer/symeval/blob/main/CONTRIBUTING.md).
 :::
+
+## Inspiration
+
+- [handcalcs](https://github.com/connorferster/handcalcs), renders Python calculation code as LaTeX in Jupyter
+- [CalcPad](https://calcpad-ce.org), engineering calculations DSL with symbolic/numeric workflow
+- Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)

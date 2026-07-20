@@ -24,7 +24,7 @@ def _(mo):
 
     > SymPy is a Python library for symbolic mathematics.
 
-    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations and then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result:
+    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations, then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result:
 
     1. equation;
     2. quantities substituted;
@@ -45,14 +45,14 @@ def _():
 
     from pint import Quantity
     # from symeval import quantity_evalf
-    from sympy import Symbol
+    from sympy import Equality, Symbol
 
-    return Quantity, Symbol, mo, pl
+    return Equality, Quantity, Symbol, mo, pl
 
 
 @app.cell
-def _(Symbol, sympy):
-    axial_stress_eq = sympy.Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+def _(Equality, Symbol):
+    axial_stress_eq = Equality(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
     axial_stress_eq
     return (axial_stress_eq,)
 
@@ -314,6 +314,7 @@ def _(input_table_md, mo):
 
 @app.cell(hide_code=True)
 def _(
+    Equality,
     Quantity,
     beam_length,
     compressive_force,
@@ -336,7 +337,7 @@ def _(
         if "name" in s
     }
     # then define the equation:
-    _euler_buckling_eq = sympy.Eq(
+    _euler_buckling_eq = Equality(
         sympy.Symbol("F_e"),
         (sympy.pi**2 * elastic_modulus)
         / ((beam_length * effective_length_factor / radius_gyration) ** 2),
@@ -354,7 +355,7 @@ def _(
 
     # Rinse and repeat:
     # Lambda factor
-    _lambda_factor_eq = sympy.Eq(
+    _lambda_factor_eq = Equality(
         sympy.Symbol(r"\lambda"),
         (sympy.sqrt(yield_strength / euler_buckling_stress.symbol))
         ** (2 * strain_hardening_exponent),
@@ -367,7 +368,7 @@ def _(
     symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
 
     # Axial resistance
-    _axial_resistance_eq = sympy.Eq(
+    _axial_resistance_eq = Equality(
         sympy.Symbol("C_r"),
         (strength_reduction_factor * cross_sectional_area * yield_strength)
         / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent)),
@@ -381,7 +382,7 @@ def _(
     symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
     # Demand capacity ratio
-    _dcr_eq = sympy.Eq(
+    _dcr_eq = Equality(
         sympy.Symbol("DCR"),
         compressive_force / axial_resistance.symbol,
     )
@@ -464,10 +465,10 @@ def _(R_q, ideal_gas_law, mo, sympy):
 
 
 @app.cell(hide_code=True)
-def _(Quantity, sympy):
+def _(Equality, Quantity, sympy):
     # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
     P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
-    ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
+    ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)
     R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
 
     ideal_gas_law_vars = {
@@ -1050,7 +1051,7 @@ def _():
         A bare `sympy.Expr` passes through unchanged, with `None` for the output
         symbol (the caller must supply `output_symbol` itself).
 
-        A `sympy.Eq` is solved for its single unknown, the one free symbol that
+        A `sympy.Equality` is solved for its single unknown, the one free symbol that
         has no value in `subs` (everything in `subs` is a known input). When that
         unknown is already isolated on one side of the equation, the other side is
         returned verbatim so the rendered formula keeps the shape the user wrote;
@@ -1100,7 +1101,7 @@ def _():
 
         Args:
             expr (sympy.Expr): The sympy expression to evaluate. Equations are
-                not accepted here; use `sym_evalf` for a `sympy.Eq`, or solve
+                not accepted here; use `sym_evalf` for a `sympy.Equality`, or solve
                 it first and pass the resulting expression.
             subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
                 `sympy.Symbol` to `pint.Quantity` (a dimensionless input is still a quantity, `Quantity(x, "")`). Same shape as sympy.evalf's `subs` kwarg, but values
@@ -1124,7 +1125,7 @@ def _():
         if isinstance(expr, sympy.Equality):
             raise TypeError(
                 "quantity_evalf evaluates a bare expression, not an equation. "
-                "Use sym_evalf for a sympy.Eq (it infers the output symbol), or "
+                "Use sym_evalf for a sympy.Equality (it infers the output symbol), or "
                 "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
             )
         target_ureg = next(
@@ -1441,7 +1442,7 @@ def _():
             if _inferred_symbol is None:
                 raise ValueError(
                     "output_symbol is required when evaluating a bare sympy "
-                    "expression. Pass a sympy.Eq instead and the output symbol "
+                    "expression. Pass a sympy.Equality instead and the output symbol "
                     "is inferred from the equation."
                 )
             output_symbol = _inferred_symbol
@@ -1787,11 +1788,11 @@ def _(Quantity):
 
 
 @app.cell
-def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
+def _(Equality, Quantity, ideal_gas_R, quantity_evalf, sympy):
     def test_sym_evalf_equation_infers_output_symbol():
         """Eq with a bare-symbol LHS infers the output symbol from that LHS."""
         F, A, sigma = sympy.symbols("F A sigma")
-        result = sympy.Eq(sigma, F / A).sym_evalf(
+        result = Equality(sigma, F / A).sym_evalf(
             subs={F: Quantity(-680, "kN"), A: Quantity(10_580, "mm^2")},
             output_unit="MPa",
             decimals=2,
@@ -1803,7 +1804,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
     def test_sym_evalf_equation_solves_embedded_unknown():
         """Eq whose unknown is embedded (P*V = nRT) is solved before evaluating."""
         P, V, n, R, T = sympy.symbols("P V n R T")
-        igl = sympy.Eq(P * V, R * T * n)
+        igl = Equality(P * V, R * T * n)
         knowns = {
             V: Quantity(22.4, "l"),
             R: ideal_gas_R(),
@@ -1817,7 +1818,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
     def test_sym_evalf_equation_solve_for_is_data_driven():
         """The same equation solves for whichever symbol is left out of subs."""
         P, V, n, R, T = sympy.symbols("P V n R T")
-        igl = sympy.Eq(P * V, R * T * n)
+        igl = Equality(P * V, R * T * n)
         result = igl.sym_evalf(
             subs={
                 P: Quantity(101.325, "kPa"),
@@ -1834,7 +1835,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
     def test_sym_evalf_equation_unknown_on_rhs():
         """The unknown may sit on the RHS; the LHS is then the expression."""
         F, A, sigma = sympy.symbols("F A sigma")
-        result = sympy.Eq(F / A, sigma).sym_evalf(
+        result = Equality(F / A, sigma).sym_evalf(
             subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
             output_unit="MPa",
             decimals=1,
@@ -1854,7 +1855,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
             r_y: Quantity(76.1, "mm"),
         }
         from_eq = (
-            sympy.Eq(F_e, expr)
+            Equality(F_e, expr)
             .sym_evalf(subs=subs, output_unit="GPa", decimals=3)
             .latex
         )
@@ -1866,7 +1867,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
     def test_sym_evalf_equation_explicit_output_symbol_overrides_label():
         """An explicit output_symbol overrides the inferred label on an equation."""
         F, A, sigma = sympy.symbols("F A sigma")
-        result = sympy.Eq(sigma, F / A).sym_evalf(
+        result = Equality(sigma, F / A).sym_evalf(
             subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
             output_symbol=r"\tau",
             output_unit="MPa",
@@ -1892,7 +1893,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
         """More than one unresolved symbol is ambiguous and raises."""
         P, V, n, R, T = sympy.symbols("P V n R T")
         try:
-            sympy.Eq(P * V, R * T * n).sym_evalf(
+            Equality(P * V, R * T * n).sym_evalf(
                 subs={V: Quantity(22.4, "l"), R: ideal_gas_R()},
                 output_unit="kPa",
             )
@@ -1905,7 +1906,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
         """If every symbol has a value there is nothing to solve for; raises."""
         F, A, sigma = sympy.symbols("F A sigma")
         try:
-            sympy.Eq(sigma, F / A).sym_evalf(
+            Equality(sigma, F / A).sym_evalf(
                 subs={
                     sigma: Quantity(1, "Pa"),
                     F: Quantity(1, "N"),
@@ -1922,7 +1923,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
         """An equation with several solutions (sigma**2 = F) raises."""
         F, sigma = sympy.symbols("F sigma")
         try:
-            sympy.Eq(sigma**2, F).sym_evalf(
+            Equality(sigma**2, F).sym_evalf(
                 subs={F: Quantity(4, "Pa**2")}, output_unit="Pa"
             )
         except ValueError as e:
@@ -1935,7 +1936,7 @@ def _(Quantity, ideal_gas_R, quantity_evalf, sympy):
         P, V, n, R, T = sympy.symbols("P V n R T")
         try:
             quantity_evalf(
-                sympy.Eq(P * V, R * T * n),
+                Equality(P * V, R * T * n),
                 subs={V: Quantity(22.4, "l")},
             )
         except TypeError as e:

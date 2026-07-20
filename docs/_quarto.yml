@@ -42,9 +42,6 @@ website:
         href: "https://pypi.org/project/symeval/"
         aria-label: PyPI
 
-# Apply the Bedrock brand to the light theme only; no dark variant for now.
-# cosmo is the base bedrock.engineer's Quarto site uses; theme.scss maps the
-# Bedrock palette onto links/primary/code.
 brand:
   light: _brand.yml
 

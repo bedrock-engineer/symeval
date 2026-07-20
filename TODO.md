@@ -1,7 +1,9 @@
 # symeval — TODO
 
 ## Package
-
+- Shouldn't `subs` be an arg, rather than a kwarg? `subs` is not an optional input, right? What happens when subs = None, which is the default value right now?
+- `output_symbol` is only needed when passing an `sympy.Expr`, rather than a `sympy.Equality`. Right now I think the `output_symbol` is making the API a little more complicated. What would you suggest? Put the `output_symbol` last?
+- Why is speed shown in m/h, rather than m/s in the pre-answer?
 - Build something that works well for functions, such as e.g.
     `f(x)=1.9sin((2π/2.36)x)`
 
