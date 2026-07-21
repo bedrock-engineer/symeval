@@ -14,7 +14,6 @@ import marimo
 __generated_with = "0.23.14"
 app = marimo.App()
 
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -84,7 +83,7 @@ def _(mo):
 
 
 @app.cell
-def _(axial_stress_eq, fa_inputs, sym_evalf):
+def _(axial_stress_eq, fa_inputs):
     axial_stress = sym_evalf(
         axial_stress_eq,
         subs=fa_inputs,
@@ -150,7 +149,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(Quantity, Symbol, axial_stress_eq, mo, pl, quantity_evalf):
+def _(Quantity, Symbol, axial_stress_eq, mo, pl):
     # 1. Forces are in kN, areas in mm^2.
     members = pl.DataFrame(
         {
@@ -221,7 +220,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, sympy):
+def _(mo):
     (
         compressive_force,
         beam_length,
@@ -316,7 +315,6 @@ def _(mo, sympy):
         )
 
     input_table_md = mo.md(
-        "### Inputs\n"
         "|     |     |     |     |     |\n"
         "|--------------|--------|---|-----|---|\n"
         + "\n".join(_table_row(s) for s in input_table)
@@ -360,7 +358,6 @@ def _(
     radius_gyration,
     strain_hardening_exponent,
     strength_reduction_factor,
-    sympy,
     yield_strength,
 ):
     # Like before, create a dictionary with sympy.Symbol keys and pint.Quantity values:
@@ -429,7 +426,7 @@ def _(
     # Show the whole calulation:
     mo.vstack(
         [
-            mo.md("### Calculation"),
+            # mo.md("### Calculation"),
             mo.hstack(
                 [
                     mo.md("Euler buckling stress"),
@@ -483,7 +480,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(Equality, Quantity, mo, sympy):
+def _(Equality, Quantity, mo):
     # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
     P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
     ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)

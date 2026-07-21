@@ -367,7 +367,6 @@ def _table_row(s):
     )
 
 input_table_md = mo.md(
-    "### Inputs\n"
     "|     |     |     |     |     |\n"
     "|--------------|--------|---|-----|---|\n"
     + "\n".join(_table_row(s) for s in input_table)
@@ -471,7 +470,6 @@ def _table_row(s):
     )
 
 input_table_md = mo.md(
-    "### Inputs\n"
     "|     |     |     |     |     |\n"
     "|--------------|--------|---|-----|---|\n"
     + "\n".join(_table_row(s) for s in input_table)
@@ -565,7 +563,7 @@ symbolic_quantities[dcr.symbol] = dcr.quantity
 # Show the whole calulation:
 mo.vstack(
     [
-        mo.md("### Calculation"),
+        # mo.md("### Calculation"),
         mo.hstack(
             [
                 mo.md("Euler buckling stress"),
@@ -676,7 +674,7 @@ symbolic_quantities[dcr.symbol] = dcr.quantity
 # Show the whole calulation:
 mo.vstack(
     [
-        mo.md("### Calculation"),
+        # mo.md("### Calculation"),
         mo.hstack(
             [
                 mo.md("Euler buckling stress"),

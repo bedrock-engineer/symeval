@@ -130,18 +130,41 @@ def _repair_import_cell_return(text: str, activated: list[str]) -> str:
     return text[: anchor + ret.start()] + replacement + text[anchor + ret.end() :]
 
 
+# The standalone tutorial begins at this markdown heading. Everything before it,
+# the `with app.setup:` block (the inline implementation) and the note explaining
+# it, is left out: getting_started.py imports the implementation from the
+# `symeval` package instead.
+TUTORIAL_HEADING = "# Getting started with SymEval"
+
+
+def _tutorial_cell_start(source: str) -> "int | None":
+    """Offset of the `@app.cell` that renders the tutorial's opening heading."""
+    heading = source.find(TUTORIAL_HEADING)
+    if heading == -1:
+        return None
+    cells = list(re.finditer(r"^@app\.(?:cell|function)\b", source[:heading], re.MULTILINE))
+    return cells[-1].start() if cells else None
+
+
 def extract_examples_column(source: str) -> str:
-    """Return a standalone single-column notebook holding the examples column."""
-    first_cell = re.search(r"^@app\.(?:cell|function)\b", source, re.MULTILINE)
+    """Return a standalone single-column notebook holding the tutorial cells.
+
+    The header stops before the `with app.setup:` block, leaving the inline
+    implementation behind; extraction starts at the tutorial's opening markdown
+    cell, skipping the setup-cell explanation before it.
+    """
+    setup = re.search(r"^with app\.setup\b", source, re.MULTILINE)
+    tutorial_start = _tutorial_cell_start(source)
     next_column = re.search(r"^@app\.cell\(column=1\b", source, re.MULTILINE)
-    if first_cell is None or next_column is None:
+    if setup is None or tutorial_start is None or next_column is None:
         raise SystemExit(
-            "Could not locate the column boundaries in symeval_mo.py — expected "
-            "a `@app.cell(column=1 ...)` cell marking the start of column 1."
+            "Could not locate the notebook structure in symeval_mo.py — expected a "
+            "`with app.setup:` block, a "
+            f"'{TUTORIAL_HEADING}' markdown cell, and a `@app.cell(column=1 ...)`."
         )
 
-    header = _single_column(_rewrite_docs_dependencies(source[: first_cell.start()]))
-    column_zero = _strip_column_marker(source[first_cell.start() : next_column.start()])
+    header = _single_column(_rewrite_docs_dependencies(source[: setup.start()]))
+    column_zero = _strip_column_marker(source[tutorial_start : next_column.start()])
 
     activated: list[str] = []
 
