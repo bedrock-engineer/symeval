@@ -44,7 +44,7 @@ Setup and gotchas the task bodies do not spell out:
 
 - `uv sync --group dev` installs the dev deps; `uv sync --group docs` adds the docs toolchain, needed for the `docs_*` tasks.
 - `build` regenerates `src/symeval/__init__.py` from `symeval_mo.py` (do not edit the package directly).
-- `docs` regenerates the notebook pages (`examples/getting_started.py` + `docs/*.qmd`) from source.
+- `docs_generate` regenerates the notebook pages (`examples/getting_started.py` + `docs/*.qmd`) from source; `docs_build` also renders the site (`docs_generate` + `docs_render`), and is what CI runs.
 - `release <version>` requires a clean tree; tests run inside it before tagging.
 
 `CONTRIBUTING.md` has the full contributor workflow.

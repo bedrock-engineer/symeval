@@ -44,11 +44,8 @@ jobs:
       # deployed site always matches source, then render. The getting-started
       # page executes against symeval from PyPI, resolved via each page's
       # dependency header.
-      - name: Generate docs pages
-        run: uv run task docs
-
-      - name: Render site
-        run: uv run --group docs quarto render docs/
+      - name: Build the docs site (regenerate pages + render)
+        run: uv run task docs_build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
