@@ -36,7 +36,7 @@ def _():
     # import sympy
 
     from pint import Quantity
-    # from symeval import quantity_evalf
+    # from symeval import quantity_evalf, sym_evalf
     from sympy import Equality, Symbol
 
     return Equality, Quantity, Symbol, mo, pl
@@ -84,8 +84,9 @@ def _(mo):
 
 
 @app.cell
-def _(axial_stress_eq, fa_inputs):
-    axial_stress = axial_stress_eq.sym_evalf(
+def _(axial_stress_eq, fa_inputs, sym_evalf):
+    axial_stress = sym_evalf(
+        axial_stress_eq,
         subs=fa_inputs,
         output_unit="MPa",
     )
@@ -96,8 +97,10 @@ def _(axial_stress_eq, fa_inputs):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The `decimals` keyword argument (kwarg) allows you to specify the number of decimals used in LaTeX.
-    `mode="verbose"` adds an extra line showing all values converted to SI base units.
+    For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
+
+    - `decimals` specifies the number of decimals used in LaTeX.
+    - `mode="verbose"` adds an extra line showing all values converted to SI base units.
     """)
     return
 
@@ -678,6 +681,13 @@ def _(
         else ""
     )
 
+    # mo.iframe flattens newlines in its HTML serialization, so // line comments
+    # would swallow the rest of the (now one-line) script. Convert them to /* */
+    # so they survive. See research/issues/marimo--iframe-strips-newlines.md.
+    import re as _re
+
+    _piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js)
+
     _piston_html = f"""<!doctype html>
     <html>
     <body style="margin:0;padding:0;background:#ffffff">
@@ -687,7 +697,7 @@ def _(
     </div>
     <script>
     {_js_consts}
-    {piston_js}
+    {_piston_js}
     </script>
     </body></html>"""
 
