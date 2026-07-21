@@ -1,4 +1,4 @@
-# symeval
+# SymEval
 
 SymEval: symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX.
 This allows you to show how you arrive at your results in the same way that you were taught in school:

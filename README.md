@@ -1,4 +1,4 @@
-# symeval
+# SymEval
 
 **Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX.**
 

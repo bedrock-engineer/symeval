@@ -16,11 +16,11 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 
 ## Highlights
 
-- ✨ **Crystal-clear**: shows every step: the formula, the values substituted with units, then the result.
+- ✨ **Crystal clear**: shows every step. The formula, the values substituted with units, then the result.
 - 🐍 **Pure Python**: drop into your interactive notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL).
-- 📏 **Unit-aware**: pint quantities carry units through every step and convert to your chosen output unit.
-- 🧮 **Sympy-native**: rearrange or simplify your formula symbolically first, then evaluate.
-- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a new unit-aware column on a DataFrame.
+- 📏 **Unit-aware**: `pint.Quantity`s carry units through every step and convert to your chosen output unit.
+- 🧮 **Sympy-native**: first rearrange or simplify your equation symbolically, then evaluate.
+- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a unit-aware column on a DataFrame.
 
 ## Quickstart
 
@@ -78,7 +78,7 @@ v &= \frac{d}{t} \\
 v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
 \end{align*}$$
 
-Head to the [Getting started tutorial](getting-started.qmd) for a reactive walkthrough, or read [how symeval works](explanation.qmd) for the ideas behind SymEval.
+Head to the [Getting started](getting-started.qmd) tutorial for a reactive walkthrough and more advanced SymEval functionality, or read [how SymEval works](explanation.qmd) for the ideas behind SymEval.
 
 ::: {.callout-note appearance="simple"}
 Have an engineering calculation worth sharing? Contributions of worked example notebooks are welcome, see [CONTRIBUTING](https://github.com/bedrock-engineer/symeval/blob/main/CONTRIBUTING.md).

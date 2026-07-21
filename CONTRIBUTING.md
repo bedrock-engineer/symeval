@@ -1,4 +1,4 @@
-# Contributing to symeval
+# Contributing to SymEval
 
 Thanks for considering a contribution. This guide covers the development setup,
 running the tests, previewing the docs site, and adding a worked example. For the
@@ -7,7 +7,7 @@ deeper project layout see [`AGENTS.md`](AGENTS.md), and for cutting a release se
 
 ## Setup
 
-symeval uses [uv](https://docs.astral.sh/uv/). Install the development
+SymEval uses [uv](https://docs.astral.sh/uv/). Install the development
 dependencies:
 
 ```sh

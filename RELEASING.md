@@ -1,6 +1,6 @@
-# Releasing symeval
+# Releasing SymEval
 
-How to cut a new release of symeval and publish it to PyPI.
+How to cut a new release of SymEval and publish it to PyPI.
 
 ```bash
 uv run task release 0.#.#  # build & test (pre_release), bump version, commit, tag, push, creat GitHub release

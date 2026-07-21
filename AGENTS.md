@@ -1,4 +1,4 @@
-# symeval — Agent Guide
+# SymEval — Agent Guide
 
 ## What it is
 

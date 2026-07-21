@@ -22,8 +22,8 @@ sym_evalf(
 ```
 
 Numerically evaluates a formula with unit-aware
-[Pint](https://pint.readthedocs.io/) quantities and attaches the **working**:
-the symbolic form, the substituted form, and the result, rendered as LaTeX.
+[Pint](https://pint.readthedocs.io/) quantities and renders it as LaTeX:
+the symbolic form, the substituted form, and the result.
 
 Call it as a function, or as a method on a SymPy expression or equation:
 
@@ -48,8 +48,8 @@ Returns a [`SymbolicEvaluation`](#symbolicevaluation).
 
 ### Rendering modes
 
-`mode="multi_line"` (the default) renders the working as three lines: the
-symbolic form, the substituted form, then the result.
+`mode="multi_line"` (the default) renders three lines: the symbolic form, the
+substituted form, then the result.
 
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
@@ -68,7 +68,7 @@ $$\begin{align*}
 \sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
-`mode="one_line"` collapses the working onto a single line.
+`mode="one_line"` collapses it onto a single line.
 
 $$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}$$
 
@@ -110,7 +110,7 @@ one symbolic evaluation into the next:
 | Attribute | Type | Description |
 | --- | --- | --- |
 | `.quantity` | `pint.Quantity` | The result quantity with its unit. |
-| `.latex` | `str` | The working, rendered as LaTeX. |
+| `.latex` | `str` | The LaTeX rendering. |
 | `.symbol` | `sympy.Symbol` | The output symbol, ready to reference in a later formula. |
 
 Because `.symbol` and `.quantity` are plain SymPy and Pint objects, chaining
@@ -120,8 +120,8 @@ reads as a straight sequence: each result becomes a symbol and a value in the
 
 ## The registry
 
-symeval bundles no `UnitRegistry`. It reads the registry off the Pint quantities
+SymEval bundles no `UnitRegistry`. It reads the registry off the Pint quantities
 you pass in (`quantity._REGISTRY`), so results land in your registry. When
 `subs` is empty, it falls back to `pint.get_application_registry()`. Create your
-quantities with `pint.Quantity` (or your own `UnitRegistry`) and symeval follows
+quantities with `pint.Quantity` (or your own `UnitRegistry`) and SymEval follows
 along.

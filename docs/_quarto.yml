@@ -30,7 +30,7 @@ website:
     left:
       - text: "Getting started"
         href: getting-started.qmd
-      - text: "How symeval works"
+      - text: "How SymEval works"
         href: explanation.qmd
       - text: "API reference"
         href: reference.qmd
