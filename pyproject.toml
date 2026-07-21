@@ -27,8 +27,6 @@ dev = [
 # whole site builds through uv with no system-level Quarto install.
 docs = [
     "quarto-cli>=1.9.20",
-    "marimo>=0.23.14",
-    "polars>=1.40.1",
 ]
 
 [tool.taskipy.tasks]

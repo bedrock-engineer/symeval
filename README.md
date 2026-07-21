@@ -1,23 +1,89 @@
 # symeval
 
-Write a [`sympy`](https://docs.sympy.org) equation, fill in [`pint`](https://pint.readthedocs.io/) quantities, and get the full working, that is (1) the symbolic form, (2) the substituted form with units, and (3) the result with its unit, rendered as LaTeX in your [`marimo`](https://docs.marimo.io) or Jupyter notebook.
+**Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX.**
 
-- ✨ **Crystal-clear**: shows the full working, that is symbolic form, substituted form, and result
-- 🐍 **Pure Python**: drop into your *interactive* notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL)
-- 📏 **Unit-aware**: `pint` quantities carry units through every step and convert to your chosen output unit
-- 🧮 **Sympy-native**: rearrange or simplify your formula symbolically first, then evaluate
-- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a new unit-aware column on a `DataFrame`
+Write a SymPy equation, substitute Pint quantities, and SymEval shows how you arrive at the result the way you were taught in school:
 
-```sh
-pip install symeval
+|  |  |
+|-----------------------------------------|-------------------------------|
+| 1\. Formula | $\rho = \dfrac{m}{V}$ |
+| 2\. Formula with substituted quantities (value + unit) | $\rho = \dfrac{0.998\ \mathrm{kg}}{1\ \mathrm{L}}$ |
+| 3\. Result (density of water) | $\rho = 998\ \dfrac{\mathrm{kg}}{\mathrm{m}^3}$ |
+
+# Highlights
+
+- ✨ **Crystal clear**: shows every step. The formula, the values substituted with units, then the result.
+- 🐍 **Pure Python**: drop into your interactive notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL).
+- 🧮 **Sympy-native**: first rearrange or simplify your equation symbolically, then evaluate.
+- 📏 **Unit-aware**: `pint.Quantity`s carry units through every step and convert to your chosen output unit.
+- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a unit-aware column on a DataFrame.
+
+# Quickstart
+
+SymEval is especially powerful inside Python notebooks, and these docs are opinionated. [We](https://bedrock.engineer/about/ "SymEval authors") strongly recommend [marimo](https://docs.marimo.io "marimo docs") rather than Jupyter notebooks, and [uv](https://docs.astral.sh/uv/ "uv docs") for managing Python.
+
+The only thing you need to create a reproducible marimo notebook, i.e. a notebook that runs anywhere, is uv ([installation instructions](https://docs.astral.sh/uv/getting-started/installation/ "uv installation instructions")).
+
+Run the command below to open a marimo notebook called `usains_speed.py`:
+
+``` sh
+uvx marimo edit --sandbox usains_speed.py
 ```
 
-📖 **[Documentation](https://bedrock-engineer.github.io/symeval)**
+<details>
+<summary><strong><code>uvx</code> and marimo's <code>--sandbox</code> flag</strong></summary>
 
-## Axial stress under a compressive force
+`uvx` runs a Python package as a [tool](https://docs.astral.sh/uv/guides/tools/) in a temporary isolated environment, allowing you to run the `marimo` command-line interface (CLI) directly without any manual setup.
+
+---
+
+When running marimo with the `--sandbox` flag, marimo:
+
+1. Tracks the packages and versions used by your notebook, saving them in the notebook file as inline script metadata.
+2. Runs in an isolated virtual environment ("sandbox") that only contains the notebook dependencies.
+
+This lets you share your marimo notebook with anyone, and they'll be able to run it anywhere. See marimo's [Inlining dependencies](https://docs.marimo.io/guides/package_management/inlining_dependencies/) guide for more information.
+
+</details>
+<br>
+
+Copy-paste the code below into a Python cell, and click install when prompted in the pop-up. This will install the packages and add them to the inline script metadata, which keeps the notebook reproducible.
+
+``` python
+from pint import Quantity
+from symeval import sym_evalf
+from sympy import Equality, Symbol
+
+speed_eq = Equality(Symbol("v"), Symbol("d") / Symbol("t"))
+
+usains_speed = sym_evalf(
+    speed_eq,
+    subs={
+        Symbol("d"): Quantity(100, "m"), 
+        Symbol("t"): Quantity(9.58, "s")
+    },
+    output_unit="km/h",     # Play around with the unit!
+    decimals=1              # Defaults to 3
+)
+usains_speed
+```
+
+You should now see the symbolic evaluation of Usain Bolt's world record speed on the 100-meter dash in km/h:
+
+$$\begin{align*}
+v &= \frac{d}{t} \\
+&= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
+v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
+\end{align*}$$
+
+# More advanced SymEval funcionality
+
+Go to the [Getting started page on the docs website](tutorial ) for a reactive version of the tutorial below. 
+
+
 
 Define the formula as a `sympy.Eq`, fill in `pint` quantities, and `sym_evalf`
-renders the working. The output symbol is taken from the equation, so you do not
+renders it. The output symbol is taken from the equation, so you do not
 pass it separately:
 
 ```python
@@ -42,7 +108,7 @@ $$\begin{align*}
 \end{align*}$$
 
 You can also call `.sym_evalf()` as a method on the equation. Pass `mode=` to
-choose the rendering style; `mode="verbose"` adds an extra line to the working,
+choose the rendering style; `mode="verbose"` adds an extra line,
 showing all values converted to SI base units:
 
 ```python
@@ -59,7 +125,7 @@ $$\begin{align*}
 \sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
-`mode="one_line"` collapses the working onto a single line:
+`mode="one_line"` collapses it onto a single line:
 
 ```python
 axial_stress.sym_evalf(subs=fa, output_unit="MPa", decimals=1, mode="one_line")
@@ -70,7 +136,7 @@ $$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = 
 ## `quantity_evalf()` on a DataFrame
 
 `quantity_evalf` is the numeric-only sibling of `sym_evalf`, that is the same
-unit-aware evaluation without the working. It takes an expression rather than an
+unit-aware evaluation without the LaTeX rendering. It takes an expression rather than an
 equation, so pass the equation's right-hand side (`axial_stress.rhs`). This makes
 it useful for applying a formula across every row of a DataFrame:
 
@@ -111,7 +177,7 @@ members_with_stress = members.with_columns(
 | strut | L4x4 | -110.00 | 1870.00 | -58.82 |
 | tie | C8x11.5 | 250.00 | 2168.00 | 115.31 |
 
-Then use `sym_evalf` to show the full working for any row you want to inspect:
+Then use `sym_evalf` to show every step for any row you want to inspect:
 
 ```python
 axial_stress.sym_evalf(
@@ -130,8 +196,8 @@ $$\begin{align*}
 ## Axial resistance of a steel HSS member
 
 A worked example from CSA S16-17. Each symbolic evaluation is chained into the
-next, that is `F_e` into $\lambda$, $\lambda$ into $C_r$, $C_r$ into $DCR$, so the
-working captures every step of a multi-step engineering check:
+next, that is `F_e` into $\lambda$, $\lambda$ into $C_r$, $C_r$ into $DCR$, so you
+see every step of a multi-step engineering check:
 
 $$F_{e} = \frac{\pi^{2} E r_{y}^{2}}{L^{2} k^{2}} = \frac{\pi^{2} \,200\ \mathrm{GPa} \,\left(76.1\ \mathrm{mm}\right)^{2}}{\,\left(6.5\ \mathrm{m}\right)^{2} \,1^{2}} = 0.271\ \mathrm{GPa}$$
 
