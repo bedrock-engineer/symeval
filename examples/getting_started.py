@@ -18,19 +18,11 @@ app = marimo.App()
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # SymEval
+    # Getting started with SymEval
 
-    Symbolic, unit-aware evaluation of SymPy equations.
+    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations, then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result.
 
-    > SymPy is a Python library for symbolic mathematics.
-
-    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations and then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result:
-
-    1. equation;
-    2. quantities substituted;
-    3. result.
-
-    Below some examples that start with the basics and progressively show more powerful SymEval features and usecases.
+    Below some examples that start with the basics and progressively show more powerful SymEval funcionality and usecases.
 
     ## Axial stress under a compressive force
     """)
@@ -45,16 +37,32 @@ def _():
 
     from pint import Quantity
     from symeval import quantity_evalf
-    from sympy import Symbol
+    from sympy import Equality, Symbol
 
-    return Quantity, Symbol, mo, pl, quantity_evalf, sympy
+    return Equality, Quantity, Symbol, mo, pl, quantity_evalf, sympy
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Define the equation for calculating the axial stress using SymPy:
+    """)
+    return
 
 
 @app.cell
-def _(Symbol, sympy):
-    axial_stress_eq = sympy.Eq(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
+def _(Equality, Symbol):
+    axial_stress_eq = Equality(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
     axial_stress_eq
     return (axial_stress_eq,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Then define the values and units of the force acting on the structural member and its cross-sectional area:
+    """)
+    return
 
 
 @app.cell
@@ -67,6 +75,14 @@ def _(Quantity, Symbol):
     return (fa_inputs,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Then substitute the inputs into the SymPy equation:
+    """)
+    return
+
+
 @app.cell
 def _(axial_stress_eq, fa_inputs):
     axial_stress = axial_stress_eq.sym_evalf(
@@ -77,10 +93,17 @@ def _(axial_stress_eq, fa_inputs):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The `decimals` keyword argument (kwarg) allows you to specify the number of decimals used in LaTeX.
+    `mode="verbose"` adds an extra line showing all values converted to SI base units.
+    """)
+    return
+
+
 @app.cell
 def _(axial_stress_eq, fa_inputs):
-    # You can specify the number of decimal places of your result, and render mode.
-    # verbose: adds an extra line showing all values converted to SI base units.
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
@@ -90,9 +113,16 @@ def _(axial_stress_eq, fa_inputs):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    `mode="one_line"` collapses the equation, subtituted quantities and result onto a single line:
+    """)
+    return
+
+
 @app.cell
 def _(axial_stress_eq, fa_inputs):
-    # one_line: collapse the working onto a single line.
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
@@ -116,7 +146,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Quantity, Symbol, axial_stress_eq, mo, pl, quantity_evalf):
     # 1. Forces are in kN, areas in mm^2.
     members = pl.DataFrame(
@@ -159,7 +189,7 @@ def _(Quantity, Symbol, axial_stress_eq, mo, pl, quantity_evalf):
     return (selected_member_to_symeval,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Quantity, Symbol, axial_stress_eq, selected_member_to_symeval):
     # 3b. Do the symbolic evaluation for the selected member
     _sel_row = selected_member_to_symeval.value
@@ -177,8 +207,8 @@ def _(Quantity, Symbol, axial_stress_eq, selected_member_to_symeval):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Axial Resistance of Steel HSS Member
-    As per CSA S16-17
+    ## Axial Resistance of a Steel HSS Member
+    as per CSA S16-17.
 
     This is the example calculation that Connor Ferster, the author of [`handcalcs`](https://github.com/connorferster/handcalcs) (huge [inspiration](https://github.com/bedrock-engineer/symeval#inspiration) for SymEval), shows in [this "Engineering Calculations: Handcalcs-on-Jupyter vs. Excel" YouTube tutorial](https://www.youtube.com/watch?v=n9Uzy3Eb-XI).
 
@@ -314,6 +344,7 @@ def _(input_table_md, mo):
 
 @app.cell(hide_code=True)
 def _(
+    Equality,
     Quantity,
     beam_length,
     compressive_force,
@@ -336,7 +367,7 @@ def _(
         if "name" in s
     }
     # then define the equation:
-    _euler_buckling_eq = sympy.Eq(
+    _euler_buckling_eq = Equality(
         sympy.Symbol("F_e"),
         (sympy.pi**2 * elastic_modulus)
         / ((beam_length * effective_length_factor / radius_gyration) ** 2),
@@ -354,7 +385,7 @@ def _(
 
     # Rinse and repeat:
     # Lambda factor
-    _lambda_factor_eq = sympy.Eq(
+    _lambda_factor_eq = Equality(
         sympy.Symbol(r"\lambda"),
         (sympy.sqrt(yield_strength / euler_buckling_stress.symbol))
         ** (2 * strain_hardening_exponent),
@@ -367,7 +398,7 @@ def _(
     symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
 
     # Axial resistance
-    _axial_resistance_eq = sympy.Eq(
+    _axial_resistance_eq = Equality(
         sympy.Symbol("C_r"),
         (strength_reduction_factor * cross_sectional_area * yield_strength)
         / ((1 + lambda_factor.symbol) ** (1 / strain_hardening_exponent)),
@@ -381,7 +412,7 @@ def _(
     symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
     # Demand capacity ratio
-    _dcr_eq = sympy.Eq(
+    _dcr_eq = Equality(
         sympy.Symbol("DCR"),
         compressive_force / axial_resistance.symbol,
     )
@@ -439,12 +470,31 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(R_q, ideal_gas_law, mo, sympy):
-    mo.md(rf"""
+def _(mo):
+    mo.md(r"""
     ## Ideal Gas Law
 
-    When solving the ideal gas law 
+    When solving the ideal gas law
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(Equality, Quantity, mo, sympy):
+    # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
+    P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
+    ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)
+    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+
+    ideal_gas_law_vars = {
+        "P (kPa)": (P_sym, "kPa"),
+        "V (Liters)": (V_sym, "l"),
+        "T (K)": (T_sym, "K"),
+        "n (mol)": (n_sym, "mol"),
+    }
+    ideal_gas_law_options = list(ideal_gas_law_vars)
+
+    mo.md(rf"""
     $${sympy.latex(ideal_gas_law)}$$
 
     you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
@@ -455,28 +505,7 @@ def _(R_q, ideal_gas_law, mo, sympy):
     | Volume | $V$ | $m^3$ |
     | Temperature | $T$ | $K$ |
     | Number of gas particles | $n$ | $mol$ |
-
-    Now, given that SymEval is built on top of SymPy, SymEval will first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`.
-
-    The marimo ui elements combined with the piston widget are meant to give an [explorable explanation](https://worrydream.com/ExplorableExplanations/) of and some intuition for the ideal gas law.
     """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(Quantity, sympy):
-    # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
-    P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
-    ideal_gas_law = sympy.Eq(P_sym * V_sym, R_sym * T_sym * n_sym)
-    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
-
-    ideal_gas_law_vars = {
-        "P (kPa)": (P_sym, "kPa"),
-        "V (Liters)": (V_sym, "l"),
-        "T (K)": (T_sym, "K"),
-        "n (mol)": (n_sym, "mol"),
-    }
-    ideal_gas_law_options = list(ideal_gas_law_vars)
     return (
         P_sym,
         R_q,
@@ -488,6 +517,16 @@ def _(Quantity, sympy):
         ideal_gas_law_vars,
         n_sym,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Now, given that SymEval is built on top of SymPy, SymEval will first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`.
+
+    The marimo ui elements combined with the piston widget are meant to give an [explorable explanation](https://worrydream.com/ExplorableExplanations/) of and some intuition for the ideal gas law.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -548,6 +587,7 @@ def _(mo, solve_for_radio):
     mo.hstack(
         [solve_for_radio, mo.vstack([P_input, V_input, T_input, n_input])],
         align="center",
+        justify="center",
         gap=2,
     )
     return P_input, T_input, V_input, igl_inputs, n_input

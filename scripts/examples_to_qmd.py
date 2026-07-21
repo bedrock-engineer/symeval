@@ -15,19 +15,31 @@ Each example notebook becomes one documentation page. The pipeline is:
 Primary pages (``PRIMARY_PAGES``) render to the docs root; the rest land in the
 ``docs/examples/`` gallery.
 
-Two transforms turn marimo's export into a page the quarto-marimo extension
-(>= 0.4.x) actually renders as reactive islands:
+Why the transform exists
+------------------------
+``marimo export md --flavor qmd`` does not currently produce output the
+quarto-marimo engine extension (>= 0.4) consumes, so we rewrite it:
 
-1. **Cell fences.** marimo exports ``` ```{marimo .python} ``` blocks, which the
-   current extension treats as a *deprecated* form and silently hands to the
-   Jupyter engine (no islands, no output). The extension's live syntax is
-   ``` ```python {.marimo} ```. A hidden-code cell (``hide_code="true"``) maps to
-   Quarto's ``#| echo: false`` cell option.
+1. **Frontmatter.** marimo writes the PEP 723 script metadata under a ``header:``
+   key; the extension reads it from ``pyproject:`` (see
+   ``_extensions/marimo-team/marimo/extract.py``). ``marimo-version`` is dropped.
 
-2. **Dependencies.** marimo exports its PEP 723 script metadata under a
-   ``header:`` frontmatter key. The extension reads dependencies from a
-   ``pyproject:`` key instead (see ``_extensions/marimo-team/marimo/extract.py``),
-   so the block is re-keyed. The ``marimo-version`` key is dropped.
+2. **Cell fences.** marimo exports ``` ```{marimo .python} ``` (engine ``marimo``,
+   class ``.python``); the extension auto-detects ``` ```{python .marimo} ```
+   (engine ``python``, class ``.marimo``) — the language token and class are
+   swapped, so marimo's form renders zero islands. We rewrite to the extension's
+   form. (Bug reports: ``research/issues/``.)
+
+3. **Code display.** A ``{python .marimo}`` island hides its code by default, and
+   ``#| echo: true`` also shows the interactive *editor*, which we do not want on
+   a docs page. So we render the code ourselves as a normal, read-only
+   ``` ```python ``` block:
+
+   - **visible cell** -> a ``` ```python ``` block *above* the island (code, then
+     the island's output);
+   - **hidden cell** (``hide_code="true"``) -> the island (output only) followed
+     by a collapsible ``<details>`` with the code (``#| code-fold`` is a no-op on
+     islands).
 
 The ``.py`` files stay the single source of truth (edit those, or the
 ``symeval_mo.py`` column behind ``getting_started.py``, then regenerate); the
@@ -70,6 +82,15 @@ BADGE_IMG = "https://img.shields.io/badge/Open%20in-molab-63805e"
 # Acronyms that should stay uppercase when a snake_case stem is prettified into
 # a page title. "getting_started" -> "Getting started"; the rest word-for-word.
 _ACRONYMS = {"hss": "HSS"}
+
+# One marimo-exported code cell: ```{marimo .python}``` or the hidden-code
+# variant ```{marimo .python hide_code="true"}```, capturing the cell body.
+_CELL_RE = re.compile(
+    r'^```\{marimo \.python(?P<hide> hide_code="true")?\}[ \t]*\n'
+    r"(?P<code>.*?)\n"
+    r"```[ \t]*$",
+    re.DOTALL | re.MULTILINE,
+)
 
 
 def pretty_title(stem: str) -> str:
@@ -117,21 +138,29 @@ def extract_header_block(front: list[str]) -> str:
     return "\n".join(l[pad:] for l in body).strip("\n")
 
 
+def _render_cell(match: re.Match[str]) -> str:
+    """Turn one marimo-exported cell into a quarto-marimo island + code display."""
+    code = match.group("code")
+    hidden = match.group("hide") is not None
+    island = f"```{{python .marimo}}\n{code}\n```"
+    display = f"```python\n{code}\n```"
+    if hidden:
+        # Hidden cell: collapsible code above, island's output below (mirrors the
+        # visible case). The island's own `#| code-fold` does nothing.
+        return (
+            "<details>\n<summary>Show code</summary>\n\n"
+            f"{display}\n\n"
+            "</details>\n\n"
+            f"{island}"
+        )
+    # Visible cell: read-only code block above, island (output) below. We avoid
+    # `#| echo: true` because it also renders the interactive editor.
+    return f"{display}\n\n{island}"
+
+
 def transform_cells(body: str) -> str:
-    """Rewrite marimo's deprecated cell fences into the extension's live syntax."""
-    body = re.sub(
-        r'^```\{marimo \.python hide_code="true"\}[ \t]*$',
-        "```python {.marimo}\n#| echo: false",
-        body,
-        flags=re.MULTILINE,
-    )
-    body = re.sub(
-        r"^```\{marimo \.python\}[ \t]*$",
-        "```python {.marimo}",
-        body,
-        flags=re.MULTILINE,
-    )
-    return body
+    """Rewrite every marimo-exported cell into island + read-only-code form."""
+    return _CELL_RE.sub(_render_cell, body)
 
 
 def build_page(name: str, exported: str) -> str:
