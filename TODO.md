@@ -25,9 +25,7 @@ README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
 
-
 ### Website
-
 Diataxis-style docs. Inspiration:
 - https://quarto.org
 - https://docs.marimo.io
@@ -40,13 +38,51 @@ Feedback (which maybe are (quarto-)marimo bugs too?):
 - The radio button element renders horizontally, instead of vertically as in the marimo notebook.
 
 #### Notes
-
 - Expand the **examples gallery**: the notebooks under `## Examples` above become `examples/*.py`, auto-rendered into `docs/examples/`.
 - **Per-cell static vs reactive** on the tutorial: the intro (axial stress) was meant to be static and the rest reactive; currently all cells are reactive islands. Needs a `#| reactive:` marker driven from the source notebook.
 - Paired `.py` + molab badges for the worked examples (only the tutorial has one for now).
 
-## (quarto-)marimo issues
+## Media
 
+A Remotion promo video, driven from the existing `media/` project, output to `docs/public/`.
+
+### One node project, not two
+Keep the recorders and the Remotion promo in the same `media/` project — one `package.json` / `node_modules`. Remotion just adds its own deps (`remotion`, `react`, `@remotion/*`); no reason to split.
+
+### Multi-format example clips
+Render the table / hss / piston recordings to **`.mp4`, animated `.webp`, and `.gif`** at full capture resolution, so each context uses the best format and the promo can embed the crisp (non-GIF) versions:
+- `.mp4` — highest quality: docs `<video>`, the promo, social.
+- animated `.webp` — README (sharper + smaller than GIF, renders in `<img>` on GitHub).
+- `.gif` — universal fallback.
+
+Approach: the recorders already capture 2× PNG frames; encode all three with a static ffmpeg (`ffmpeg-static` npm — no system install). Keep full res for mp4/webp, downscale for gif. Expand the per-frame hold timing (hss/table) to a constant fps for the video formats. Refactor `media/src/lib/gif.mjs` into a shared encoder that writes all three from one frame array.
+
+### Remotion promo
+`media/remotion/` composition → `docs/public/promo.mp4` (webp/gif too?), scenes:
+1. SymEval logo + "SymEval: Symbolic, unit-aware evaluation of SymPy equations." + the 3-step table: (1) Formula, (2) Substituted values + units, (3) Result.
+2. The code snippet, then its rendered axial-stress LaTeX:
+    ```python
+    axial_stress = sym_evalf(
+        Equality(Symbol(r"\sigma"), Symbol("F") / Symbol("A")),
+        subs={
+            Symbol("F"): Quantity(-680, "kN"),
+            Symbol("A"): Quantity(10_580, "mm^2"),
+        },
+        output_unit="MPa",
+    )
+    ```
+3. Table example (embed the `.mp4` clip).
+4. HSS example (embed the `.mp4` clip).
+5. Piston example (embed the `.mp4` clip).
+
+### Open decisions
+- Length (~20–30s?), aspect ratio (16:9 for embeds vs square/vertical for social).
+- Silent loop vs background music.
+- Embed the recorded clips vs re-create them as native Remotion compositions (crisper, but re-authoring table/HSS; the piston canvas ports cleanly).
+- Emit the promo as webp/gif for the README too, or mp4 only?
+- Switch the README example clips from `.gif` to animated `.webp` once available?
+
+## (quarto-)marimo issues
 Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  
 I want to submit issues to the marimo and quarto-marimo repos to report these bugs, and then get stuff to work now by changing the scripts and modifying quarto-marimo. Then I might also want to submit PRs to quarto-marimo and/or marimo to resolve the issues we submitted.
 

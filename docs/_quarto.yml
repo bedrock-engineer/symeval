@@ -7,6 +7,11 @@ project:
   render:
     - "*.qmd"
     - "examples/*.qmd"
+  # No rendered page references the README GIFs, so quarto wouldn't copy them.
+  # List public/ as a resource so it lands verbatim at <site-url>/public/… and the
+  # GIFs are reachable online (e.g. for absolute image URLs on PyPI).
+  resources:
+    - public
 
 website:
   title: "SymEval"
