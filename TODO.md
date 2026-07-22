@@ -21,12 +21,21 @@ Longer, more complete demos:
 ## Docs
 
 ### README.md
-- Populate README with getting_started.py output.
-    - Align the LaTeX from the Euler buckling stress working (the chained calculation).
-    - The `\,` are thin-space separators that `sympy.latex` emits. MathJax renders them as spaces (VSCode preview, the docs site), but PyPI renders no math at all and shows the raw source, so the `$$...$$` blocks look like commas everywhere. Direction: render the working to images (PNG/SVG) for the README rather than raw LaTeX.
-- piston widget .gif. Make the .gif with remotion?
+In the future it should become possible to generate the entire README.md from the docs website Home page + Getting started guide.
 
-Guide and inspiration:
+- piston widget .gif feedback:
+    - 💥 isn't showing in the .gif
+    - When solving for P (default):
+        1. Move V to 80 Liters
+        2. Move T to 800 K
+        3. Move n to 7.5 mol
+    - Then radio button to solving for T. This will reset the sliders, so then:
+        1. Move P to 2 atm = 203 kPa
+        2. Move v to 80 Liters
+        3. Move n to 10 mol
+        4. Move P to 5 kPa
+
+README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
 
@@ -62,4 +71,4 @@ I want to submit issues to the marimo and quarto-marimo repos to report these bu
     - The [quarto-marimo home page](https://marimo-team.github.io/quarto-marimo/index.html) states there's an `#| editor: true` special comment, but it actually doesn't do anything, and neither does #| echo: false, because that's default behavior anyway.
     - Not possible to make code collapsible. The `#| code-fold: true` flag doesn't do anything.
 
-The piston mo.iframe is not appearing in the Getting started guide. This is actually an issue with how marimo exports to HTML, as I understand it.
+The piston mo.iframe was not appearing in the Getting started guide. This is actually an issue with how marimo exports to HTML, as I understand it.

@@ -1,0 +1,17 @@
+{
+  "name": "symeval-media",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Renders README GIFs (piston + worked examples) with node-canvas — no browser.",
+  "scripts": {
+    "piston": "node src/piston.mjs"
+  },
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "gifenc": "^1.0.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
+  }
+}

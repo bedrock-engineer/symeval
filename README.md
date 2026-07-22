@@ -220,7 +220,13 @@ P &= \frac{R T n}{V} \\
 P &= 1.01\times 10^{5}\ \mathrm{Pa} = 101.39\ \mathrm{kPa}
 \end{align*}$$
 
-See `symeval_mo.py` for the full reactive marimo notebook with input UIs.
+Paired with marimo's UI elements, this becomes an [explorable explanation](https://worrydream.com/ExplorableExplanations/): move a slider and the piston, the gas particles, and the symbolic evaluation all react together.
+
+<p align="center">
+  <img src="docs/public/piston.gif" alt="Dragging the volume, temperature, and amount sliders updates the piston animation and the ideal gas law symbolic evaluation in real time" width="640">
+</p>
+
+Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) for the live, interactive version.
 
 ## Author
 

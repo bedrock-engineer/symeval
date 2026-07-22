@@ -1,0 +1,154 @@
+// Records the live ideal-gas piston widget (from the running getting_started.py
+// marimo app) into an animated GIF for the README.
+//
+// Approach: Playwright drives the real marimo sliders. Because debounce=True,
+// dragging a handle doesn't update the kernel until release — so we glide the
+// handle (capturing frames), release to commit one reactive update, wait for the
+// piston iframe to reload, then hold while the piston's own requestAnimationFrame
+// animates the gas particles (capturing a smooth burst).
+//
+// The controls and the piston live in two separate marimo cells with dead space
+// between them, so each frame captures two bands (controls, piston+equation) and
+// composites them with node-canvas, dropping the gap. gifenc encodes the GIF —
+// no ffmpeg, no notebook edits.
+
+import { chromium } from "playwright";
+import { loadImage, createCanvas } from "canvas";
+import gifenc from "gifenc";
+import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+const { GIFEncoder, quantize, applyPalette } = gifenc;
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const OUT = resolve(HERE, "../../docs/public/piston.gif");
+const URL = process.env.APP_URL || "http://127.0.0.1:2821/";
+const TEST = process.env.MODE === "test";
+
+const FPS = 20;
+const DELAY = Math.round(1000 / FPS);
+const OUT_W = 640; // final GIF width
+const BAND_W = 712; // css width of each captured band
+const BAND_X = 188; // css left of each band
+const GAP = 12; // px between the two composited bands
+const RANGE = { 1: [5, 100], 2: [100, 1000], 3: [0.1, 10] }; // 0=P(disabled)
+
+const b = await chromium.launch();
+const page = await b.newPage({ viewport: { width: 1200, height: 900 }, deviceScaleFactor: 2 });
+await page.goto(URL, { waitUntil: "networkidle" });
+const sliders = page.locator('[role="slider"]');
+await sliders.first().waitFor({ timeout: 40000 });
+await page.waitForTimeout(2000);
+
+// marimo scrolls inside its own container (not window): scrollIntoViewIfNeeded +
+// wheel to bring the top slider near y=55.
+await sliders.nth(0).scrollIntoViewIfNeeded();
+await page.mouse.move(600, 400);
+let s0 = await sliders.nth(0).boundingBox();
+await page.mouse.wheel(0, s0.y - 55);
+await page.waitForTimeout(400);
+s0 = await sliders.nth(0).boundingBox();
+const s3 = await sliders.nth(3).boundingBox();
+
+// Piston iframe: pick the ~290x380 iframe (avoid any other iframes on the page).
+const iboxes = await page.locator("iframe").evaluateAll((els) =>
+  els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })
+);
+const pbox = iboxes.find((b) => b.w > 260 && b.w < 330) || iboxes[0];
+
+// Two capture bands (css viewport coords).
+const CLIP_A = { x: BAND_X, y: Math.round(s0.y - 30), width: BAND_W, height: Math.round(s3.y + 46 - (s0.y - 30)) };
+const CLIP_B = { x: BAND_X, y: Math.round(pbox.y - 10), width: BAND_W, height: Math.round(pbox.h + 22) };
+console.log("CLIP_A", JSON.stringify(CLIP_A), "CLIP_B", JSON.stringify(CLIP_B));
+
+const frames = [];
+async function shoot() {
+  const a = await page.screenshot({ clip: CLIP_A });
+  const c = await page.screenshot({ clip: CLIP_B });
+  frames.push({ a, c });
+}
+async function hold(n, gap = 45) {
+  for (let i = 0; i < n; i++) { await page.waitForTimeout(gap); await shoot(); }
+}
+async function glide(idx, toValue) {
+  const [min, max] = RANGE[idx];
+  const track = await sliders.nth(idx).locator("xpath=../..").boundingBox();
+  const thumb = await sliders.nth(idx).boundingBox();
+  const r = thumb.width / 2;
+  const cy = thumb.y + thumb.height / 2;
+  const fromX = thumb.x + r;
+  const f = Math.max(0, Math.min(1, (toValue - min) / (max - min)));
+  const toX = track.x + r + f * (track.width - 2 * r);
+  await page.mouse.move(fromX, cy);
+  await page.mouse.down();
+  const steps = 16;
+  for (let s = 1; s <= steps; s++) {
+    await page.mouse.move(fromX + (toX - fromX) * (s / steps), cy);
+    await page.waitForTimeout(18);
+    await shoot(); // handle glides; piston still shows previous state
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(600); // commit -> iframe reload -> first draw (not captured)
+  await hold(12); // stable, particles animate
+}
+
+if (TEST) {
+  await hold(8);
+  await glide(1, 80);
+  await glide(2, 880);
+  const idxs = [0, 12, frames.length - 1];
+  for (const i of idxs) { writeFileSync(resolve(HERE, `../tmp/A-${i}.png`), frames[i].a); writeFileSync(resolve(HERE, `../tmp/B-${i}.png`), frames[i].c); }
+  console.log(`TEST captured ${frames.length} frames`);
+} else {
+  await hold(10);
+  await glide(1, 82); // V up: piston rises, P falls
+  await glide(1, 22.4); // V back to default
+  await glide(2, 900); // T up: particles heat (red) + speed up, P rises
+  await glide(2, 273); // T back
+  await glide(3, 7); // n up: more particles, P rises
+  await glide(3, 1); // n back
+  await hold(10);
+  console.log(`captured ${frames.length} frames`);
+}
+await b.close();
+
+// ---- composite two bands + downscale + encode ------------------------------
+const SCALE = OUT_W / BAND_W;
+const topH = Math.round(CLIP_A.height * SCALE);
+const botH = Math.round(CLIP_B.height * SCALE);
+const OUT_H = topH + GAP + botH;
+const canvas = createCanvas(OUT_W, OUT_H);
+const ctx = canvas.getContext("2d");
+async function rgba({ a, c }) {
+  const ia = await loadImage(a);
+  const ic = await loadImage(c);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, OUT_W, OUT_H);
+  ctx.drawImage(ia, 0, 0, OUT_W, topH);
+  ctx.drawImage(ic, 0, topH + GAP, OUT_W, botH);
+  return ctx.getImageData(0, 0, OUT_W, OUT_H).data;
+}
+
+// Global palette sampled across the timeline (so hot red particles are included).
+const nSamp = Math.min(8, frames.length);
+const merged = [];
+for (let i = 0; i < nSamp; i++) merged.push(await rgba(frames[Math.floor((i / (nSamp - 1)) * (frames.length - 1))]));
+const all = new Uint8ClampedArray(merged.reduce((a, d) => a + d.length, 0));
+{ let o = 0; for (const d of merged) { all.set(d, o); o += d.length; } }
+const palette = quantize(all, 256);
+
+const gif = GIFEncoder();
+for (const fr of frames) gif.writeFrame(applyPalette(await rgba(fr), palette), OUT_W, OUT_H, { palette, delay: DELAY });
+gif.finish();
+
+// Composited PNG previews for visual inspection.
+for (const i of [Math.min(20, frames.length - 1), Math.floor(frames.length / 2)]) {
+  await rgba(frames[i]);
+  writeFileSync(resolve(HERE, `../tmp/preview-${i}.png`), canvas.toBuffer("image/png"));
+}
+
+const out = TEST ? resolve(HERE, "../tmp/piston-test.gif") : OUT;
+mkdirSync(dirname(out), { recursive: true });
+const bytes = gif.bytes();
+writeFileSync(out, bytes);
+console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes.length / 1024).toFixed(0)} KB`);

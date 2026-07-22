@@ -19,6 +19,11 @@ __marimo__/
 marimo/_static/
 marimo/_lsp/
 
+# Node tooling for README GIFs (media/). The generated GIFs live in
+# docs/assets/gifs/ and ARE committed; only deps and scratch frames are ignored.
+node_modules/
+/media/tmp/
+
 # Quarto docs site
 # (.quarto/ and *.quarto_ipynb are ignored by docs/.gitignore, which Quarto manages)
 /docs/_site/
