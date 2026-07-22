@@ -6,7 +6,7 @@ column of symeval_mo.py, or scripts/docs_to_readme.py.
 
 # SymEval
 
-**Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX.**
+**Symbolic, unit-aware evaluation of SymPy equations.**
 
 Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint.readthedocs.io/) quantities, and SymEval shows how you arrive at the result the way you were taught in school:
 

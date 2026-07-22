@@ -3,7 +3,7 @@
 How to cut a new release of SymEval and publish it to PyPI.
 
 ```bash
-uv run task release 0.#.#  # build & test (pre_release), bump version, commit, tag, push, creat GitHub release
+uv run task release 0.#.#  # build, test & regenerate README (pre_release), bump version, commit, tag, push, create GitHub release
 uv run task pypi           # clean dist/, build wheel, publish to PyPI
 ```
 
@@ -22,20 +22,20 @@ uv run task pypi           # clean dist/, build wheel, publish to PyPI
 ## Per-release flow
 
 ```bash
-uv run task release 0.#.#   # build & test (pre_release), bump version, commit, tag, push, creat GitHub release
+uv run task release 0.#.#   # build, test & regenerate README (pre_release), bump version, commit, tag, push, create GitHub release
 uv run task pypi            # clean dist/, build wheel, publish to PyPI
 ```
 
 That's it. Two commands.
 
-Taskipy runs a `pre_<name>` hook before its tasks. That's how `pre_release` (build & test) is automatically run by before `release`.
+Taskipy runs a `pre_<name>` hook before its tasks. That's how `pre_release` (build, test, and regenerate `README.md`) is automatically run before `release`.
 
 ## What each command does
 
 ### `task release <version>`
 
-1. Runs `build` and `test` as prerequisites (via taskipy's `pre_release` hook) — regenerates `src/symeval/__init__.py` from the notebook and runs the test suite. If either fails, the release is aborted before anything is committed.
-2. Checks the working tree is clean. If you have uncommitted changes (including a stale `__init__.py` from a forgotten `task build`), the release aborts.
+1. Runs `build`, `test`, and `docs_readme` as prerequisites (via taskipy's `pre_release` hook) — regenerates `src/symeval/__init__.py` from the notebook, runs the test suite, and regenerates `README.md` (plus the docs pages) from the docs. If any fails, the release is aborted before anything is committed.
+2. Checks the working tree is clean. If you have uncommitted changes (including a stale `__init__.py` from a forgotten `task build`, or a stale `README.md` from changed docs), the release aborts — commit the regenerated files and re-run.
 3. `uv version <version>` — bumps the version in `pyproject.toml` *and* `uv.lock` (the lock file records the project's own version, so the two stay in sync).
 4. `git commit -m "Release <version>" pyproject.toml uv.lock` — commits only those two files. Any other modified files stay uncommitted.
 5. `git tag <version>` — creates an unsigned annotated tag.

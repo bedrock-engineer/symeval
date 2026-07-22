@@ -41,7 +41,7 @@ pre_build = "uvx marimo -y export session --force-overwrite symeval_mo.py"
 build = "uvx --with pint --with sympy --with pytest mobuild export symeval_mo.py src/symeval/__init__.py"
 test = "uvx --with sympy --with pint --with marimo --with polars pytest symeval_mo.py"
 clean = "bash -c 'rm -rf dist/'"
-pre_release = "task build && task test"
+pre_release = "task build && task test && task docs_readme"
 release = """bash -c '\
 [ -n "$1" ] || { echo "Usage: uv run task release <version>"; exit 1; } && \
 git diff --quiet HEAD || { echo "working tree not clean"; exit 1; } && \

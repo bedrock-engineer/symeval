@@ -1,6 +1,6 @@
 ---
 title: SymEval
-subtitle: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
+subtitle: "Symbolic, unit-aware evaluation of SymPy equations."
 toc: false
 ---
 
