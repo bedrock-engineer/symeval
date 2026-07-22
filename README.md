@@ -23,8 +23,8 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 - ✨ **Crystal clear**: shows every step. The formula, the values substituted with units, then the result.
 - 🐍 **Pure Python**: drop into your interactive notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL).
 - 📏 **Unit-aware**: `pint.Quantity`s carry units through every step and convert to your chosen output unit.
-- 🧮 **Sympy-native**: first rearrange or simplify your equation symbolically, then evaluate.
-- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a unit-aware column on a DataFrame.
+- 🧮 **SymPy-native**: first rearrange or simplify your equation symbolically using SymPy, then evaluate.
+- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a unit-aware column on a `DataFrame`.
 
 ## Quickstart
 

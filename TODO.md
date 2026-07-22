@@ -44,44 +44,31 @@ Feedback (which maybe are (quarto-)marimo bugs too?):
 
 ## Media
 
-A Remotion promo video, driven from the existing `media/` project, output to `docs/public/`.
-
-### One node project, not two
-Keep the recorders and the Remotion promo in the same `media/` project — one `package.json` / `node_modules`. Remotion just adds its own deps (`remotion`, `react`, `@remotion/*`); no reason to split.
-
-### Multi-format example clips
-Render the table / hss / piston recordings to **`.mp4`, animated `.webp`, and `.gif`** at full capture resolution, so each context uses the best format and the promo can embed the crisp (non-GIF) versions:
-- `.mp4` — highest quality: docs `<video>`, the promo, social.
-- animated `.webp` — README (sharper + smaller than GIF, renders in `<img>` on GitHub).
-- `.gif` — universal fallback.
-
-Approach: the recorders already capture 2× PNG frames; encode all three with a static ffmpeg (`ffmpeg-static` npm — no system install). Keep full res for mp4/webp, downscale for gif. Expand the per-frame hold timing (hss/table) to a constant fps for the video formats. Refactor `media/src/lib/gif.mjs` into a shared encoder that writes all three from one frame array.
-
-### Remotion promo
-`media/remotion/` composition → `docs/public/promo.mp4` (webp/gif too?), scenes:
-1. SymEval logo + "SymEval: Symbolic, unit-aware evaluation of SymPy equations." + the 3-step table: (1) Formula, (2) Substituted values + units, (3) Result.
-2. The code snippet, then its rendered axial-stress LaTeX:
-    ```python
-    axial_stress = sym_evalf(
-        Equality(Symbol(r"\sigma"), Symbol("F") / Symbol("A")),
-        subs={
-            Symbol("F"): Quantity(-680, "kN"),
-            Symbol("A"): Quantity(10_580, "mm^2"),
-        },
-        output_unit="MPa",
-    )
-    ```
-3. Table example (embed the `.mp4` clip).
-4. HSS example (embed the `.mp4` clip).
-5. Piston example (embed the `.mp4` clip).
+### Remotion promo video feedback
+`media/remotion/` composition → `docs/public/symeval-promo.mp4`:
+1. TitleScene:
+    - Logo + SymEval (text is missing)
+    - Make the Logo + SymEval smaller and the subtitle and 1. -> 2. -> 3. bigger. Especially the subtitle needs to become bigger.
+    - The 1. -> 2. -> 3. step cards have different heights. Especially the third has a noticibly smaller height. The heights should be the same and the numbers and equal signs should be at the same heights.
+2. CodeToLatexScene:
+    - Python syntax highlighting is not clear.
+3. ClipScene
+    - Should be introduced with (SymEval green):
+        "SymEval ♥ marimo"
+    - No need to put the clips inside a frame.
+    - Bigger titles and no subtitles
+    1. table
+        - Title: DataFrame-ready
+    2. hss
+        - Title: Chained checks
+        - Make the clip full height, and the Chained checks title still fit nicely, this then has to become the title size for all other ClipScene titles too.
+    3. piston
+        - Title: Explorable explanations
 
 ### Open decisions
-- Are there any disadvantages to putting .webp in the README? I understand the disadvantage could be bad rendering on PyPI. Would it be possible to add a fallback to the .gif?
-- Length (~20–30s?), aspect ratio (16:9 for embeds vs square/vertical for social).
-- Silent loop vs background music.
-- Embed the recorded clips vs re-create them as native Remotion compositions (crisper, but re-authoring table/HSS; the piston canvas ports cleanly).
-- Emit the promo as webp/gif for the README too, or mp4 only?
-- Switch the README example clips from `.gif` to animated `.webp` once available?
+- Switch the README example clips from `.gif` to animated `.webp` (with .gif fallback)?
+    Are there any disadvantages to putting .webp in the README? I understand the disadvantage could be bad rendering on PyPI. Would it be possible to add a fallback to the .gif?
+- symeval-promo to .gif (and .webp?) as well depends on how big the .gif would be. Might be nice to have a .gif that I could put inside the body of an email, but then the size of the .gif needs to stay small.
 
 ## (quarto-)marimo issues
 Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  

@@ -19,7 +19,7 @@ const SNIPPET = String.raw`axial_stress = sym_evalf(
 const RESULT = String.raw`\begin{aligned}
 \sigma &= \frac{F}{A} \\[6pt]
 &= \frac{-680\ \text{kN}}{10580\ \text{mm}^2} \\[6pt]
-&= -64.3\ \text{MPa}
+\sigma &= -64.3\ \text{MPa}
 \end{aligned}`;
 
 const LINES = SNIPPET.split("\n").length;
