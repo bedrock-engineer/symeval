@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Renders README GIFs (piston + worked examples) with node-canvas — no browser.",
   "scripts": {
-    "piston": "node src/piston.mjs"
+    "piston": "node src/record-piston.mjs",
+    "hss": "node src/record-hss.mjs",
+    "table": "node src/record-table.mjs"
   },
   "dependencies": {
     "canvas": "^3.2.3",

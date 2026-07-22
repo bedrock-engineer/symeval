@@ -19,19 +19,20 @@ and gifenc encodes the GIF.
    ```sh
    npm install                       # first time only
    npx playwright install chromium   # first time only
-   node src/record.mjs         # piston.gif — ideal-gas explorable (canvas iframe)
-   node src/record-hss.mjs     # hss.gif   — beam-length sweep, chained equations
-   node src/record-table.mjs   # table.gif — marimo.ui.table row selection
+   node src/record-piston.mjs  # piston.gif — ideal-gas explorable (canvas iframe)
+   node src/record-hss.mjs     # hss.gif    — beam-length sweep, chained equations
+   node src/record-table.mjs   # table.gif  — marimo.ui.table row selection
    ```
 
    `MODE=test node src/<script>` runs a short version and dumps sample frames to
    `tmp/` for inspection. Set `APP_URL` to target a different port.
 
-Each recorder drives the real widgets in the running app, composites frames with
-node-canvas, and encodes with gifenc (no ffmpeg). `record.mjs` glides the sliders
-and holds while the piston's requestAnimationFrame animates; `record-hss.mjs` and
-`record-table.mjs` step discrete states with long per-frame GIF delays so viewers
-can read each one.
+Each recorder drives the real widgets in the running app, then composites frames
+with node-canvas and encodes with gifenc (no ffmpeg) via the shared `src/lib/`
+(`app.mjs` launches Chromium, `gif.mjs` owns the encode). `record-piston.mjs`
+glides the sliders and holds while the piston's requestAnimationFrame animates;
+`record-hss.mjs` and `record-table.mjs` step discrete states with long per-frame
+GIF delays so viewers can read each one.
 
 ## Notes
 

@@ -12,13 +12,11 @@
 // composites them with node-canvas, dropping the gap. gifenc encodes the GIF —
 // no ffmpeg, no notebook edits.
 
-import { chromium } from "playwright";
-import { loadImage, createCanvas } from "canvas";
-import gifenc from "gifenc";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { launch } from "./lib/app.mjs";
+import { writeGif, loadImage } from "./lib/gif.mjs";
+import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-const { GIFEncoder, quantize, applyPalette } = gifenc;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, "../../docs/public/piston.gif");
@@ -34,8 +32,7 @@ const GAP = 12; // px between the two composited bands
 const RANGE = { 0: [1, 500], 1: [5, 100], 2: [100, 1000], 3: [0.1, 10] }; // idx: P V T n
 const STEP = { 0: 1, 1: 0.5, 2: 1, 3: 0.1 };
 
-const b = await chromium.launch();
-const page = await b.newPage({ viewport: { width: 1200, height: 900 }, deviceScaleFactor: 2 });
+const { browser, page } = await launch({ width: 1200, height: 900 });
 await page.goto(URL, { waitUntil: "networkidle" });
 const sliders = page.locator('[role="slider"]');
 await sliders.first().waitFor({ timeout: 40000 });
@@ -66,7 +63,7 @@ const frames = [];
 async function shoot() {
   const a = await page.screenshot({ clip: CLIP_A });
   const c = await page.screenshot({ clip: CLIP_B });
-  frames.push({ a, c });
+  frames.push({ a, c, delay: DELAY });
 }
 async function hold(n, gap = 45) {
   for (let i = 0; i < n; i++) { await page.waitForTimeout(gap); await shoot(); }
@@ -138,45 +135,21 @@ if (TEST) {
   await hold(14);
   console.log(`captured ${frames.length} frames`);
 }
-await b.close();
+await browser.close();
 
-// ---- composite two bands + downscale + encode ------------------------------
+// Composite the two bands (controls above, piston+equation below) into one frame.
 const SCALE = OUT_W / BAND_W;
 const topH = Math.round(CLIP_A.height * SCALE);
 const botH = Math.round(CLIP_B.height * SCALE);
 const OUT_H = topH + GAP + botH;
-const canvas = createCanvas(OUT_W, OUT_H);
-const ctx = canvas.getContext("2d");
-async function rgba({ a, c }) {
+const draw = async (ctx, { a, c }) => {
   const ia = await loadImage(a);
   const ic = await loadImage(c);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, OUT_W, OUT_H);
   ctx.drawImage(ia, 0, 0, OUT_W, topH);
   ctx.drawImage(ic, 0, topH + GAP, OUT_W, botH);
-  return ctx.getImageData(0, 0, OUT_W, OUT_H).data;
-}
-
-// Global palette sampled across the timeline (so hot red particles are included).
-const nSamp = Math.min(8, frames.length);
-const merged = [];
-for (let i = 0; i < nSamp; i++) merged.push(await rgba(frames[Math.floor((i / (nSamp - 1)) * (frames.length - 1))]));
-const all = new Uint8ClampedArray(merged.reduce((a, d) => a + d.length, 0));
-{ let o = 0; for (const d of merged) { all.set(d, o); o += d.length; } }
-const palette = quantize(all, 256);
-
-const gif = GIFEncoder();
-for (const fr of frames) gif.writeFrame(applyPalette(await rgba(fr), palette), OUT_W, OUT_H, { palette, delay: DELAY });
-gif.finish();
-
-// Composited PNG previews for visual inspection.
-for (const i of [Math.min(20, frames.length - 1), Math.floor(frames.length * 0.62), frames.length - 12]) {
-  await rgba(frames[i]);
-  writeFileSync(resolve(HERE, `../tmp/preview-${i}.png`), canvas.toBuffer("image/png"));
-}
-
+};
 const out = TEST ? resolve(HERE, "../tmp/piston-test.gif") : OUT;
-mkdirSync(dirname(out), { recursive: true });
-const bytes = gif.bytes();
-writeFileSync(out, bytes);
-console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes.length / 1024).toFixed(0)} KB`);
+const bytes = await writeGif(out, frames, { width: OUT_W, height: OUT_H, draw });
+console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes / 1024).toFixed(0)} KB`);

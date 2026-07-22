@@ -8,13 +8,11 @@
 // frame with a long per-frame delay, so the file stays small while giving the
 // viewer time to read each state. node-canvas downscales, gifenc encodes.
 
-import { chromium } from "playwright";
-import { loadImage, createCanvas } from "canvas";
-import gifenc from "gifenc";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { launch, parkMouse } from "./lib/app.mjs";
+import { writeGif, loadImage } from "./lib/gif.mjs";
+import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-const { GIFEncoder, quantize, applyPalette } = gifenc;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, "../../docs/public/hss.gif");
@@ -25,8 +23,7 @@ const OUT_W = 620;
 const STEP_MS = 600; // time each L value is shown
 const HOLD_MS = 1500; // time the endpoints linger
 
-const b = await chromium.launch();
-const page = await b.newPage({ viewport: { width: 1200, height: 1300 }, deviceScaleFactor: 2 });
+const { browser, page } = await launch({ width: 1200, height: 1300 });
 await page.goto(URL, { waitUntil: "networkidle" });
 await page.getByText("Beam length", { exact: true }).waitFor({ timeout: 40000 });
 await page.waitForTimeout(1500);
@@ -58,16 +55,13 @@ const CLIP = {
 console.log("CLIP", JSON.stringify(CLIP));
 
 const frames = [];
-async function parkMouse() {
-  await page.mouse.move(CLIP.x + CLIP.width + 60, 12); // out of the captured region
-}
 async function shoot(delay) {
   frames.push({ buf: await page.screenshot({ clip: CLIP }), delay });
 }
 async function setL(v) {
   await beamInput.fill(String(v)); // Playwright clicks the input (moves cursor in)
   await beamInput.press("Enter");
-  await parkMouse();
+  await parkMouse(page, CLIP.x + CLIP.width + 60);
   await page.waitForTimeout(460); // kernel recompute + KaTeX re-render
 }
 
@@ -88,32 +82,15 @@ if (TEST) {
   await shoot(HOLD_MS); // back to default
   console.log(`captured ${frames.length} frames`);
 }
-await b.close();
+await browser.close();
 
-// ---- downscale + encode -----------------------------------------------------
 const OUT_H = Math.round((OUT_W * CLIP.height) / CLIP.width);
-const canvas = createCanvas(OUT_W, OUT_H);
-const ctx = canvas.getContext("2d");
-async function rgba(buf) {
+const draw = async (ctx, { buf }) => {
   const img = await loadImage(buf);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, OUT_W, OUT_H);
   ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
-  return ctx.getImageData(0, 0, OUT_W, OUT_H).data;
-}
-const nSamp = Math.min(8, frames.length);
-const merged = [];
-for (let i = 0; i < nSamp; i++) merged.push(await rgba(frames[Math.floor((i / Math.max(1, nSamp - 1)) * (frames.length - 1))].buf));
-const all = new Uint8ClampedArray(merged.reduce((a, d) => a + d.length, 0));
-{ let o = 0; for (const d of merged) { all.set(d, o); o += d.length; } }
-const palette = quantize(all, 256);
-
-const gif = GIFEncoder();
-for (const fr of frames) gif.writeFrame(applyPalette(await rgba(fr.buf), palette), OUT_W, OUT_H, { palette, delay: fr.delay });
-gif.finish();
-
+};
 const out = TEST ? resolve(HERE, "../tmp/hss-test.gif") : OUT;
-mkdirSync(dirname(out), { recursive: true });
-const bytes = gif.bytes();
-writeFileSync(out, bytes);
-console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes.length / 1024).toFixed(0)} KB`);
+const bytes = await writeGif(out, frames, { width: OUT_W, height: OUT_H, draw });
+console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes / 1024).toFixed(0)} KB`);
