@@ -19,6 +19,7 @@ Longer, more complete demos:
 - Terzaghi bearing capacity calculation.
 
 ## Docs
+Flip `IMG_BASE` in `docs_to_readme.py` to the docs-site URL once this is on `main`, so the README images also render on PyPI (needs absolute URLs).
 
 ### README.md
 README inspiration:
