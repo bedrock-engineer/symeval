@@ -33,17 +33,16 @@ uvx marimo edit --sandbox usains_speed.py
 ```
 
 <details>
-<summary><strong>`uvx` and marimo's `--sandbox` flag
+<summary><strong>`uvx` and marimo's `--sandbox` flag</strong></summary>
 
 `uvx` runs a Python package as a [tool](https://docs.astral.sh/uv/guides/tools/ "uv's "Using tools" guide") in a temporary isolated environment, allowing you to run the `marimo` Command Line Interface (CLI) directly without any manual setup.
 
-------------------------------------------------------------------------
+---
 
 When running marimo with the `--sandbox` flag, marimo:
 
 1.  tracks the packages and versions used by your notebook, saving them in the notebook file as inline script metadata;
 2.  runs in an isolated virtual environment ("sandbox") that only contains the notebook dependencies.
-</strong></summary>
 
 In this way you can share your marimo notebook with anyone, and they'll be able to run it anywhere. See marimo's [Inlining dependencies](https://docs.marimo.io/guides/package_management/inlining_dependencies/ "marimo's "Inlining dependencies" guide") guide for more information.
 
@@ -79,6 +78,8 @@ v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{
 \end{align*}$$
 
 # More advanced SymEval functionality
+
+Below some examples that start with the basics and progressively show more powerful SymEval funcionality and usecases.
 
 ## Axial stress under a compressive force
 
@@ -127,7 +128,7 @@ axial_stress
 $$
 \begin{align*}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
 \sigma &= -6.427\times 10^{7}\ \mathrm{Pa} = -64.272\ \mathrm{MPa}
 \end{align*}
 $$
@@ -149,8 +150,8 @@ axial_stress_eq.sym_evalf(
 $$
 \begin{align*}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
-&= \frac{\medspace-6.800000\times 10^{5}\ \mathrm{N}}{\medspace1.058000\times 10^{-2}\ \mathrm{m}^{2}} \\
+&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
+&= \frac{\,-6.800000\times 10^{5}\ \mathrm{N}}{\,1.058000\times 10^{-2}\ \mathrm{m}^{2}} \\
 \sigma &= -6.42722\times 10^{7}\ \mathrm{Pa} = -64.27221\ \mathrm{MPa}
 \end{align*}
 $$
@@ -167,7 +168,7 @@ axial_stress_eq.sym_evalf(
 ```
 
 $$
-\sigma = \frac{F}{A} = \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}
+\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}
 $$
 
 ## `quantity_evalf()` on a `DataFrame`
@@ -244,9 +245,11 @@ axial_stress_eq.sym_evalf(
 
 <p align="center">
   <img src="docs/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below." width="760">
+  <br>
+  <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 </p>
 
-Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website, or [![Open in molab](https://img.shields.io/badge/Open%20in-molab-63805e)](https://molab.marimo.io/https://github.com/bedrock-engineer/symeval/blob/main/examples/getting_started.py) for the live, interactive version.
+Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website for the live, interactive version.
 
 ## Axial Resistance of a Steel HSS Member
 
@@ -489,9 +492,11 @@ mo.vstack(
 
 <p align="center">
   <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0." width="620">
+  <br>
+  <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 </p>
 
-Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website, or [![Open in molab](https://img.shields.io/badge/Open%20in-molab-63805e)](https://molab.marimo.io/https://github.com/bedrock-engineer/symeval/blob/main/examples/getting_started.py) for the live, interactive version.
+Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website for the live, interactive version.
 
 ## Ideal Gas Law
 
@@ -501,23 +506,18 @@ When solving the ideal gas law
 <summary>Show code</summary>
 
 ```python
-# Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
 P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
 ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)
-R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+ideal_gas_law
+```
 
-ideal_gas_law_vars = {
-    "P (kPa)": (P_sym, "kPa"),
-    "V (Liters)": (V_sym, "l"),
-    "T (K)": (T_sym, "K"),
-    "n (mol)": (n_sym, "mol"),
-}
-ideal_gas_law_options = list(ideal_gas_law_vars)
+</details>
 
-mo.md(rf"""
-$${sympy.latex(ideal_gas_law)}$$
+$$
+P V = R T n
+$$
 
-you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
+you need to always know three out of four variables ($R = 8.3145 \frac{\mathrm{J}}{\mathrm{K} \cdot \mathrm{mol}}$ is the molar gas constant):
 
 | Name | Symbol | SI-unit |
 |------|--------|---------|
@@ -525,10 +525,6 @@ you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the mo
 | Volume | $V$ | $m^3$ |
 | Temperature | $T$ | $K$ |
 | Number of gas particles | $n$ | $mol$ |
-""")
-```
-
-</details>
 
 Now, given that SymEval is built on top of SymPy, SymEval will first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`.
 
@@ -538,6 +534,14 @@ The marimo ui elements combined with the piston widget are meant to give an [exp
 <summary>Show code</summary>
 
 ```python
+ideal_gas_law_vars = {
+    "P (kPa)": (P_sym, "kPa"),
+    "V (Liters)": (V_sym, "l"),
+    "T (K)": (T_sym, "K"),
+    "n (mol)": (n_sym, "mol"),
+}
+ideal_gas_law_options = list(ideal_gas_law_vars)
+
 solve_for_radio = mo.ui.radio(
     options=ideal_gas_law_options,
     value="P (kPa)",
@@ -618,7 +622,7 @@ _knowns = {
     for _label, (_sym, _unit) in ideal_gas_law_vars.items()
     if _sym != _solve_for_sym
 }
-_knowns[R_sym] = R_q
+_knowns[R_sym] = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
 
 # The equation infers its unknown (the one symbol with no value in subs),
 # solves for it, and evaluates: no manual sympy.solve, no output_symbol.
@@ -875,183 +879,17 @@ requestAnimationFrame(draw);
 
 </details>
 
-1. Edit the JavaScript code of the piston here with syntax highlighting.
-2. Copy the JS code into the string in the `piston_js` variable in the Python cell above.
+<img src="docs/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
 
-<details>
-<summary>Show the piston JavaScript</summary>
+For the live, interactive version:
+- go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website, or
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
-```js
-// piston_js
-// Canvas and cylinder dimensions
-const c = document.getElementById("piston-canvas");
-const ctx2d = c.getContext("2d");
-const W = c.width;
-const H = c.height;
-const CYL_X = 70;
-const CYL_W = 130;
-const TOP_MARGIN = 110;
-const BOTTOM_MARGIN = 20;
-const CYL_BOTTOM = H - BOTTOM_MARGIN;
+## Inspiration
 
-// Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
-const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
-const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
-const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
-const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
-
-// V -> gas column height
-// V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
-// gasHeight & pistonY scale linearly across the V-slider range
-const GAS_MIN = 10;
-const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
-const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
-const pistonY = CYL_BOTTOM - gasHeight;
-
-// P -> trapezoidal weight block size
-// Until the middle of the P-range, the weight grows in all directions
-// as P increases. At higher P's the weight only scales vertically.
-const WEIGHT_W_MIN = 40;
-const WEIGHT_W_MAX = CYL_W - 6;
-const WEIGHT_H_MIN = 18;
-const WEIGHT_H_MID = 45;
-const WEIGHT_H_MAX = 90;
-const PHASE_SPLIT = 0.5;
-let weightWBottom, weightH;
-if (p01 <= PHASE_SPLIT) {
-  const k = p01 / PHASE_SPLIT;
-  weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
-  weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
-} else {
-  const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
-  weightWBottom = WEIGHT_W_MAX;
-  weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
-}
-const weightWTop = weightWBottom * 0.55;
-
-// T -> particle speed + warm/cool tint
-const speed = Math.sqrt(T) * 0.11;
-const tintR = Math.round(80 + t01 * (240 - 80));
-const tintG = Math.round(140 - t01 * 80);
-const tintB = Math.round(240 - t01 * 200);
-const tint = `rgb(${tintR},${tintG},${tintB})`;
-
-// n -> particle count
-const N_PARTICLES_MIN = 4;
-const N_PARTICLES_MAX = 250;
-const nParticles = Math.max(
-  N_PARTICLES_MIN,
-  Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
-);
-
-const particles = [];
-for (let i = 0; i < nParticles; i++) {
-  const ang = Math.random() * Math.PI * 2;
-  particles.push({
-    x: CYL_X + 4 + Math.random() * (CYL_W - 8),
-    y: pistonY + 4 + Math.random() * (gasHeight - 8),
-    vx: Math.cos(ang),
-    vy: Math.sin(ang),
-  });
-}
-
-function draw() {
-  ctx2d.clearRect(0, 0, W, H);
-
-  ctx2d.strokeStyle = "#888";
-  ctx2d.lineWidth = 2;
-  ctx2d.beginPath();
-  ctx2d.moveTo(CYL_X, TOP_MARGIN);
-  ctx2d.lineTo(CYL_X, CYL_BOTTOM);
-  ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
-  ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
-  ctx2d.stroke();
-
-  const cx = CYL_X + CYL_W / 2;
-  const wBL = cx - weightWBottom / 2;
-  const wBR = cx + weightWBottom / 2;
-  const wTL = cx - weightWTop / 2;
-  const wTR = cx + weightWTop / 2;
-  const wBY = pistonY - 4;
-  const wTY = wBY - weightH;
-  ctx2d.fillStyle = "#5a5a5a";
-  ctx2d.strokeStyle = "#333";
-  ctx2d.lineWidth = 1.5;
-  ctx2d.beginPath();
-  ctx2d.moveTo(wBL, wBY);
-  ctx2d.lineTo(wBR, wBY);
-  ctx2d.lineTo(wTR, wTY);
-  ctx2d.lineTo(wTL, wTY);
-  ctx2d.closePath();
-  ctx2d.fill();
-  ctx2d.stroke();
-
-  // Ring handle: outer radius AND thickness both scale with P. Inner hole
-  // is always smaller than the ring thickness, so the ring reads as a
-  // chunky rim at all sizes.
-  const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
-  const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
-  const ringInnerR = Math.max(1, ringOuterR - ringThickness);
-  const ringCenterY = wTY - ringOuterR + 2;
-  ctx2d.fillStyle = "#333";
-  ctx2d.beginPath();
-  ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
-  ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
-  ctx2d.closePath();
-  ctx2d.fill();
-
-  ctx2d.fillStyle = "#fff";
-  const fontSize = Math.min(18, weightH * 0.55);
-  ctx2d.font = fontSize + "px sans-serif";
-  ctx2d.textAlign = "center";
-  ctx2d.textBaseline = "middle";
-  ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
-
-  ctx2d.fillStyle = "#aaa";
-  ctx2d.strokeStyle = "#333";
-  ctx2d.lineWidth = 1;
-  ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
-  ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
-
-  ctx2d.fillStyle = tint;
-  for (const p of particles) {
-    const mag = Math.hypot(p.vx, p.vy) || 1;
-    const sx = (p.vx / mag) * speed;
-    const sy = (p.vy / mag) * speed;
-    p.x += sx;
-    p.y += sy;
-    if (p.x < CYL_X + 3) {
-      p.x = CYL_X + 3;
-      p.vx = Math.abs(p.vx);
-    } else if (p.x > CYL_X + CYL_W - 3) {
-      p.x = CYL_X + CYL_W - 3;
-      p.vx = -Math.abs(p.vx);
-    }
-    if (p.y < pistonY + 5) {
-      p.y = pistonY + 5;
-      p.vy = Math.abs(p.vy);
-    } else if (p.y > CYL_BOTTOM - 3) {
-      p.y = CYL_BOTTOM - 3;
-      p.vy = -Math.abs(p.vy);
-    }
-    ctx2d.beginPath();
-    ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
-    ctx2d.fill();
-  }
-
-  requestAnimationFrame(draw);
-}
-requestAnimationFrame(draw);
-// piston_js
-```
-
-</details>
-
-<p align="center">
-  <img src="docs/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
-</p>
-
-Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website, or [![Open in molab](https://img.shields.io/badge/Open%20in-molab-63805e)](https://molab.marimo.io/https://github.com/bedrock-engineer/symeval/blob/main/examples/getting_started.py) for the live, interactive version.
+- [handcalcs](https://github.com/connorferster/handcalcs), renders Python calculation code as LaTeX in Jupyter
+- [CalcPad](https://calcpad-ce.org), engineering calculations DSL with symbolic/numeric workflow
+- Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
 
 ## Feedback & contributing
 
@@ -1060,12 +898,6 @@ Found a bug or have a feature request? [Open an issue](https://github.com/bedroc
 Want to add a worked example? See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev setup, the docs dev server, and how to add a notebook.
 
 The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`CLAUDE.md`](CLAUDE.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
-
-## Inspiration
-
-- [handcalcs](https://github.com/connorferster/handcalcs), renders Python calculation code as LaTeX in Jupyter
-- [CalcPad](https://calcpad-ce.org), engineering calculations DSL with symbolic/numeric workflow
-- Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
 
 ## Authors
 
