@@ -73,11 +73,11 @@ EXAMPLES_OUT = DOCS / "examples"
 PRIMARY_PAGES = {"getting_started"}
 
 # The molab "Open in <name>" badge opens a GitHub-hosted notebook in molab by
-# appending its GitHub blob URL to molab.marimo.io. The badge only resolves once
-# the .py is pushed to this branch, so it goes live when the docs branch merges.
+# appending its GitHub path to molab.marimo.io/github/. The badge only resolves
+# once the .py is pushed to this branch, so it goes live when the docs branch merges.
 GITHUB_SLUG = "bedrock-engineer/symeval"
 GITHUB_BRANCH = "main"
-BADGE_IMG = "https://img.shields.io/badge/Open%20in-molab-63805e"
+BADGE_IMG = "https://marimo.io/molab-shield.svg"
 
 # Acronyms that should stay uppercase when a snake_case stem is prettified into
 # a page title. "getting_started" -> "Getting started"; the rest word-for-word.
@@ -109,8 +109,7 @@ def pretty_title(stem: str) -> str:
 
 def molab_url(name: str) -> str:
     """The molab URL that opens ``examples/<name>.py`` from GitHub."""
-    blob = f"https://github.com/{GITHUB_SLUG}/blob/{GITHUB_BRANCH}/examples/{name}.py"
-    return f"https://molab.marimo.io/{blob}"
+    return f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/{GITHUB_BRANCH}/examples/{name}.py"
 
 
 def split_frontmatter(text: str) -> tuple[list[str], str]:

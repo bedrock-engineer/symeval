@@ -228,23 +228,31 @@ def inject_axial_outputs(section: str, latex: list[str]) -> str:
     return CODE_BLOCK_RE.sub(replace, section)
 
 
-def gif_block(heading: str) -> str:
-    """The GIF + live-version link that replaces an interactive section's output.
+def section_anchor(heading: str) -> str:
+    """The Quarto/Pandoc section id for a heading, e.g. ``## `quantity_evalf()` on a
+    `DataFrame` `` -> ``quantity_evalf-on-a-dataframe`` (for deep links into the docs)."""
+    text = heading.lstrip("#").strip().replace("`", "")
+    text = re.sub(r"[^\w\s-]", "", text).strip().lower()
+    return re.sub(r"\s+", "-", text)
 
-    The molab badge sits on its own centred line beneath the GIF rather than
-    inline in the sentence: GitHub strips CSS, so an inline image can't be
-    vertically centred with text (``align="middle"`` hangs it below the baseline).
+
+def gif_block(heading: str) -> str:
+    """The GIF plus a bulleted "live, interactive version" pointer (a deep link into
+    the docs page + the molab badge) that replaces an interactive section's output.
+
+    A list, not an inline sentence, so the molab badge gets its own line — GitHub
+    strips CSS, so an inline image can't be vertically centred with text.
     """
     for key, (path, alt, width) in GIFS.items():
         if key in heading:
             return (
                 '<p align="center">\n'
                 f'  <img src="{path}" alt="{alt}" width="{width}">\n'
-                "  <br>\n"
-                f'  <a href="{MOLAB_URL}"><img src="{MOLAB_BADGE_IMG}" alt="Open in molab"></a>\n'
                 "</p>\n\n"
-                f"Open the [Getting started tutorial]({DOCS_SITE}/getting-started.html) "
-                "on the docs website for the live, interactive version."
+                "For the live, interactive version:\n\n"
+                f"- go to the [Getting started tutorial]"
+                f"({DOCS_SITE}/getting-started.html#{section_anchor(heading)}) on the docs website, or\n"
+                f'- <a href="{MOLAB_URL}"><img src="{MOLAB_BADGE_IMG}" alt="Open in molab"></a>'
             )
     return ""
 
