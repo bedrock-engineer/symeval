@@ -27,11 +27,12 @@ const TEST = process.env.MODE === "test";
 
 const FPS = 20;
 const DELAY = Math.round(1000 / FPS);
-const OUT_W = 640; // final GIF width
+const OUT_W = 620; // final GIF width
 const BAND_W = 712; // css width of each captured band
 const BAND_X = 188; // css left of each band
 const GAP = 12; // px between the two composited bands
-const RANGE = { 1: [5, 100], 2: [100, 1000], 3: [0.1, 10] }; // 0=P(disabled)
+const RANGE = { 0: [1, 500], 1: [5, 100], 2: [100, 1000], 3: [0.1, 10] }; // idx: P V T n
+const STEP = { 0: 1, 1: 0.5, 2: 1, 3: 0.1 };
 
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1200, height: 900 }, deviceScaleFactor: 2 });
@@ -70,6 +71,10 @@ async function shoot() {
 async function hold(n, gap = 45) {
   for (let i = 0; i < n; i++) { await page.waitForTimeout(gap); await shoot(); }
 }
+async function clickRadio(text) {
+  await page.getByText(text, { exact: true }).first().click();
+  await page.waitForTimeout(1000); // solve-for switch: sliders reset + piston reloads
+}
 async function glide(idx, toValue) {
   const [min, max] = RANGE[idx];
   const track = await sliders.nth(idx).locator("xpath=../..").boundingBox();
@@ -79,35 +84,58 @@ async function glide(idx, toValue) {
   const fromX = thumb.x + r;
   const f = Math.max(0, Math.min(1, (toValue - min) / (max - min)));
   const toX = track.x + r + f * (track.width - 2 * r);
+  const pxPerUnit = (track.width - 2 * r) / (max - min);
   await page.mouse.move(fromX, cy);
   await page.mouse.down();
-  const steps = 16;
+  const steps = 12;
+  let curX = fromX;
   for (let s = 1; s <= steps; s++) {
-    await page.mouse.move(fromX + (toX - fromX) * (s / steps), cy);
+    curX = fromX + (toX - fromX) * (s / steps);
+    await page.mouse.move(curX, cy);
     await page.waitForTimeout(18);
     await shoot(); // handle glides; piston still shows previous state
   }
+  // Precision correction while still held (radix aria-valuenow updates live, so
+  // no commit/reload happens until release): nudge onto the exact target.
+  for (let k = 0; k < 6; k++) {
+    const cur = parseFloat(await sliders.nth(idx).getAttribute("aria-valuenow"));
+    if (!Number.isFinite(cur) || Math.abs(toValue - cur) <= STEP[idx]) break;
+    curX += (toValue - cur) * pxPerUnit;
+    await page.mouse.move(curX, cy);
+    await page.waitForTimeout(30);
+  }
   await page.mouse.up();
   await page.waitForTimeout(600); // commit -> iframe reload -> first draw (not captured)
-  await hold(12); // stable, particles animate
+  await hold(9); // stable, particles animate
 }
 
 if (TEST) {
-  await hold(8);
+  await hold(4);
   await glide(1, 80);
-  await glide(2, 880);
-  const idxs = [0, 12, frames.length - 1];
+  await glide(2, 800);
+  await glide(3, 5);
+  await glide(3, 7.5); // P -> ~623 kPa > 500 -> 💥 above max
+  await hold(10);
+  const idxs = [0, frames.length - 1];
   for (const i of idxs) { writeFileSync(resolve(HERE, `../tmp/A-${i}.png`), frames[i].a); writeFileSync(resolve(HERE, `../tmp/B-${i}.png`), frames[i].c); }
   console.log(`TEST captured ${frames.length} frames`);
 } else {
-  await hold(10);
-  await glide(1, 82); // V up: piston rises, P falls
-  await glide(1, 22.4); // V back to default
-  await glide(2, 900); // T up: particles heat (red) + speed up, P rises
-  await glide(2, 273); // T back
-  await glide(3, 7); // n up: more particles, P rises
-  await glide(3, 1); // n back
-  await hold(10);
+  // Phase 1 — solving for P (default). Cranking the inputs pushes P past its
+  // 500 kPa max, so the 💥 out-of-bounds indicator appears.
+  await hold(8);
+  await glide(1, 80); // V -> 80 L
+  await glide(2, 800); // T -> 800 K
+  await glide(3, 5); // n -> 5 mol  (P ~416 kPa, still in range)
+  await glide(3, 7.5); // n -> 7.5 mol  => P ~623 kPa > 500 => 💥
+  await hold(18); // linger on the 💥
+  // Phase 2 — switch to solving for T (this resets the sliders to defaults).
+  await clickRadio("T (K)");
+  await hold(8);
+  await glide(0, 203); // P -> 203 kPa (2 atm)
+  await glide(1, 80); // V -> 80 L
+  await glide(3, 10); // n -> 10 mol
+  await glide(0, 5); // P -> 5 kPa  => T solved very cold
+  await hold(14);
   console.log(`captured ${frames.length} frames`);
 }
 await b.close();
@@ -142,7 +170,7 @@ for (const fr of frames) gif.writeFrame(applyPalette(await rgba(fr), palette), O
 gif.finish();
 
 // Composited PNG previews for visual inspection.
-for (const i of [Math.min(20, frames.length - 1), Math.floor(frames.length / 2)]) {
+for (const i of [Math.min(20, frames.length - 1), Math.floor(frames.length * 0.62), frames.length - 12]) {
   await rgba(frames[i]);
   writeFileSync(resolve(HERE, `../tmp/preview-${i}.png`), canvas.toBuffer("image/png"));
 }

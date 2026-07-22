@@ -23,18 +23,6 @@ Longer, more complete demos:
 ### README.md
 In the future it should become possible to generate the entire README.md from the docs website Home page + Getting started guide.
 
-- piston widget .gif feedback:
-    - 💥 isn't showing in the .gif
-    - When solving for P (default):
-        1. Move V to 80 Liters
-        2. Move T to 800 K
-        3. Move n to 7.5 mol
-    - Then radio button to solving for T. This will reset the sliders, so then:
-        1. Move P to 2 atm = 203 kPa
-        2. Move v to 80 Liters
-        3. Move n to 10 mol
-        4. Move P to 5 kPa
-
 README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
