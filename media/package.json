@@ -3,17 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Renders README GIFs (piston + worked examples) with node-canvas — no browser.",
+  "description": "Records the SymEval example clips (piston + worked examples) and renders the Remotion promo.",
   "scripts": {
-    "piston": "node src/record-piston.mjs",
-    "hss": "node src/record-hss.mjs",
-    "table": "node src/record-table.mjs"
+    "piston": "node recorders/record-piston.mjs",
+    "hss": "node recorders/record-hss.mjs",
+    "table": "node recorders/record-table.mjs",
+    "studio": "remotion studio remotion/index.ts",
+    "promo": "remotion render remotion/index.ts Promo ../docs/public/symeval-promo.mp4 --muted"
   },
   "dependencies": {
+    "@remotion/cli": "^4.0.496",
+    "@remotion/google-fonts": "^4.0.496",
+    "@remotion/transitions": "^4.0.496",
     "canvas": "^3.2.3",
-    "gifenc": "^1.0.3"
+    "ffmpeg-static": "^5.3.0",
+    "gifenc": "^1.0.3",
+    "katex": "^0.18.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "remotion": "^4.0.496"
   },
   "devDependencies": {
-    "playwright": "^1.61.1"
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "playwright": "^1.61.1",
+    "typescript": "^5.9.3"
   }
 }
