@@ -162,10 +162,12 @@ const sizes = await writeClips(out, frames, {
   gif: { width: OUT_W, height: OUT_H },
   full: { width: FULL_W, height: Math.round((OUT_H * FULL_W) / OUT_W) },
   fps: FPS,
-  // No webp: the piston's dense particle animation has ~200 distinct frames, and
-  // animated webp encodes each as a full keyframe (~6 MB). mp4 (h264) is 8x
-  // smaller for this motion; the gif stays as the <img> fallback.
-  formats: ["gif", "mp4"],
+  // The piston's ~200 distinct frames make a full-res webp balloon (~6 MB), since
+  // animated webp encodes each as a full keyframe. Downscale it to the README
+  // display size at lower quality: ~2.5 MB, smaller + sharper than the gif. mp4
+  // (h264) stays the crisp full-res version for the docs/promo.
+  webpWidth: 900,
+  webpQuality: 60,
   draw,
 });
 console.log(`wrote ${out}.{gif,mp4,webp}  frames=${frames.length}  ` +

@@ -49,26 +49,33 @@ GENERATED_HEADER = (
 )
 
 DOCS_SITE = "https://bedrock-engineer.github.io/symeval"
+# Base for the recorded-clip images. Relative for now so they resolve on GitHub
+# (and for local inspection) while the docs site is still on a branch; switch to
+# f"{DOCS_SITE}/public" once it is merged to main — that also makes the images
+# render on PyPI, which needs absolute URLs.
+IMG_BASE = "docs/public"
 GITHUB_SLUG = "bedrock-engineer/symeval"
 MOLAB_URL = f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/main/examples/getting_started.py"
 MOLAB_BADGE_IMG = "https://marimo.io/molab-shield.svg"
 
-# The GIF that replaces each interactive section's marimo output, keyed by a
-# substring of the section heading.
-GIFS = {
+# The recorded clip that replaces each interactive section's marimo output, keyed
+# by a substring of the section heading: (clip stem, alt text, display width).
+# Every clip has an animated .webp (sharper + smaller on GitHub) with a .gif
+# fallback for PyPI and browsers without animated-webp support.
+CLIPS = {
     "quantity_evalf": (
-        "docs/public/table.gif",
+        "table",
         "Selecting a member row in the table updates its axial-stress symbolic evaluation below.",
         760,
     ),
     "Axial Resistance": (
-        "docs/public/hss.gif",
+        "hss",
         "Increasing the beam length recomputes the Euler buckling stress, lambda factor, "
         "axial resistance, and demand-capacity ratio, with DCR rising past 1.0.",
         620,
     ),
     "Ideal Gas Law": (
-        "docs/public/piston.gif",
+        "piston",
         "Changing the solve-for radio button and the sliders updates the piston and the "
         "symbolic evaluation of the ideal gas law in real time.",
         620,
@@ -245,17 +252,21 @@ def section_anchor(heading: str) -> str:
 
 
 def gif_block(heading: str) -> str:
-    """The GIF plus a bulleted "live, interactive version" pointer (a deep link into
-    the docs page + the molab badge) that replaces an interactive section's output.
+    """The recorded clip (animated webp with a gif fallback) plus a bulleted "live,
+    interactive version" pointer (a deep link into the docs page + the molab badge)
+    that replaces an interactive section's output.
 
     A list, not an inline sentence, so the molab badge gets its own line — GitHub
     strips CSS, so an inline image can't be vertically centred with text.
     """
-    for key, (path, alt, width) in GIFS.items():
+    for key, (stem, alt, width) in CLIPS.items():
         if key in heading:
             return (
                 '<p align="center">\n'
-                f'  <img src="{path}" alt="{alt}" width="{width}">\n'
+                "  <picture>\n"
+                f'    <source srcset="{IMG_BASE}/{stem}.webp" type="image/webp">\n'
+                f'    <img src="{IMG_BASE}/{stem}.gif" alt="{alt}" width="{width}">\n'
+                "  </picture>\n"
                 "</p>\n\n"
                 "For the live, interactive version:\n\n"
                 f"- go to the [Getting started tutorial]"
@@ -308,7 +319,7 @@ def build_advanced_body() -> str:
         elif "Ideal Gas Law" in heading:
             content = inject_ideal_gas_output(content, igl_latex)
             out.append(f"{heading}\n\n{content}\n\n{gif_block(heading)}")
-        elif any(key in heading for key in GIFS):
+        elif any(key in heading for key in CLIPS):
             out.append(f"{heading}\n\n{content}\n\n{gif_block(heading)}")
         else:
             out.append(f"{heading}\n\n{content}")

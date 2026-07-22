@@ -250,7 +250,10 @@ axial_stress_eq.sym_evalf(
 </details>
 
 <p align="center">
-  <img src="docs/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below." width="760">
+  <picture>
+    <source srcset="docs/public/table.webp" type="image/webp">
+    <img src="docs/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below." width="760">
+  </picture>
 </p>
 
 For the live, interactive version:
@@ -498,7 +501,10 @@ mo.vstack(
 </details>
 
 <p align="center">
-  <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0." width="620">
+  <picture>
+    <source srcset="docs/public/hss.webp" type="image/webp">
+    <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0." width="620">
+  </picture>
 </p>
 
 For the live, interactive version:
@@ -888,7 +894,10 @@ requestAnimationFrame(draw);
 </details>
 
 <p align="center">
-  <img src="docs/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
+  <picture>
+    <source srcset="docs/public/piston.webp" type="image/webp">
+    <img src="docs/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
+  </picture>
 </p>
 
 For the live, interactive version:

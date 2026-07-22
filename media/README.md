@@ -51,18 +51,24 @@ holds so viewers can read each one.
 | --- | --- | --- | --- |
 | `.gif`  | downscaled | universal `<img>` fallback | palettized (gifenc), keeps per-frame delays |
 | `.mp4`  | full capture | docs `<video>`, the promo, social | H.264; best for dense motion (the piston) |
-| `.webp` | full capture | README (sharper + smaller than GIF) | animated; the *discrete-state* clips only |
+| `.webp` | full capture¹ | README (sharper + smaller than GIF) | animated |
 
 The video formats come from ffmpeg's concat demuxer (one still per unique frame,
 held for its delay), so a static hold stays one encoded frame rather than
-ballooning to a constant-fps run. The **piston skips `.webp`**: its ~200 distinct
-animation frames make animated webp ~8x larger than the mp4, so it emits gif + mp4.
+ballooning to a constant-fps run.
+
+¹ The table/hss webps are full capture resolution (short, discrete clips, so tiny
+either way). The **piston** is dense (~200 distinct frames), so its recorder
+downscales the webp (`webpWidth`/`webpQuality` on `writeClips`) to the README
+display size — ~2.5 MB, smaller + sharper than the gif — while the mp4 stays full
+resolution for the docs/promo.
 
 ## Promo video (`remotion/`)
 
 ```sh
-npm run studio   # open the Remotion editor
-npm run promo    # render ../docs/public/symeval-promo.mp4 (silent, 1920x1080, ~25s)
+npm run studio     # open the Remotion editor (live preview — best for tweaking)
+npm run promo      # render ../docs/public/symeval-promo.mp4 (silent, 1920x1080, ~27s)
+npm run promo:gif  # also export symeval-promo.{gif,webp} for email/chat (from the mp4)
 ```
 
 Five cross-faded scenes: title + the Formula→Substituted→Result idea, the
@@ -70,6 +76,10 @@ axial-stress snippet resolving to its rendered LaTeX, then the table / HSS /
 piston clips embedded via `staticFile` (`publicDir` is `../docs/public`, set in
 `remotion.config.ts`). Colours and IBM Plex fonts (via `@remotion/google-fonts`)
 match the docs brand; see `remotion/theme.ts`.
+
+`promo:gif` writes a gif (900px) and a higher-res animated webp (1280px) at a
+similar size, both ~6 MB; mp4 stays the primary. Override sizes/quality via env
+(`GIF_W`, `WEBP_W`, `WEBP_Q`, …).
 
 ## Notes
 

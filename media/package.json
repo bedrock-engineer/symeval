@@ -9,7 +9,8 @@
     "hss": "node recorders/record-hss.mjs",
     "table": "node recorders/record-table.mjs",
     "studio": "remotion studio remotion/index.ts",
-    "promo": "remotion render remotion/index.ts Promo ../docs/public/symeval-promo.mp4 --muted"
+    "promo": "remotion render remotion/index.ts Promo ../docs/public/symeval-promo.mp4 --muted",
+    "promo:gif": "node scripts/promo-formats.mjs"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.496",

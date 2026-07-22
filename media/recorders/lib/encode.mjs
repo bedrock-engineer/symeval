@@ -38,9 +38,12 @@ const even = (n) => 2 * Math.round(n / 2);
  *                   W×H canvas from its payload.
  * @param opts.fps   Constant frame rate for mp4/webp (default 30).
  * @param opts.formats  Subset of `["gif", "mp4", "webp"]` (default all three).
+ * @param opts.webpWidth  Downscale the webp to this width (default = full width).
+ *                 Dense clips (the piston) need a smaller webp to stay reasonable.
+ * @param opts.webpQuality  libwebp `-q:v` 0-100 (default 80). Lower for dense clips.
  * @returns  `{ gif?, mp4?, webp? }` byte sizes for the formats written.
  */
-export async function writeClips(outBase, frames, { gif, full, draw, fps = 30, formats = ["gif", "mp4", "webp"] }) {
+export async function writeClips(outBase, frames, { gif, full, draw, fps = 30, formats = ["gif", "mp4", "webp"], webpWidth, webpQuality = 80 }) {
   full = full ? { width: even(full.width), height: even(full.height) } : { width: even(gif.width), height: even(gif.height) };
   mkdirSync(dirname(outBase), { recursive: true });
   const sizes = {};
@@ -76,10 +79,14 @@ export async function writeClips(outBase, frames, { gif, full, draw, fps = 30, f
         "-vsync", "cfr", "-r", String(fps),
         "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", "-movflags", "+faststart",
       ]);
-      // webp: keep the variable per-frame durations (like the gif).
-      if (formats.includes("webp")) sizes.webp = await ffmpegConcat(list, `${outBase}.webp`, [
-        "-an", "-c:v", "libwebp", "-lossless", "0", "-q:v", "80", "-loop", "0",
-      ]);
+      // webp: keep the variable per-frame durations (like the gif); optionally
+      // downscale from the full-res stills for dense clips.
+      if (formats.includes("webp")) {
+        const scale = webpWidth && webpWidth !== full.width ? ["-vf", `scale=${webpWidth}:-2:flags=lanczos`] : [];
+        sizes.webp = await ffmpegConcat(list, `${outBase}.webp`, [
+          ...scale, "-an", "-c:v", "libwebp", "-lossless", "0", "-q:v", String(webpQuality), "-loop", "0",
+        ]);
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
