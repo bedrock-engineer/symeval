@@ -3,7 +3,7 @@
 
 import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { COLORS, FONTS } from "../theme";
+import { CARD, COLORS, FONTS } from "../theme";
 import { Code } from "../components/Code";
 import { Latex } from "../components/Latex";
 
@@ -45,13 +45,10 @@ export const CodeToLatexScene: React.FC = () => {
 
         <div
           style={{
+            ...CARD,
             opacity: resultIn,
             transform: `translateX(${(1 - resultIn) * 40}px)`,
-            background: COLORS.greenSoft,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: 20,
             padding: "44px 52px",
-            boxShadow: "0 24px 60px -30px rgba(28,33,27,0.35)",
             fontSize: 42,
             color: COLORS.dark,
           }}

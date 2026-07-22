@@ -8,16 +8,18 @@ import { fade } from "@remotion/transitions/fade";
 import { COLORS } from "./theme";
 import { TitleScene } from "./scenes/TitleScene";
 import { CodeToLatexScene } from "./scenes/CodeToLatexScene";
+import { ClipsIntro } from "./scenes/ClipsIntro";
 import { ClipScene } from "./scenes/ClipScene";
 
 const XFADE = 18; // cross-fade length between scenes
 
 const SCENES = [
-  { dur: 165, node: <TitleScene /> },
+  { dur: 215, node: <TitleScene /> },
   { dur: 210, node: <CodeToLatexScene /> },
-  { dur: 150, node: <ClipScene src="table.mp4" eyebrow="DataFrame column" title="Select a row, the evaluation recomputes" startFrom={24} /> },
-  { dur: 150, node: <ClipScene src="hss.mp4" eyebrow="Chained checks" title="Sweep a length, it ripples through the check" startFrom={45} /> },
-  { dur: 150, node: <ClipScene src="piston.mp4" eyebrow="Explorable" title="Drive the inputs, watch the physics" startFrom={30} /> },
+  { dur: 80, node: <ClipsIntro /> },
+  { dur: 130, node: <ClipScene src="table.mp4" title="DataFrame-ready" startFrom={29} /> },
+  { dur: 150, node: <ClipScene src="hss.mp4" title="Chained checks" startFrom={45} shiftX={70} shiftY={-35} scale={1.16} /> },
+  { dur: 300, node: <ClipScene src="piston.mp4" title="Explorable explanations" startFrom={30} /> },
 ];
 
 /** Composition length = Σ scene durations − Σ cross-fade overlaps. */

@@ -1,52 +1,60 @@
-// Scenes 3-5 — embed a recorded example clip (table / HSS / piston) at full
-// resolution. The clips keep their native aspect; this scene contains them and
-// pads the 16:9 frame with whitespace around the edges.
+// Scenes for the recorded example clips (table / HSS / piston). Each keeps its
+// native aspect and fills the full available height; the 16:9 frame is padded
+// with whitespace at the sides. No frame around the clip — just a soft shadow.
 
 import React from "react";
 import { AbsoluteFill, OffthreadVideo, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { COLORS, FONTS } from "../theme";
 
+// One title size across all clip scenes (sized so "Chained checks" fits nicely
+// above the full-height HSS clip).
+const TITLE_SIZE = 72;
+
 export const ClipScene: React.FC<{
   src: string;
-  eyebrow: string;
   title: string;
   startFrom?: number;
-}> = ({ src, eyebrow, title, startFrom = 0 }) => {
+  shiftX?: number; // nudge the clip right (+) / left (-)
+  shiftY?: number; // nudge the clip up (-) / down (+)
+  scale?: number; // enlarge the clip; anchored top-left, so it grows toward bottom-right
+}> = ({ src, title, startFrom = 0, shiftX = 0, shiftY = 0, scale = 1 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const header = spring({ frame, fps, config: { damping: 200 }, durationInFrames: 24 });
-  const clipIn = spring({ frame: frame - 8, fps, config: { damping: 200 }, durationInFrames: 26 });
+  // Title and clip enter together.
+  const enter = spring({ frame, fps, config: { damping: 200 }, durationInFrames: 26 });
 
   return (
-    <AbsoluteFill style={{ background: COLORS.bg, fontFamily: FONTS.sans, padding: "70px 90px" }}>
-      <div style={{ opacity: header, transform: `translateY(${(1 - header) * -20}px)` }}>
-        <div style={{ fontSize: 26, color: COLORS.green, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>
-          {eyebrow}
-        </div>
-        <div style={{ fontSize: 50, fontFamily: FONTS.heading, color: COLORS.greenDeep, fontWeight: 600, marginTop: 4 }}>{title}</div>
+    <AbsoluteFill style={{ background: COLORS.bg, fontFamily: FONTS.sans, padding: "18px 48px 20px" }}>
+      <div
+        style={{
+          fontSize: TITLE_SIZE,
+          fontFamily: FONTS.heading,
+          color: COLORS.greenDeep,
+          fontWeight: 600,
+          lineHeight: 1.05,
+          paddingLeft: 32,
+          opacity: enter,
+          transform: `translateY(${(1 - enter) * -20}px)`,
+        }}
+      >
+        {title}
       </div>
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 30 }}>
-        <div
+      <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 8 }}>
+        <OffthreadVideo
+          src={staticFile(src)}
+          startFrom={startFrom}
+          muted
           style={{
-            opacity: clipIn,
-            transform: `scale(${0.97 + clipIn * 0.03})`,
-            maxWidth: "100%",
+            display: "block",
             maxHeight: "100%",
-            borderRadius: 20,
-            overflow: "hidden",
-            border: `1px solid ${COLORS.line}`,
-            boxShadow: "0 30px 80px -40px rgba(28,33,27,0.5)",
-            background: COLORS.bg,
+            maxWidth: "100%",
+            objectFit: "contain",
+            opacity: enter,
+            transformOrigin: "top left", // scale grows toward the bottom-right
+            transform: `translate(${shiftX}px, ${shiftY}px) scale(${scale * (0.97 + enter * 0.03)})`,
           }}
-        >
-          <OffthreadVideo
-            src={staticFile(src)}
-            startFrom={startFrom}
-            muted
-            style={{ display: "block", maxHeight: "78vh", maxWidth: "100%", objectFit: "contain" }}
-          />
-        </div>
+        />
       </div>
     </AbsoluteFill>
   );

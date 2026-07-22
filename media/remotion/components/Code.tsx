@@ -3,22 +3,34 @@
 // snippet and keeps the render fully offline — no shiki/highlighter dependency.
 
 import React from "react";
-import { COLORS, FONTS } from "../theme";
+import { CARD, COLORS, FONTS } from "../theme";
 
 const KEYWORDS = new Set(["import", "from", "as", "def", "return", "for", "in", "if", "else", "None", "True", "False"]);
 const CALLABLES = new Set(["sym_evalf", "Equality", "Symbol", "Quantity"]);
 
 const TOKEN = /(#[^\n]*)|(r?"(?:[^"\\]|\\.)*"|r?'(?:[^'\\]|\\.)*')|(\b\d[\d_]*(?:\.\d+)?\b)|([A-Za-z_]\w*)|(\s+)|([^\s\w])/g;
 
+// Matches the docs site's syntax highlighting (Quarto's default "arrow" theme,
+// docs/_site/.../quarto-syntax-highlighting-*.css): fu / st / dv / kw / op tokens.
+const HL = {
+  comment: "#5e5e5e", // co
+  string: "#20794d", // st (green)
+  number: "#ad0000", // dv (red)
+  keyword: "#003b4f", // kw (navy)
+  call: "#4758ab", // fu (blue)
+  name: "#003b4f", // normal text
+  punct: "#5e5e5e", // op (gray)
+};
+
 function color(type: "comment" | "string" | "number" | "name-kw" | "name-call" | "name" | "punct"): string {
   switch (type) {
-    case "comment": return COLORS.gray;
-    case "string": return COLORS.greenDark;
-    case "number": return COLORS.brown;
-    case "name-kw": return COLORS.brown;
-    case "name-call": return COLORS.green;
-    case "punct": return "#9aa39a";
-    default: return COLORS.dark;
+    case "comment": return HL.comment;
+    case "string": return HL.string;
+    case "number": return HL.number;
+    case "name-kw": return HL.keyword;
+    case "name-call": return HL.call;
+    case "punct": return HL.punct;
+    default: return HL.name;
   }
 }
 
@@ -58,12 +70,9 @@ export const Code: React.FC<{ code: string; fontSize?: number; visibleLines?: nu
         fontFamily: FONTS.mono,
         fontSize,
         lineHeight: 1.5,
-        color: COLORS.dark,
-        background: COLORS.greenSoft,
-        border: `1px solid ${COLORS.line}`,
-        borderRadius: 18,
+        color: HL.name,
         padding: "36px 44px",
-        boxShadow: "0 24px 60px -30px rgba(28,33,27,0.35)",
+        ...CARD,
       }}
     >
       {lines.map((line, idx) => (

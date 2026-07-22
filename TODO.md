@@ -42,34 +42,6 @@ Feedback (which maybe are (quarto-)marimo bugs too?):
 - **Per-cell static vs reactive** on the tutorial: the intro (axial stress) was meant to be static and the rest reactive; currently all cells are reactive islands. Needs a `#| reactive:` marker driven from the source notebook.
 - Paired `.py` + molab badges for the worked examples (only the tutorial has one for now).
 
-## Media
-
-### Remotion promo video feedback
-`media/remotion/` composition → `docs/public/symeval-promo.mp4`:
-1. TitleScene:
-    - Logo + SymEval (text is missing)
-    - Make the Logo + SymEval smaller and the subtitle and 1. -> 2. -> 3. bigger. Especially the subtitle needs to become bigger.
-    - The 1. -> 2. -> 3. step cards have different heights. Especially the third has a noticibly smaller height. The heights should be the same and the numbers and equal signs should be at the same heights.
-2. CodeToLatexScene:
-    - Python syntax highlighting is not clear.
-3. ClipScene
-    - Should be introduced with (SymEval green):
-        "SymEval ♥ marimo"
-    - No need to put the clips inside a frame.
-    - Bigger titles and no subtitles
-    1. table
-        - Title: DataFrame-ready
-    2. hss
-        - Title: Chained checks
-        - Make the clip full height, and the Chained checks title still fit nicely, this then has to become the title size for all other ClipScene titles too.
-    3. piston
-        - Title: Explorable explanations
-
-### Open decisions
-- Switch the README example clips from `.gif` to animated `.webp` (with .gif fallback)?
-    Are there any disadvantages to putting .webp in the README? I understand the disadvantage could be bad rendering on PyPI. Would it be possible to add a fallback to the .gif?
-- symeval-promo to .gif (and .webp?) as well depends on how big the .gif would be. Might be nice to have a .gif that I could put inside the body of an email, but then the size of the .gif needs to stay small.
-
 ## (quarto-)marimo issues
 Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  
 I want to submit issues to the marimo and quarto-marimo repos to report these bugs, and then get stuff to work now by changing the scripts and modifying quarto-marimo. Then I might also want to submit PRs to quarto-marimo and/or marimo to resolve the issues we submitted.

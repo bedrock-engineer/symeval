@@ -1,9 +1,9 @@
-// Scene 1 — logo, tagline, and the three-step idea: Formula -> Substituted
-// values + units -> Result. The steps mirror what sym_evalf renders.
+// Scene 1 — logo + SymEval wordmark, tagline, and the three-step idea:
+// Formula -> Substituted values + units -> Result. The steps mirror sym_evalf.
 
 import React from "react";
 import { AbsoluteFill, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { COLORS, FONTS } from "../theme";
+import { CARD, COLORS, FONTS } from "../theme";
 import { Latex } from "../components/Latex";
 // Single source of truth: the canonical docs logo, served from docs/public
 // (Remotion's publicDir, set in remotion.config.ts).
@@ -17,61 +17,67 @@ const STEPS = [
 const Appear: React.FC<{ delay: number; children: React.ReactNode; y?: number }> = ({ delay, children, y = 40 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - delay, fps, config: { damping: 200 }, durationInFrames: 25 });
+  const s = spring({ frame: frame - delay, fps, config: { damping: 200 }, durationInFrames: 34 });
   return <div style={{ opacity: s, transform: `translateY(${(1 - s) * y}px)` }}>{children}</div>;
 };
 
 export const TitleScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const logoScale = spring({ frame, fps: 30, config: { damping: 200 }, durationInFrames: 30 });
+  const logoScale = spring({ frame, fps: 30, config: { damping: 200 }, durationInFrames: 42 });
 
   return (
     <AbsoluteFill style={{ background: COLORS.bg, alignItems: "center", justifyContent: "center", fontFamily: FONTS.sans }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 44 }}>
-        <img
-          src={staticFile("symeval-logo.svg")}
-          alt="SymEval"
-          style={{ width: 560, opacity: logoScale, transform: `scale(${interpolate(logoScale, [0, 1], [0.9, 1])})` }}
-        />
-        <Appear delay={16}>
-          <div style={{ fontSize: 40, color: COLORS.gray, fontWeight: 500, letterSpacing: 0.2 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 34 }}>
+        {/* Logo mark + SymEval wordmark, as one compact lockup. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 26,
+            opacity: logoScale,
+            transform: `scale(${interpolate(logoScale, [0, 1], [0.92, 1])})`,
+          }}
+        >
+          <img src={staticFile("symeval-logo.svg")} alt="" style={{ height: 164 }} />
+          <div style={{ fontFamily: FONTS.heading, fontSize: 120, fontWeight: 700, color: COLORS.greenDeep, letterSpacing: -1 }}>
+            SymEval
+          </div>
+        </div>
+
+        <Appear delay={26}>
+          <div style={{ fontSize: 58, color: COLORS.gray, fontWeight: 500, textAlign: "center" }}>
             Symbolic, unit-aware evaluation of SymPy equations
           </div>
         </Appear>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 28, marginTop: 26 }}>
+        <div style={{ display: "flex", alignItems: "stretch", gap: 30, marginTop: 34 }}>
           {STEPS.map((step, i) => (
             <React.Fragment key={step.n}>
               {i > 0 && (
-                <Appear delay={34 + i * 22} y={0}>
-                  <div style={{ fontSize: 54, color: COLORS.green, opacity: 0.7 }}>→</div>
+                <Appear delay={52 + i * 34} y={0}>
+                  <div style={{ display: "flex", alignItems: "center", height: "100%", fontSize: 60, color: COLORS.green, opacity: 0.7 }}>→</div>
                 </Appear>
               )}
-              <Appear delay={30 + i * 22}>
+              <Appear delay={46 + i * 34}>
                 <div
                   style={{
-                    background: COLORS.greenSoft,
-                    border: `1px solid ${COLORS.line}`,
-                    borderRadius: 20,
-                    padding: "26px 34px",
-                    minWidth: 300,
-                    minHeight: 210,
+                    ...CARD,
+                    padding: "30px 46px",
+                    height: 330, // equal height; width follows content
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    boxShadow: "0 20px 50px -30px rgba(28,33,27,0.4)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, height: 52 }}>
                     <div
                       style={{
-                        width: 40,
-                        height: 40,
+                        width: 48,
+                        height: 48,
+                        flexShrink: 0,
                         borderRadius: 999,
                         background: COLORS.green,
                         color: "#fff",
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: 700,
                         display: "flex",
                         alignItems: "center",
@@ -80,9 +86,11 @@ export const TitleScene: React.FC = () => {
                     >
                       {step.n}
                     </div>
-                    <div style={{ fontSize: 24, color: COLORS.greenDark, fontWeight: 600 }}>{step.label}</div>
+                    <div style={{ fontSize: 28, color: COLORS.greenDark, fontWeight: 600, lineHeight: 1.1 }}>{step.label}</div>
                   </div>
-                  <div style={{ fontSize: 40, color: COLORS.dark }}>
+                  {/* Equations vertically centred in the shared remaining space, so the
+                      "=" signs land at the same height across all three cards. */}
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 54, color: COLORS.dark }}>
                     <Latex tex={step.tex} />
                   </div>
                 </div>

@@ -22,6 +22,15 @@ export const COLORS = {
 
 // Load only the weights/subset the promo uses — keeps render-time font requests
 // (and flakiness) down versus pulling every weight and script.
+// Shared card style — the code block sets it; the title steps and the result
+// card reuse it so every panel in the promo matches.
+export const CARD = {
+  background: "#fafbfa",
+  border: `1px solid ${COLORS.line}`,
+  borderRadius: 18,
+  boxShadow: "0 24px 60px -30px rgba(28,33,27,0.35)",
+};
+
 const { fontFamily: sans } = loadSans("normal", { weights: ["400", "500", "600", "700"], subsets: ["latin"] });
 const { fontFamily: condensed } = loadCondensed("normal", { weights: ["600"], subsets: ["latin"] });
 const { fontFamily: mono } = loadMono("normal", { weights: ["400"], subsets: ["latin"] });
