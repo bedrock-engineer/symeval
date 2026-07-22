@@ -207,7 +207,13 @@ $$C_{r} = A F_{y} \phi_{s} \left(\lambda + 1\right)^{- \frac{1}{n}} = \,10580\ \
 
 $$DCR = \frac{C_{f}}{C_{r}} = \frac{\,680\ \mathrm{kN}}{\,1.7196\ \mathrm{MN}} = 0.395$$
 
-See `symeval_mo.py` for the full reactive marimo notebook with input UIs.
+Because each step is a live symbolic evaluation, changing a single input ripples through the whole chain. Sweep the beam length $L$ and watch $F_e$, $\lambda$, $C_r$, and $DCR$ all follow, with $DCR$ crossing 1.0 as the member grows slender:
+
+<p align="center">
+  <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0" width="640">
+</p>
+
+Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) for the live version with the full input table.
 
 ## Ideal Gas Law: symbolic rearrangement
 

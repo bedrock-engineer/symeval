@@ -23,6 +23,10 @@ Longer, more complete demos:
 ### README.md
 In the future it should become possible to generate the entire README.md from the docs website Home page + Getting started guide.
 
+HSS member .gif feedback:
+- I want the entire table with all the HSS member inputs to be visible in the .gif
+- there should be a little more time between values, such that people have the time to process what is going on.
+
 README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
