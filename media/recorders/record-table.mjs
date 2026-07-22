@@ -8,17 +8,19 @@
 // per-frame delay so viewers can read the result.
 
 import { launch, parkMouse } from "./lib/app.mjs";
-import { writeGif, loadImage } from "./lib/gif.mjs";
+import { writeClips, loadImage } from "./lib/encode.mjs";
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = resolve(HERE, "../../docs/public/table.gif");
+const OUT = resolve(HERE, "../../docs/public/table"); // .gif/.mp4/.webp appended
 const URL = process.env.APP_URL || "http://127.0.0.1:2821/";
 const TEST = process.env.MODE === "test";
 
 const OUT_W = 760;
+const SCALE = 2; // deviceScaleFactor: screenshots are 2x the CSS clip
+const FPS = 12; // discrete row selections, so a low constant fps stays crisp + small
 const STEP_MS = 1100; // time each selected member is shown
 const SECTIONS = ["W14x90", "HSS8x8x5/8", "HSS6x6x3/8", "L4x4", "C8x11.5"];
 
@@ -64,12 +66,18 @@ if (TEST) {
 await browser.close();
 
 const OUT_H = Math.round((OUT_W * CLIP.height) / CLIP.width);
-const draw = async (ctx, { buf }) => {
+const draw = async (ctx, { buf }, W, H) => {
   const img = await loadImage(buf);
   ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, OUT_W, OUT_H);
-  ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(img, 0, 0, W, H);
 };
-const out = TEST ? resolve(HERE, "../tmp/table-test.gif") : OUT;
-const bytes = await writeGif(out, frames, { width: OUT_W, height: OUT_H, draw });
-console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes / 1024).toFixed(0)} KB`);
+const out = TEST ? resolve(HERE, "../tmp/table-test") : OUT;
+const sizes = await writeClips(out, frames, {
+  gif: { width: OUT_W, height: OUT_H },
+  full: { width: CLIP.width * SCALE, height: CLIP.height * SCALE }, // native capture res
+  fps: FPS,
+  draw,
+});
+console.log(`wrote ${out}.{gif,mp4,webp}  frames=${frames.length}  ` +
+  Object.entries(sizes).map(([k, v]) => `${k}=${(v / 1024).toFixed(0)}KB`).join("  "));

@@ -76,6 +76,7 @@ Approach: the recorders already capture 2× PNG frames; encode all three with a 
 5. Piston example (embed the `.mp4` clip).
 
 ### Open decisions
+- Are there any disadvantages to putting .webp in the README? I understand the disadvantage could be bad rendering on PyPI. Would it be possible to add a fallback to the .gif?
 - Length (~20–30s?), aspect ratio (16:9 for embeds vs square/vertical for social).
 - Silent loop vs background music.
 - Embed the recorded clips vs re-create them as native Remotion compositions (crisper, but re-authoring table/HSS; the piston canvas ports cleanly).

@@ -13,18 +13,19 @@
 // no ffmpeg, no notebook edits.
 
 import { launch } from "./lib/app.mjs";
-import { writeGif, loadImage } from "./lib/gif.mjs";
+import { writeClips, loadImage } from "./lib/encode.mjs";
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = resolve(HERE, "../../docs/public/piston.gif");
+const OUT = resolve(HERE, "../../docs/public/piston"); // .gif/.mp4/.webp appended
 const URL = process.env.APP_URL || "http://127.0.0.1:2821/";
 const TEST = process.env.MODE === "test";
 
-const FPS = 20;
+const FPS = 20; // smooth particle animation
 const DELAY = Math.round(1000 / FPS);
+const CAP_SCALE = 2; // deviceScaleFactor: screenshots are 2x the CSS band
 const OUT_W = 620; // final GIF width
 const BAND_W = 712; // css width of each captured band
 const BAND_X = 188; // css left of each band
@@ -138,18 +139,34 @@ if (TEST) {
 await browser.close();
 
 // Composite the two bands (controls above, piston+equation below) into one frame.
-const SCALE = OUT_W / BAND_W;
-const topH = Math.round(CLIP_A.height * SCALE);
-const botH = Math.round(CLIP_B.height * SCALE);
+// The layout is defined in GIF space (OUT_W wide); draw scales it to any W×H so
+// the full-res mp4/webp share the exact composition.
+const GIF_SCALE = OUT_W / BAND_W;
+const topH = Math.round(CLIP_A.height * GIF_SCALE);
+const botH = Math.round(CLIP_B.height * GIF_SCALE);
 const OUT_H = topH + GAP + botH;
-const draw = async (ctx, { a, c }) => {
+const draw = async (ctx, { a, c }, W, H) => {
+  const k = W / OUT_W;
+  const tH = Math.round(topH * k);
+  const gap = Math.round(GAP * k);
   const ia = await loadImage(a);
   const ic = await loadImage(c);
   ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, OUT_W, OUT_H);
-  ctx.drawImage(ia, 0, 0, OUT_W, topH);
-  ctx.drawImage(ic, 0, topH + GAP, OUT_W, botH);
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(ia, 0, 0, W, tH);
+  ctx.drawImage(ic, 0, tH + gap, W, H - tH - gap);
 };
-const out = TEST ? resolve(HERE, "../tmp/piston-test.gif") : OUT;
-const bytes = await writeGif(out, frames, { width: OUT_W, height: OUT_H, draw });
-console.log(`wrote ${out}  ${OUT_W}x${OUT_H}  frames=${frames.length}  ${(bytes / 1024).toFixed(0)} KB`);
+const out = TEST ? resolve(HERE, "../tmp/piston-test") : OUT;
+const FULL_W = BAND_W * CAP_SCALE; // native band capture width
+const sizes = await writeClips(out, frames, {
+  gif: { width: OUT_W, height: OUT_H },
+  full: { width: FULL_W, height: Math.round((OUT_H * FULL_W) / OUT_W) },
+  fps: FPS,
+  // No webp: the piston's dense particle animation has ~200 distinct frames, and
+  // animated webp encodes each as a full keyframe (~6 MB). mp4 (h264) is 8x
+  // smaller for this motion; the gif stays as the <img> fallback.
+  formats: ["gif", "mp4"],
+  draw,
+});
+console.log(`wrote ${out}.{gif,mp4,webp}  frames=${frames.length}  ` +
+  Object.entries(sizes).map(([k, v]) => `${k}=${(v / 1024).toFixed(0)}KB`).join("  "));
