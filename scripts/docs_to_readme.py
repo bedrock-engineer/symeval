@@ -49,11 +49,9 @@ GENERATED_HEADER = (
 )
 
 DOCS_SITE = "https://bedrock-engineer.github.io/symeval"
-# Base for the recorded-clip images. Relative for now so they resolve on GitHub
-# (and for local inspection) while the docs site is still on a branch; switch to
-# f"{DOCS_SITE}/public" once it is merged to main — that also makes the images
-# render on PyPI, which needs absolute URLs.
-IMG_BASE = "docs/public"
+# Base for the recorded-clip images. Absolute docs-site URLs so the images also
+# render on PyPI, which cannot resolve repo-relative paths.
+IMG_BASE = f"{DOCS_SITE}/public"
 GITHUB_SLUG = "bedrock-engineer/symeval"
 MOLAB_URL = f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/main/examples/getting_started.py"
 MOLAB_BADGE_IMG = "https://marimo.io/molab-shield.svg"
@@ -95,6 +93,9 @@ def qmd_to_gfm(text: str) -> str:
     )
     # Pandoc attribute spans on links, e.g. [Get started](url){.btn .btn-primary}.
     text = re.sub(r"\)\{\.[^}]*\}", ")", text)
+    # Link titles (tooltips), e.g. [text](url "tooltip") -> [text](url). They add
+    # nothing on GitHub/PyPI, and titles with nested quotes break GFM parsing.
+    text = re.sub(r'\]\((\S+?)\s+"[^)]*"\)', r"](\1)", text)
     # Collapsible callout: ::: {.callout-note collapse="true"} ## Title ... :::
     # Title is single-line ([^\n]+, not .+) so re.DOTALL doesn't let it swallow
     # the whole body into the <summary>.

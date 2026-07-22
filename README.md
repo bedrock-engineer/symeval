@@ -28,9 +28,9 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 
 ## Quickstart
 
-SymEval is especially powerful inside Python notebooks, and these docs are opinionated. [We](https://bedrock.engineer/about/ "SymEval authors") strongly recommend [marimo](https://docs.marimo.io "marimo docs") rather than Jupyter notebooks, and [uv](https://docs.astral.sh/uv/ "uv docs") for managing Python.
+SymEval is especially powerful inside Python notebooks, and these docs are opinionated. [We](https://bedrock.engineer/about/) strongly recommend [marimo](https://docs.marimo.io) rather than Jupyter notebooks, and [uv](https://docs.astral.sh/uv/) for managing Python.
 
-The only thing you need to create a reproducible marimo notebook, i.e. a notebook that runs anywhere, is uv ([installation instructions](https://docs.astral.sh/uv/getting-started/installation/ "uv installation instructions")).
+The only thing you need to create a reproducible marimo notebook, i.e. a notebook that runs anywhere, is uv ([installation instructions](https://docs.astral.sh/uv/getting-started/installation/)).
 
 Run the command below to open a marimo notebook called `usains_speed.py`:
 
@@ -41,7 +41,7 @@ uvx marimo edit --sandbox usains_speed.py
 <details>
 <summary><strong>`uvx` and marimo's `--sandbox` flag</strong></summary>
 
-`uvx` runs a Python package as a [tool](https://docs.astral.sh/uv/guides/tools/ "uv's "Using tools" guide") in a temporary isolated environment, allowing you to run the `marimo` Command Line Interface (CLI) directly without any manual setup.
+`uvx` runs a Python package as a [tool](https://docs.astral.sh/uv/guides/tools/) in a temporary isolated environment, allowing you to run the `marimo` Command Line Interface (CLI) directly without any manual setup.
 
 ---
 
@@ -50,7 +50,7 @@ When running marimo with the `--sandbox` flag, marimo:
 1.  tracks the packages and versions used by your notebook, saving them in the notebook file as inline script metadata;
 2.  runs in an isolated virtual environment ("sandbox") that only contains the notebook dependencies.
 
-In this way you can share your marimo notebook with anyone, and they'll be able to run it anywhere. See marimo's [Inlining dependencies](https://docs.marimo.io/guides/package_management/inlining_dependencies/ "marimo's "Inlining dependencies" guide") guide for more information.
+In this way you can share your marimo notebook with anyone, and they'll be able to run it anywhere. See marimo's [Inlining dependencies](https://docs.marimo.io/guides/package_management/inlining_dependencies/) guide for more information.
 
 </details>
 
@@ -251,8 +251,8 @@ axial_stress_eq.sym_evalf(
 
 <p align="center">
   <picture>
-    <source srcset="docs/public/table.webp" type="image/webp">
-    <img src="docs/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below." width="760">
+    <source srcset="https://bedrock-engineer.github.io/symeval/public/table.webp" type="image/webp">
+    <img src="https://bedrock-engineer.github.io/symeval/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below." width="760">
   </picture>
 </p>
 
@@ -502,8 +502,8 @@ mo.vstack(
 
 <p align="center">
   <picture>
-    <source srcset="docs/public/hss.webp" type="image/webp">
-    <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0." width="620">
+    <source srcset="https://bedrock-engineer.github.io/symeval/public/hss.webp" type="image/webp">
+    <img src="https://bedrock-engineer.github.io/symeval/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0." width="620">
   </picture>
 </p>
 
@@ -895,8 +895,8 @@ requestAnimationFrame(draw);
 
 <p align="center">
   <picture>
-    <source srcset="docs/public/piston.webp" type="image/webp">
-    <img src="docs/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
+    <source srcset="https://bedrock-engineer.github.io/symeval/public/piston.webp" type="image/webp">
+    <img src="https://bedrock-engineer.github.io/symeval/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
   </picture>
 </p>
 

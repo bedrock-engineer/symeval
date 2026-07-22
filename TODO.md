@@ -11,7 +11,7 @@
 ## Examples
 
 ### In the `examples/` folder
-Longer, more complete demos:
+Longer, more complete demos. These become the **examples gallery**: `examples/*.py` notebooks, auto-rendered into `docs/examples/`, each with a paired `.py` + molab badge (only the tutorial has one for now):
 - The [Explorable Explanations](https://worrydream.com/ExplorableExplanations) example.
 - Simply Supported Beam with Linearly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
 - Cantilever with Partially Distributed Load: https://imartincei.github.io/CalcpadCE/examples/cantilevers.html
@@ -19,7 +19,6 @@ Longer, more complete demos:
 - Terzaghi bearing capacity calculation.
 
 ## Docs
-Flip `IMG_BASE` in `docs_to_readme.py` to the docs-site URL once this is on `main`, so the README images also render on PyPI (needs absolute URLs).
 
 ### README.md
 README inspiration:
@@ -38,11 +37,6 @@ Feedback (which maybe are (quarto-)marimo bugs too?):
 - The checkboxes in the "quantity_evalf() on a DataFrame"-table don't show well which row is selected. Only the row is highlighted, but the checkbox of the selected row is not checked.
 - The radio button element renders horizontally, instead of vertically as in the marimo notebook.
 
-#### Notes
-- Expand the **examples gallery**: the notebooks under `## Examples` above become `examples/*.py`, auto-rendered into `docs/examples/`.
-- **Per-cell static vs reactive** on the tutorial: the intro (axial stress) was meant to be static and the rest reactive; currently all cells are reactive islands. Needs a `#| reactive:` marker driven from the source notebook.
-- Paired `.py` + molab badges for the worked examples (only the tutorial has one for now).
-
 ## (quarto-)marimo issues
 Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  
 I want to submit issues to the marimo and quarto-marimo repos to report these bugs, and then get stuff to work now by changing the scripts and modifying quarto-marimo. Then I might also want to submit PRs to quarto-marimo and/or marimo to resolve the issues we submitted.
@@ -51,12 +45,13 @@ I want to submit issues to the marimo and quarto-marimo repos to report these bu
     ```{python .marimo}
     # marimo Python code
     ```
-    syntax is deprecated? (which it says in the script) I'd say it's not. Quarto's [Code Blocks docs](https://quarto.org/docs/computations/python.html#code-blocks) specifically state that "Code blocks that use braces around the language name (e.g. ```{python}) are executable, and will be run by Quarto during render."
+    syntax is deprecated? (which it says in the script) I'd say it's not. Quarto's [Code Blocks docs](https://quarto.org/docs/computations/python.html#code-blocks) specifically state that "Code blocks that use braces around the language name (e.g. ```{python}```) are executable, and will be run by Quarto during render."
     `marimo export md --flavor qmd` exports a `header` instead of `pyproject`, and ```{marimo .python}``` instead of ```{python .marimo}```, see @./examples/getting-started_export.qmd vs @./examples/getting-started_corrected-export.qmd
     I'd say this is a `marimo export md --flavor qmd` bug?
 - `#| echo / editor / code-fold: true / false` special quarto comments
     - Not possible to only show code. When you use `#| echo: true` it directly shows the code **and** the editor. To me it makes more sense to show the code **or*** the editor, but not both at the same time.
     - The [quarto-marimo home page](https://marimo-team.github.io/quarto-marimo/index.html) states there's an `#| editor: true` special comment, but it actually doesn't do anything, and neither does #| echo: false, because that's default behavior anyway.
     - Not possible to make code collapsible. The `#| code-fold: true` flag doesn't do anything.
+    - No **per-cell static vs reactive** marker: on the tutorial the intro (axial stress) was meant to be static and the rest reactive, but currently all cells are reactive islands. Needs something like a `#| reactive: true / false` special comment driven from the source notebook.
 
 The piston mo.iframe was not appearing in the Getting started guide. This is actually an issue with how marimo exports to HTML, as I understand it.
