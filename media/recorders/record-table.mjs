@@ -30,16 +30,17 @@ await page.getByText("W14x90", { exact: true }).waitFor({ timeout: 40000 });
 await page.waitForTimeout(1500);
 
 const headerCell = page.getByText("member_type", { exact: true });
+const searchInput = page.getByPlaceholder("Search...").first(); // table search bar — include it in the clip
 const heading = page.getByText(/Axial Resistance of a Steel HSS/).first();
 
 await headerCell.scrollIntoViewIfNeeded();
 await page.mouse.move(600, 500);
 const hb = await headerCell.boundingBox();
-await page.mouse.wheel(0, hb.y - 60);
+await page.mouse.wheel(0, hb.y - 96); // leave room above the header for the search bar
 await page.waitForTimeout(400);
-const top = (await headerCell.boundingBox()).y;
+const top = Math.round((await searchInput.boundingBox()).y - 18);
 const bot = (await heading.boundingBox()).y;
-const CLIP = { x: 78, y: Math.round(top - 16), width: 984, height: Math.round(bot - 24 - (top - 16)) };
+const CLIP = { x: 78, y: top, width: 984, height: Math.round(bot - 24 - top) };
 console.log("CLIP", JSON.stringify(CLIP));
 
 const frames = [];
