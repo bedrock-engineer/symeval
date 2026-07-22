@@ -1,6 +1,12 @@
 project:
   type: website
   output-dir: _site
+  # Pin the `quarto preview` dev server to a fixed port (default is random) so the
+  # local docs URL is stable across sessions. 4269 stays clear of the marimo app
+  # (2821) and the usual 3000/5173/8000 dev ports.
+  preview:
+    port: 4269
+    browser: false
   # Explicit render globs: quarto's automatic project-input discovery comes up
   # empty with the PyPI-bundled quarto binary in some environments, so we list
   # the inputs. Globs still auto-include new pages (e.g. examples added later).
