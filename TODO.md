@@ -21,14 +21,40 @@ Longer, more complete demos:
 ## Docs
 
 ### README.md
-In the future it should become possible to generate the entire README.md from the docs website Home page (index.qmd) + Getting started tutorial (getting-started.qmd).
-The issue with the export to .qmd is that it doesn't export the outputs, which I do need for the ## Axial stress under a compressive force.
-The table, hss and piston examples from getting-started.md need to show the .gif's
-I've put all this in @README-template.md
-
 README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
+
+#### README generation feedback
+- Where should I put the README footer (Feedback, Authors, License)? README.footer.md , replace the README.template.md with something that contains the footer and shows where to script will insert stuff? What would you recommend?
+- \medspace doesn't look nice on GitHub
+- I do want this markdown output to be rendered nicely:
+    ```python
+    mo.md(rf"""
+    $${sympy.latex(ideal_gas_law)}$$
+
+    you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
+
+    | Name | Symbol | SI-unit |
+    |------|--------|---------|
+    | Pressure | $P$ | $Pa$ |
+    | Volume | $V$ | $m^3$ |
+    | Temperature | $T$ | $K$ |
+    | Number of gas particles | $n$ | $mol$ |
+    """)
+    ```
+- I'd like the `open in molab`-badges to be less up. I want them to vertically align with the center of the rest of the text.
+- I'd like the 
+    1. Edit the JavaScript code of the piston here with syntax highlighting.
+    2. Copy the JS code into the string in the piston_js variable in the Python cell above.
+    ```js
+    // piston_js
+    // Canvas and cylinder dimensions
+    const c = document.getElementById("piston-canvas");
+    ```
+    to be removed from the getting-started.qmd
+    In my opinion it should at some point become a more ergonomical in marimo to edit JS, but until then, the 1. -> 2. + JS is there for in the symeval_mo.py and getting_started.py marimo notebooks only.
+- Only `## `uvx` and marimo's `--sandbox` flag` is the summary of that callout.
 
 ### Website
 
