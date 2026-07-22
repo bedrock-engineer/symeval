@@ -1,11 +1,12 @@
 // Records the live HSS axial-resistance example (from getting_started.py) into an
 // animated GIF: sweeping the Beam length L ripples through the whole chained
-// check F_e -> lambda -> C_r -> DCR.
+// check F_e -> lambda -> C_r -> DCR, with the full input table visible.
 //
-// Playwright drives the real `Beam length` mo.ui.number input. These outputs are
-// KaTeX (no iframe), so each change re-renders cleanly with no reload. Each frame
-// composites two bands (the Beam length row + the four equations), dropping the
-// rest of the input table between them. node-canvas composites, gifenc encodes.
+// Playwright drives the real `Beam length` mo.ui.number input. Outputs are KaTeX
+// (no iframe), so each change re-renders cleanly. A single tall clip captures the
+// entire input table together with the four equations. Each L value is a single
+// frame with a long per-frame delay, so the file stays small while giving the
+// viewer time to read each state. node-canvas downscales, gifenc encodes.
 
 import { chromium } from "playwright";
 import { loadImage, createCanvas } from "canvas";
@@ -20,106 +21,96 @@ const OUT = resolve(HERE, "../../docs/public/hss.gif");
 const URL = process.env.APP_URL || "http://127.0.0.1:2821/";
 const TEST = process.env.MODE === "test";
 
-const FPS = 16;
-const OUT_W = 640;
-const BAND_X = 232;
-const BAND_W = 650;
-const GAP = 14;
+const OUT_W = 620;
+const STEP_MS = 600; // time each L value is shown
+const HOLD_MS = 1500; // time the endpoints linger
 
 const b = await chromium.launch();
-const page = await b.newPage({ viewport: { width: 1200, height: 1000 }, deviceScaleFactor: 2 });
+const page = await b.newPage({ viewport: { width: 1200, height: 1300 }, deviceScaleFactor: 2 });
 await page.goto(URL, { waitUntil: "networkidle" });
 await page.getByText("Beam length", { exact: true }).waitFor({ timeout: 40000 });
 await page.waitForTimeout(1500);
 
 const beamInput = page.getByText("Beam length", { exact: true }).locator("xpath=ancestor::tr[1]").locator("input");
-const beamRow = page.getByText("Beam length", { exact: true }).locator("xpath=ancestor::tr[1]");
+const table = page.getByText("Beam length", { exact: true }).locator("xpath=ancestor::table[1]");
 const eulerLabel = page.getByText("Euler buckling stress", { exact: true });
 const dcrLabel = page.getByText("Demand capacity ratio", { exact: true });
 
-// Scroll the Beam length row near the top; the equations sit ~450px below and
-// still fit in the 1000px viewport.
-await beamInput.scrollIntoViewIfNeeded();
+// Scroll the input table near the top so the whole table + equations fit in one
+// tall viewport, then build a single clip spanning table-top -> DCR-bottom.
+await table.scrollIntoViewIfNeeded();
 await page.mouse.move(600, 500);
-let rb = await beamRow.boundingBox();
-await page.mouse.wheel(0, rb.y - 45);
+let tb = await table.boundingBox();
+await page.mouse.wheel(0, tb.y - 40);
 await page.waitForTimeout(400);
 
-rb = await beamRow.boundingBox();
+tb = await table.boundingBox();
 const eb = await eulerLabel.boundingBox();
 const db = await dcrLabel.boundingBox();
-const CLIP_A = { x: BAND_X, y: Math.round(rb.y - 8), width: BAND_W, height: Math.round(rb.height + 16) };
-const CLIP_B = { x: BAND_X, y: Math.round(eb.y - 12), width: BAND_W, height: Math.round(db.y + db.height - eb.y + 24) };
-console.log("CLIP_A", JSON.stringify(CLIP_A), "CLIP_B", JSON.stringify(CLIP_B));
+const left = Math.min(tb.x, eb.x);
+const top = Math.round(tb.y - 12);
+const CLIP = {
+  x: Math.round(left - 8),
+  y: top,
+  width: Math.round(Math.max(tb.x + tb.width, eb.x + 640) - left + 16),
+  height: Math.round(db.y + db.height - top + 20),
+};
+console.log("CLIP", JSON.stringify(CLIP));
 
 const frames = [];
-async function shoot(n = 1) {
-  const a = await page.screenshot({ clip: CLIP_A });
-  const c = await page.screenshot({ clip: CLIP_B });
-  for (let i = 0; i < n; i++) frames.push({ a, c });
+async function parkMouse() {
+  await page.mouse.move(CLIP.x + CLIP.width + 60, 12); // out of the captured region
+}
+async function shoot(delay) {
+  frames.push({ buf: await page.screenshot({ clip: CLIP }), delay });
 }
 async function setL(v) {
-  await beamInput.fill(String(v));
+  await beamInput.fill(String(v)); // Playwright clicks the input (moves cursor in)
   await beamInput.press("Enter");
-  await page.waitForTimeout(480); // kernel recompute + KaTeX re-render
+  await parkMouse();
+  await page.waitForTimeout(460); // kernel recompute + KaTeX re-render
 }
 
 const sweep = [];
-for (let v = 4; v <= 12.001; v += 0.5) sweep.push(Math.round(v * 10) / 10);
+for (let v = 4; v <= 12.001; v += 1) sweep.push(v);
 
 if (TEST) {
   await setL(4);
-  await shoot();
-  await setL(8);
-  await shoot();
-  await setL(12);
-  await shoot();
-  writeFileSync(resolve(HERE, `../tmp/hssA.png`), frames.at(-1).a);
-  writeFileSync(resolve(HERE, `../tmp/hssB-4.png`), frames[0].c);
-  writeFileSync(resolve(HERE, `../tmp/hssB-12.png`), frames.at(-1).c);
-  console.log(`TEST frames ${frames.length}`);
+  await shoot(STEP_MS);
+  writeFileSync(resolve(HERE, `../tmp/hss-frame.png`), frames.at(-1).buf);
+  console.log(`TEST wrote hss-frame.png, CLIP height ${CLIP.height}`);
 } else {
   await setL(6.5);
-  await shoot(6); // hold at default
-  await setL(4);
-  await shoot(6); // stocky beam, low DCR
-  for (const v of sweep) { await setL(v); await shoot(2); } // sweep up: watch it ripple
-  await shoot(12); // hold at the long/slender end (DCR > 1, member fails)
+  await shoot(HOLD_MS); // default
+  for (const v of sweep) { await setL(v); await shoot(STEP_MS); } // sweep up, watch it ripple
+  await shoot(HOLD_MS); // linger at the slender end (DCR > 1, member fails)
   await setL(6.5);
-  await shoot(8);
+  await shoot(HOLD_MS); // back to default
   console.log(`captured ${frames.length} frames`);
 }
 await b.close();
 
-// ---- composite + encode -----------------------------------------------------
-const SCALE = OUT_W / BAND_W;
-const topH = Math.round(CLIP_A.height * SCALE);
-const botH = Math.round(CLIP_B.height * SCALE);
-const OUT_H = topH + GAP + botH;
+// ---- downscale + encode -----------------------------------------------------
+const OUT_H = Math.round((OUT_W * CLIP.height) / CLIP.width);
 const canvas = createCanvas(OUT_W, OUT_H);
 const ctx = canvas.getContext("2d");
-async function rgba({ a, c }) {
-  const ia = await loadImage(a);
-  const ic = await loadImage(c);
+async function rgba(buf) {
+  const img = await loadImage(buf);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, OUT_W, OUT_H);
-  ctx.drawImage(ia, 0, 0, OUT_W, topH);
-  ctx.drawImage(ic, 0, topH + GAP, OUT_W, botH);
+  ctx.drawImage(img, 0, 0, OUT_W, OUT_H);
   return ctx.getImageData(0, 0, OUT_W, OUT_H).data;
 }
 const nSamp = Math.min(8, frames.length);
 const merged = [];
-for (let i = 0; i < nSamp; i++) merged.push(await rgba(frames[Math.floor((i / (nSamp - 1)) * (frames.length - 1))]));
+for (let i = 0; i < nSamp; i++) merged.push(await rgba(frames[Math.floor((i / Math.max(1, nSamp - 1)) * (frames.length - 1))].buf));
 const all = new Uint8ClampedArray(merged.reduce((a, d) => a + d.length, 0));
 { let o = 0; for (const d of merged) { all.set(d, o); o += d.length; } }
 const palette = quantize(all, 256);
 
 const gif = GIFEncoder();
-const delay = Math.round(1000 / FPS);
-for (const fr of frames) gif.writeFrame(applyPalette(await rgba(fr), palette), OUT_W, OUT_H, { palette, delay });
+for (const fr of frames) gif.writeFrame(applyPalette(await rgba(fr.buf), palette), OUT_W, OUT_H, { palette, delay: fr.delay });
 gif.finish();
-
-for (const i of [Math.floor(frames.length * 0.5)]) { await rgba(frames[i]); writeFileSync(resolve(HERE, `../tmp/hss-preview.png`), canvas.toBuffer("image/png")); }
 
 const out = TEST ? resolve(HERE, "../tmp/hss-test.gif") : OUT;
 mkdirSync(dirname(out), { recursive: true });

@@ -210,7 +210,7 @@ $$DCR = \frac{C_{f}}{C_{r}} = \frac{\,680\ \mathrm{kN}}{\,1.7196\ \mathrm{MN}} =
 Because each step is a live symbolic evaluation, changing a single input ripples through the whole chain. Sweep the beam length $L$ and watch $F_e$, $\lambda$, $C_r$, and $DCR$ all follow, with $DCR$ crossing 1.0 as the member grows slender:
 
 <p align="center">
-  <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0" width="640">
+  <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0" width="620">
 </p>
 
 Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) for the live version with the full input table.
@@ -229,7 +229,7 @@ P &= 1.01\times 10^{5}\ \mathrm{Pa} = 101.39\ \mathrm{kPa}
 Paired with marimo's UI elements, this becomes an [explorable explanation](https://worrydream.com/ExplorableExplanations/): move a slider and the piston, the gas particles, and the symbolic evaluation all react together.
 
 <p align="center">
-  <img src="docs/public/piston.gif" alt="Dragging the volume, temperature, and amount sliders updates the piston animation and the ideal gas law symbolic evaluation in real time" width="640">
+  <img src="docs/public/piston.gif" alt="Dragging the volume, temperature, and amount sliders updates the piston animation and the ideal gas law symbolic evaluation in real time" width="620">
 </p>
 
 Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) for the live, interactive version.

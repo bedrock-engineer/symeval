@@ -23,9 +23,6 @@ Longer, more complete demos:
 ### README.md
 In the future it should become possible to generate the entire README.md from the docs website Home page + Getting started guide.
 
-HSS member .gif feedback:
-- I want the entire table with all the HSS member inputs to be visible in the .gif
-- there should be a little more time between values, such that people have the time to process what is going on.
 
 README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
@@ -39,6 +36,10 @@ Diataxis-style docs. Inspiration:
 - https://docs.pyvista.org/user-guide/data_model
 - https://fastapi.tiangolo.com & https://sqlmodel.tiangolo.com & https://typer.tiangolo.com
 - https://geopandas.org/en/stable (Flow: Getting Started → Installation → Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts)
+
+Feedback (which maybe are (quarto-)marimo bugs too?):
+- The checkboxes in the "quantity_evalf() on a DataFrame"-table don't show well which row is selected. Only the row is highlighted, but the checkbox of the selected row is not checked.
+- The radio button element renders horizontally, instead of vertically as in the marimo notebook.
 
 #### Notes
 
