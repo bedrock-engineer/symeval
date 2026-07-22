@@ -4,26 +4,35 @@
 #     "marimo",
 # ]
 # ///
-"""Extract the examples column of ``symeval_mo.py`` into a standalone notebook.
+"""Extract the tutorial cells of ``symeval_mo.py`` into a standalone notebook.
 
-``symeval_mo.py`` is laid out in three marimo columns:
+``symeval_mo.py`` is laid out in marimo columns, with the library implementation
+living in a ``with app.setup:`` block (it monkeypatches ``sym_evalf`` /
+``quantity_evalf`` onto sympy, so it must run before any cell) followed by three
+columns:
 
-    column 0 — the worked examples (the first column, before "# Implementation")
-    column 1 — the library implementation (the ``## EXPORT`` cells)
+    column 0 — the worked examples, opening with the "# Getting started with
+               SymEval" markdown cell (a setup-cell explanation precedes it)
+    column 1 — the library implementation exports (the ``## EXPORT`` cells)
     column 2 — the tests
 
-This script slices out column 0 and writes it as a self-contained, single-column
-marimo notebook to:
+This script writes the tutorial as a self-contained, single-column marimo
+notebook to:
 
     examples/getting_started.py
 
-The examples call ``sym_evalf`` / ``quantity_evalf`` and use ``sympy``; in the
-source notebook those names come from the implementation column, so their
-imports sit commented-out. Here we uncomment them (and repair the cell's
-``return`` tuple) so the notebook pulls them from the installed ``symeval``
-package instead, making it self-contained and openable in molab.
+Two spans are dropped: the ``with app.setup:`` block (the inline implementation)
+and the setup-cell explanation before the tutorial heading. The header is taken
+from before the setup block, and extraction begins at the "# Getting started
+with SymEval" cell — ``getting_started.py`` imports the implementation from the
+installed ``symeval`` package instead of defining it inline.
 
-The source notebook is a three-column marimo app (``App(width="columns")``); the
+Those imports (``sympy``, ``symeval``) sit commented-out in the source, since
+there the names come from the setup block. Here we uncomment them (and repair
+the cell's ``return`` tuple) so the notebook is self-contained and openable in
+molab.
+
+The source notebook is a multi-column marimo app (``App(width="columns")``); the
 extracted notebook is a plain single-column notebook, so the ``width="columns"``
 layout and the ``column=0`` cell marker are stripped.
 

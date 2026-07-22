@@ -45,9 +45,8 @@ Diataxis-style docs. Inspiration:
 - **Per-cell static vs reactive** on the tutorial: the intro (axial stress) was meant to be static and the rest reactive; currently all cells are reactive islands. Needs a `#| reactive:` marker driven from the source notebook.
 - Paired `.py` + molab badges for the worked examples (only the tutorial has one for now).
 
-#### Feedback (site review)
+## (quarto-)marimo issues
 
-##### Getting started
 Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  
 I want to submit issues to the marimo and quarto-marimo repos to report these bugs, and then get stuff to work now by changing the scripts and modifying quarto-marimo. Then I might also want to submit PRs to quarto-marimo and/or marimo to resolve the issues we submitted.
 
@@ -62,10 +61,5 @@ I want to submit issues to the marimo and quarto-marimo repos to report these bu
     - Not possible to only show code. When you use `#| echo: true` it directly shows the code **and** the editor. To me it makes more sense to show the code **or*** the editor, but not both at the same time.
     - The [quarto-marimo home page](https://marimo-team.github.io/quarto-marimo/index.html) states there's an `#| editor: true` special comment, but it actually doesn't do anything, and neither does #| echo: false, because that's default behavior anyway.
     - Not possible to make code collapsible. The `#| code-fold: true` flag doesn't do anything.
-    
-Quickfixes to be made to the docs export scripts, such that the docs will just work for now.
 
-- When the code in a marimo Python cell is visible, I want to put a normal ```python ``` block with that code about the ```{python .marimo} ``` block, such that the code is visible as normal code (echo: true also brings the editor which is not what I want here.) in the final website.
-- When the code in a marimo Python cell is set to hide_code=True, I want to add a `#| code-fold: true` comment in that ```{python .marimo}``` block, and add a collapsible element with ```python``` code block inside it.
-
-The piston mo.iframe is not appearing in the Getting started guide.
+The piston mo.iframe is not appearing in the Getting started guide. This is actually an issue with how marimo exports to HTML, as I understand it.
