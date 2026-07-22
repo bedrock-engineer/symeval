@@ -13,9 +13,9 @@ project:
   render:
     - "*.qmd"
     - "examples/*.qmd"
-  # No rendered page references the README GIFs, so quarto wouldn't copy them.
-  # List public/ as a resource so it lands verbatim at <site-url>/public/… and the
-  # GIFs are reachable online (e.g. for absolute image URLs on PyPI).
+  # Static media served verbatim at <site-url>/public/…: the README GIFs/clips and
+  # promo video (which no page references, but need stable absolute URLs, e.g. for PyPI),
+  # plus the logo (referenced below, and reused by the Remotion promo video via staticFile).
   resources:
     - public
 
@@ -39,7 +39,7 @@ website:
   # the navbar.
   navbar:
     background: light
-    logo: assets/symeval-logo.svg
+    logo: public/symeval-logo.svg
     logo-alt: "SymEval home"
     title: "SymEval"
     search: true
