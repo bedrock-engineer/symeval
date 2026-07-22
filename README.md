@@ -237,7 +237,7 @@ P &= 1.01\times 10^{5}\ \mathrm{Pa} = 101.39\ \mathrm{kPa}
 Paired with marimo's UI elements, this becomes an [explorable explanation](https://worrydream.com/ExplorableExplanations/): move a slider and the piston, the gas particles, and the symbolic evaluation all react together.
 
 <p align="center">
-  <img src="docs/public/piston.gif" alt="Dragging the volume, temperature, and amount sliders updates the piston animation and the ideal gas law symbolic evaluation in real time" width="620">
+  <img src="docs/public/piston.gif" alt="Clicking the radio button changes which variable in the ideal gas law is unknown. SymPy solves for that unknown before passing the values of the knowns defined by the sliders. Changing the radio button and sliders updates the piston and symbolic evaluation in real time." width="620">
 </p>
 
 Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website, or <open in molab badge> for the live, interactive version.

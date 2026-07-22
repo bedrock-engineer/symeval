@@ -78,7 +78,7 @@ v &= \frac{d}{t} \\
 v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
 \end{align*}$$
 
-Head to the [Getting started](getting-started.qmd) tutorial for a reactive walkthrough and more advanced SymEval functionality, or read [how SymEval works](explanation.qmd) for the ideas behind SymEval.
+Head to the [Getting started](getting-started.qmd) tutorial for a live, interactive walkthrough and more advanced SymEval functionality, or read [how SymEval works](explanation.qmd) for the ideas behind SymEval.
 
 ::: {.callout-note appearance="simple"}
 Have an engineering calculation worth sharing? Contributions of worked example notebooks are welcome, see [CONTRIBUTING](https://github.com/bedrock-engineer/symeval/blob/main/CONTRIBUTING.md).

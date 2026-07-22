@@ -21,8 +21,10 @@ Longer, more complete demos:
 ## Docs
 
 ### README.md
-In the future it should become possible to generate the entire README.md from the docs website Home page + Getting started guide.
-
+In the future it should become possible to generate the entire README.md from the docs website Home page (index.qmd) + Getting started tutorial (getting-started.qmd).
+The issue with the export to .qmd is that it doesn't export the outputs, which I do need for the ## Axial stress under a compressive force.
+The table, hss and piston examples from getting-started.md need to show the .gif's
+I've put all this in @README-template.md
 
 README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
