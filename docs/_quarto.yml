@@ -13,6 +13,11 @@ website:
   description: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
   site-url: "https://bedrock-engineer.github.io/symeval"
   repo-url: "https://github.com/bedrock-engineer/symeval"
+  # The Quarto project is the docs/ subdir, so repo-subdir makes "View source"
+  # point at .../blob/main/docs/<page>.qmd rather than the repo root.
+  repo-subdir: docs
+  repo-branch: main
+  repo-actions: [source, issue]
   favicon: assets/favicon_io/favicon.ico
   page-navigation: true
   back-to-top-navigation: true

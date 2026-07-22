@@ -41,9 +41,6 @@ Diataxis-style docs. Inspiration:
 - https://fastapi.tiangolo.com & https://sqlmodel.tiangolo.com & https://typer.tiangolo.com
 - https://geopandas.org/en/stable (Flow: Getting Started → Installation → Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts)
 
-Feedback:
-- It's possible to add github and download source buttons below the "On this page" thing in the right sidebar of Quarto, right?
-
 Feedback (which maybe are (quarto-)marimo bugs too?):
 - The checkboxes in the "quantity_evalf() on a DataFrame"-table don't show well which row is selected. Only the row is highlighted, but the checkbox of the selected row is not checked.
 - The radio button element renders horizontally, instead of vertically as in the marimo notebook.
