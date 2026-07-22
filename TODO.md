@@ -25,12 +25,6 @@ README inspiration:
 - Good README guide: https://github.com/banesullivan/README + Inspiration section
 - Awesome example: [marimo](https://github.com/marimo-team/marimo)'s README is awesome
 
-#### README generation feedback
-- I'd like the `open in molab`-badges to be less up. I want them to vertically align with the center of the rest of the text. NVM. Instead add:  
-    For the live, interactive version:
-    - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#quantity_evalf-on-a-dataframe) on the docs website, or
-    - <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
-
 
 ### Website
 

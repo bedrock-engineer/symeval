@@ -188,15 +188,21 @@ def build_page(name: str, exported: str) -> str:
         frontmatter.append("pyproject: |")
         frontmatter.append(pyproject)
 
-    badge = f"[![Open in molab]({BADGE_IMG})]({molab_url(name)})\n"
+    # HTML element (not the ![]() markdown badge) at both the top and the bottom,
+    # so a reader can jump to the live notebook from either end of the page.
+    badge = f'<a href="{molab_url(name)}"><img src="{BADGE_IMG}" alt="Open in molab"></a>'
+    body_md = strip_js_editor(transform_cells(body)).strip("\n")
 
     return (
         "---\n"
         + "\n".join(frontmatter)
         + "\n---\n\n"
         + badge
+        + "\n\n"
+        + body_md
+        + "\n\n"
+        + badge
         + "\n"
-        + strip_js_editor(transform_cells(body)).lstrip("\n")
     )
 
 

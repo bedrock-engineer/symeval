@@ -15,15 +15,14 @@ the two stay in sync:
 
 The three interactive examples (DataFrame table, HSS member, ideal-gas piston)
 replace their live marimo widget with a recorded GIF plus a link to the live
-tutorial. See ``README.template.md`` for the intended shape.
+tutorial. ``README.template.md`` holds the static frame + insertion markers.
 
-This is the first-pass generator: it writes ``README.generated.md`` (never
-``README.md``) so the output can be diffed against the hand-written README
-before adopting it. It is intentionally not wired into any task yet.
+The output is ``README.md`` — a build artifact; edit the sources, not it. The
+``docs_readme`` task refreshes the inputs (getting-started.qmd + the session
+snapshot) first; on its own this script assumes those are current::
 
-Run it with uv::
-
-    uv run scripts/docs_to_readme.py
+    uv run task docs_readme       # full: regenerate inputs, then this
+    uv run scripts/docs_to_readme.py   # just re-assemble README.md
 """
 
 from __future__ import annotations
@@ -38,7 +37,16 @@ INDEX = REPO_ROOT / "docs" / "index.qmd"
 GETTING_STARTED = REPO_ROOT / "docs" / "getting-started.qmd"
 SESSION = REPO_ROOT / "examples" / "__marimo__" / "session" / "getting_started.py.json"
 TEMPLATE = REPO_ROOT / "README.template.md"
-OUT = REPO_ROOT / "README.generated.md"
+OUT = REPO_ROOT / "README.md"
+
+# Prepended to README.md so nobody hand-edits the generated file.
+GENERATED_HEADER = (
+    "<!--\n"
+    "Generated from the docs by `uv run task docs_readme` — do not edit README.md directly.\n"
+    "Edit the sources instead: docs/index.qmd, README.template.md, the getting-started\n"
+    "column of symeval_mo.py, or scripts/docs_to_readme.py.\n"
+    "-->\n\n"
+)
 
 DOCS_SITE = "https://bedrock-engineer.github.io/symeval"
 GITHUB_SLUG = "bedrock-engineer/symeval"
@@ -280,7 +288,9 @@ def inject_ideal_gas_output(section: str, igl_latex: str) -> str:
 def build_advanced_body() -> str:
     """Transform getting-started.qmd into the README's "More advanced" body."""
     _, body = split_frontmatter(GETTING_STARTED.read_text())
-    body = re.sub(r"^\[!\[Open in molab\].*$\n?", "", body, flags=re.MULTILINE)  # drop top badge
+    # Drop the molab badges the .qmd now carries at its top and bottom (the README
+    # adds its own per-section badges); matches the HTML element and the ![]() form.
+    body = re.sub(r"(?m)^.*molab-shield\.svg.*$\n?", "", body)
     body = strip_islands(body)
     body = qmd_to_gfm(body)
 
@@ -320,7 +330,7 @@ def main() -> None:
             raise SystemExit(f"template {TEMPLATE.name} is missing marker {marker}")
         readme = readme.replace(marker, value)
 
-    OUT.write_text(readme)
+    OUT.write_text(GENERATED_HEADER + readme)
     print(f"Wrote {OUT.relative_to(REPO_ROOT)} ({len(readme.splitlines())} lines)")
 
 

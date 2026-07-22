@@ -13,7 +13,7 @@ pyproject: |
   # ///
 ---
 
-[![Open in molab](https://img.shields.io/badge/Open%20in-molab-63805e)](https://molab.marimo.io/https://github.com/bedrock-engineer/symeval/blob/main/examples/getting_started.py)
+<a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 # Getting started with SymEval
 
@@ -1428,3 +1428,4 @@ requestAnimationFrame(draw);
 """
 ```
 
+<a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
