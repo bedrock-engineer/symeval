@@ -1,0 +1,30 @@
+# Bedrock brand, matching bedrock.engineer: sage-green accent, gray/brown
+# neutrals, IBM Plex typography. Consumed natively by Quarto (and portable to
+# Shiny/Typst). theme.scss maps these onto the finer Bootstrap variables (links,
+# code) the way the bedrock-web-old Quarto site does.
+meta:
+  name: Bedrock
+
+color:
+  palette:
+    green: "#63805e"   # Bedrock green (accent / primary)
+    gray: "#868b85"    # neutral (gray-9)
+    brown: "#806040"   # tertiary
+    dark: "#1c211b"    # near-black text (gray-12)
+  primary: green
+  foreground: dark
+  background: white
+
+typography:
+  fonts:
+    - family: IBM Plex Sans
+      source: google
+    - family: IBM Plex Sans Condensed
+      source: google
+    - family: IBM Plex Mono
+      source: google
+  base: IBM Plex Sans
+  headings:
+    family: IBM Plex Sans Condensed
+    weight: 500
+  monospace: IBM Plex Mono

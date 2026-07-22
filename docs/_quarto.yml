@@ -1,0 +1,72 @@
+project:
+  type: website
+  output-dir: _site
+  # Pin the `quarto preview` dev server to a fixed port (default is random) so the
+  # local docs URL is stable across sessions. 4269 stays clear of the marimo app
+  # (2821) and the usual 3000/5173/8000 dev ports.
+  preview:
+    port: 4269
+    browser: false
+  # Explicit render globs: quarto's automatic project-input discovery comes up
+  # empty with the PyPI-bundled quarto binary in some environments, so we list
+  # the inputs. Globs still auto-include new pages (e.g. examples added later).
+  render:
+    - "*.qmd"
+    - "examples/*.qmd"
+  # Static media served verbatim at <site-url>/public/…: the README GIFs/clips and
+  # promo video (which no page references, but need stable absolute URLs, e.g. for PyPI),
+  # plus the logo (referenced below, and reused by the Remotion promo video via staticFile).
+  resources:
+    - public
+
+website:
+  title: "SymEval"
+  description: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
+  site-url: "https://bedrock-engineer.github.io/symeval"
+  repo-url: "https://github.com/bedrock-engineer/symeval"
+  # The Quarto project is the docs/ subdir, so repo-subdir makes "View source"
+  # point at .../blob/main/docs/<page>.qmd rather than the repo root.
+  repo-subdir: docs
+  repo-branch: main
+  repo-actions: [source, issue]
+  favicon: assets/favicon_io/favicon.ico
+  page-navigation: true
+  back-to-top-navigation: true
+  # Navbar-only: the logo + "SymEval" brand (links home) and the page links all
+  # live in one top bar, so it stays put on every page, shows the logo on
+  # desktop and mobile, and collapses to a single hamburger on narrow screens.
+  # A navbar + sidebar together would stack two bars; a 4-page site needs only
+  # the navbar.
+  navbar:
+    background: light
+    logo: public/symeval-logo.svg
+    logo-alt: "SymEval home"
+    title: "SymEval"
+    search: true
+    left:
+      - text: "Getting started"
+        href: getting-started.qmd
+      - text: "How SymEval works"
+        href: explanation.qmd
+      - text: "API reference"
+        href: reference.qmd
+    right:
+      - icon: github
+        href: "https://github.com/bedrock-engineer/symeval"
+        aria-label: GitHub
+      - icon: box-seam
+        href: "https://pypi.org/project/symeval/"
+        aria-label: PyPI
+
+brand:
+  light: _brand.yml
+
+format:
+  html:
+    theme:
+      - cosmo
+      - theme.scss
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    html-math-method: katex

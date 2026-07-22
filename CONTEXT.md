@@ -1,6 +1,13 @@
-# symeval
+# SymEval
 
-symeval evaluates engineering formulas with unit-aware quantities and renders the working as LaTeX. This glossary fixes the words the library and its docs use, so the same concept is never called two things.
+SymEval: symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX.
+This allows you to show how you arrive at your results in the same way that you were taught in school:
+
+1. write out the formula;
+2. substitute numerical values and units (quantities);
+3. write down the result.
+
+This glossary fixes the words the library and its docs use, so the same concept is never called two things.
 
 ## Language
 
@@ -9,11 +16,8 @@ An expression or equation handed to `sym_evalf` / `quantity_evalf` for evaluatio
 _Avoid_: target
 
 **Symbolic evaluation**:
-A unit-aware numeric evaluation of a formula, carrying its result quantity together with a rendering of the working. The `SymbolicEvaluation` object.
-
-**Working**:
-The multi-line rendering of a single symbolic evaluation: symbolic form, then substituted form, then result. From "show your working": the written-out steps of a calculation rather than just the answer.
-_Avoid_: derivation, chain, the LaTeX chain, the three-step chain
+A unit-aware numeric evaluation of a formula, carrying its result quantity together with its LaTeX rendering: the formula, the numerical substitution of values, then the result. The `SymbolicEvaluation` object.
+_Avoid_: the working, show your working, derivation, chain, the LaTeX chain, the three-step chain
 
 **Symbolic form**:
 The formula shown with symbols, before any values are put in.
@@ -23,7 +27,7 @@ The formula shown with each symbol replaced by its value and unit, keeping the s
 _Avoid_: substituted line, numeric form, the line with numbers
 
 **Result**:
-The evaluated quantity with its unit, the last line of the working.
+The evaluated quantity with its unit, the last line.
 
 **Chaining**:
 Feeding one symbolic evaluation into a later one: referencing its result symbol when building the next equation, and pairing that symbol with its result quantity in the next evaluation's inputs.

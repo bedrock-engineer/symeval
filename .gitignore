@@ -1,4 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Build & packaging (uv build -> dist/)
+build/
+dist/
+
+# Virtual environment
+.venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+
+# marimo
+__marimo__/
+marimo/_static/
+marimo/_lsp/
+
+# Node tooling for README GIFs (media/). The generated GIFs live in
+# docs/assets/gifs/ and ARE committed; only deps and scratch frames are ignored.
+node_modules/
+/media/tmp/
+
+# Quarto docs site
+# (.quarto/ and *.quarto_ipynb are ignored by docs/.gitignore, which Quarto manages)
+/docs/_site/
+/docs/*.html
+/docs/examples/*.html
+/docs/**/*_files/
+/docs/libs/
+/docs/_extensions/**/marimo-engine-v*.js
+
 # Coding agents
+# Keeps agent scratch and git worktrees (e.g. .claude/worktrees/) out of history.
 .opencode/
 .claude/
 .codex/
@@ -8,52 +44,5 @@
 .llm/
 .ai/
 
-# IDEs
-.vscode/
-.idea/
-
-# marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
-
-# Python
-__pycache__/
-*.py[cod]
-*.so
-
-# Virtual environments
-.venv/
-venv/
-env/
-
-# Packaging
-build/
-dist/
-*.egg-info/
-.eggs/
-
-# Test & coverage
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.mypy_cache/
-.ruff_cache/
-.pytype/
-.tox/
-.nox/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Environment / secrets
-.env
-.env.*
-!.env.example
-
-# macOS
+# OS
 .DS_Store
-
-# Windows
-Thumbs.db

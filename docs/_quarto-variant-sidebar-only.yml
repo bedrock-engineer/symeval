@@ -1,0 +1,61 @@
+# =============================================================================
+# NAV VARIANT A — SIDEBAR-ONLY (quarto-marimo style)
+#
+# To try it: copy this whole file's contents over docs/_quarto.yml, then
+# `uv run task docs_render` (or docs_preview). The current live config is
+# navbar-only; this swaps in a single left sidebar.
+#
+# Trade-offs vs navbar-only:
+#   + One left sidebar, like the quarto-marimo docs; scales to many pages.
+#   - Uses theme-sidebar.scss (not theme.scss): same Bedrock palette, but the
+#     logo rule targets the sidebar logo and forces it visible at all widths
+#     (Quarto hides the sidebar logo below `lg` by default).
+#   - index.qmd is listed first so the sidebar also renders on the landing page.
+# =============================================================================
+
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "*.qmd"
+    - "examples/*.qmd"
+
+website:
+  title: "SymEval"
+  description: "Symbolic, unit-aware evaluation of SymPy equations, rendered as LaTeX."
+  site-url: "https://bedrock-engineer.github.io/symeval"
+  repo-url: "https://github.com/bedrock-engineer/symeval"
+  favicon: assets/favicon_io/favicon.ico
+  page-navigation: true
+  back-to-top-navigation: true
+  sidebar:
+    logo: assets/symeval-logo.svg
+    logo-alt: "SymEval home"
+    title: "SymEval"
+    search: true
+    style: docked
+    tools:
+      - icon: github
+        href: "https://github.com/bedrock-engineer/symeval"
+        text: GitHub
+      - icon: box-seam
+        href: "https://pypi.org/project/symeval/"
+        text: PyPI
+    contents:
+      - href: index.qmd
+      - href: getting-started.qmd
+      - href: explanation.qmd
+      - href: reference.qmd
+
+brand:
+  light: _brand.yml
+
+format:
+  html:
+    theme:
+      - cosmo
+      - theme-sidebar-only.scss
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    html-math-method: katex

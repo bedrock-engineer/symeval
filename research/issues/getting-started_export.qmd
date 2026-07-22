@@ -1,118 +1,43 @@
-<!--
-Generated from the docs by `uv run task docs_readme` — do not edit README.md directly.
-Edit the sources instead: docs/index.qmd, README.template.md, the getting-started
-column of symeval_mo.py, or scripts/docs_to_readme.py.
--->
-
-# SymEval
-
-**Symbolic, unit-aware evaluation of SymPy equations.**
-
-Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint.readthedocs.io/) quantities, and SymEval shows how you arrive at the result the way you were taught in school:
-
-|  |  |
-|-----------------------------------------|-------------------------------|
-| 1\. Formula | $\rho = \dfrac{m}{V}$ |
-| 2\. Formula with substituted quantities (value + unit) | $\rho = \dfrac{0.998\ \mathrm{kg}}{1\ \mathrm{L}}$ |
-| 3\. Result (density of water) | $\rho = 998\ \dfrac{\mathrm{kg}}{\mathrm{m}^3}$ |
-
-[Get started](https://bedrock-engineer.github.io/symeval/getting-started.html) [GitHub](https://github.com/bedrock-engineer/symeval) [PyPI](https://pypi.org/project/symeval/)
-
-## Highlights
-
-- ✨ **Crystal clear**: shows every step. The formula, the values substituted with units, then the result.
-- 🐍 **Pure Python**: drop into your interactive notebooks and other Python code, no special syntax, no cell magic, no Domain-Specific Language (DSL).
-- 📏 **Unit-aware**: `pint.Quantity`s carry units through every step and convert to your chosen output unit.
-- 🧮 **SymPy-native**: first rearrange or simplify your equation symbolically using SymPy, then evaluate.
-- 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a unit-aware column on a `DataFrame`.
-
-## Quickstart
-
-SymEval is especially powerful inside Python notebooks, and these docs are opinionated. [We](https://bedrock.engineer/about/ "SymEval authors") strongly recommend [marimo](https://docs.marimo.io "marimo docs") rather than Jupyter notebooks, and [uv](https://docs.astral.sh/uv/ "uv docs") for managing Python.
-
-The only thing you need to create a reproducible marimo notebook, i.e. a notebook that runs anywhere, is uv ([installation instructions](https://docs.astral.sh/uv/getting-started/installation/ "uv installation instructions")).
-
-Run the command below to open a marimo notebook called `usains_speed.py`:
-
-``` sh
-uvx marimo edit --sandbox usains_speed.py
-```
-
-<details>
-<summary><strong>`uvx` and marimo's `--sandbox` flag</strong></summary>
-
-`uvx` runs a Python package as a [tool](https://docs.astral.sh/uv/guides/tools/ "uv's "Using tools" guide") in a temporary isolated environment, allowing you to run the `marimo` Command Line Interface (CLI) directly without any manual setup.
-
+---
+title: Getting Started
+marimo-version: 0.23.14
+header: |-
+  # /// script
+  # requires-python = ">=3.12"
+  # dependencies = [
+  #     "marimo",
+  #     "pint",
+  #     "polars",
+  #     "symeval",
+  #     "sympy",
+  # ]
+  # ///
 ---
 
-When running marimo with the `--sandbox` flag, marimo:
+# Getting started with SymEval
 
-1.  tracks the packages and versions used by your notebook, saving them in the notebook file as inline script metadata;
-2.  runs in an isolated virtual environment ("sandbox") that only contains the notebook dependencies.
-
-In this way you can share your marimo notebook with anyone, and they'll be able to run it anywhere. See marimo's [Inlining dependencies](https://docs.marimo.io/guides/package_management/inlining_dependencies/ "marimo's "Inlining dependencies" guide") guide for more information.
-
-</details>
-
-Copy-paste the code below into a Python cell, and click install when prompted in the pop-up. This will install the packages and add them to the inline script metadata, which keeps the notebook reproducible.
-
-``` python
-from pint import Quantity
-from symeval import sym_evalf
-from sympy import Equality, Symbol
-
-speed_eq = Equality(Symbol("v"), Symbol("d") / Symbol("t"))
-
-usains_speed = sym_evalf(
-    speed_eq,
-    subs={
-        Symbol("d"): Quantity(100, "m"), 
-        Symbol("t"): Quantity(9.58, "s")
-    },
-    output_unit="km/h",     # Play around with the unit!
-    decimals=1              # Defaults to 3
-)
-usains_speed
-```
-
-You should now see the symbolic evaluation of Usain Bolt's world record speed on the 100-meter dash in km/h:
-
-$$\begin{align*}
-v &= \frac{d}{t} \\
-&= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
-v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
-\end{align*}$$
-
-# More advanced SymEval functionality
+SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations, then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result.
 
 Below some examples that start with the basics and progressively show more powerful SymEval funcionality and usecases.
 
 ## Axial stress under a compressive force
 
-```python
+```{marimo .python}
 import marimo as mo
 import polars as pl
 import sympy
 
 from pint import Quantity
-from symeval import quantity_evalf, sym_evalf
+from symeval import quantity_evalf
 from sympy import Equality, Symbol
 ```
 
-Define the equation for calculating the axial stress using SymPy:
-
-```python
+```{marimo .python}
 axial_stress_eq = Equality(Symbol(r"\sigma"), Symbol("F") / Symbol("A"))
 axial_stress_eq
 ```
 
-$$
-\sigma = \frac{F}{A}
-$$
-
-Then define the values and units of the force acting on the structural member and its cross-sectional area:
-
-```python
+```{marimo .python}
 fa_inputs = {
     Symbol("F"): Quantity(-680, "kN"),
     Symbol("A"): Quantity(10_580, "mm^2"),
@@ -120,31 +45,17 @@ fa_inputs = {
 fa_inputs
 ```
 
-Then substitute the inputs into the SymPy equation:
-
-```python
-axial_stress = sym_evalf(
-    axial_stress_eq,
+```{marimo .python}
+axial_stress = axial_stress_eq.sym_evalf(
     subs=fa_inputs,
     output_unit="MPa",
 )
 axial_stress
 ```
 
-$$
-\begin{align*}
-\sigma &= \frac{F}{A} \\
-&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-\sigma &= -6.427\times 10^{7}\ \mathrm{Pa} = -64.272\ \mathrm{MPa}
-\end{align*}
-$$
-
-For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
-
-- `decimals` specifies the number of decimals used in LaTeX.
-- `mode="verbose"` adds an extra line showing all values converted to SI base units.
-
-```python
+```{marimo .python}
+# You can specify the number of decimal places of your result, and render mode.
+# verbose: adds an extra line showing all values converted to SI base units.
 axial_stress_eq.sym_evalf(
     subs=fa_inputs,
     output_unit="MPa",
@@ -153,18 +64,8 @@ axial_stress_eq.sym_evalf(
 )
 ```
 
-$$
-\begin{align*}
-\sigma &= \frac{F}{A} \\
-&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-&= \frac{\,-6.800000\times 10^{5}\ \mathrm{N}}{\,1.058000\times 10^{-2}\ \mathrm{m}^{2}} \\
-\sigma &= -6.42722\times 10^{7}\ \mathrm{Pa} = -64.27221\ \mathrm{MPa}
-\end{align*}
-$$
-
-`mode="one_line"` collapses the equation, subtituted quantities and result onto a single line:
-
-```python
+```{marimo .python}
+# one_line: collapse it onto a single line.
 axial_stress_eq.sym_evalf(
     subs=fa_inputs,
     output_unit="MPa",
@@ -172,10 +73,6 @@ axial_stress_eq.sym_evalf(
     mode="one_line",
 )
 ```
-
-$$
-\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}
-$$
 
 ## `quantity_evalf()` on a `DataFrame`
 
@@ -185,10 +82,7 @@ Now suppose you have done a structural analysis, which gave you the axial forces
 2. calculate the axial stresses using `quantity_evalf()` on the `DataFrame`;
 3. symbolicly evaluate the axial stress in the member which we select from a `marimo.ui.table` widget.
 
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python}
 # 1. Forces are in kN, areas in mm^2.
 members = pl.DataFrame(
     {
@@ -229,12 +123,7 @@ selected_member_to_symeval = mo.ui.table(
 selected_member_to_symeval
 ```
 
-</details>
-
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python}
 # 3b. Do the symbolic evaluation for the selected member
 _sel_row = selected_member_to_symeval.value
 axial_stress_eq.sym_evalf(
@@ -247,32 +136,14 @@ axial_stress_eq.sym_evalf(
 )
 ```
 
-</details>
-
-<p align="center">
-  <picture>
-    <source srcset="docs/public/table.webp" type="image/webp">
-    <img src="docs/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below." width="760">
-  </picture>
-</p>
-
-For the live, interactive version:
-
-- go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#quantity_evalf-on-a-dataframe) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
-
 ## Axial Resistance of a Steel HSS Member
-
 as per CSA S16-17.
 
 This is the example calculation that Connor Ferster, the author of [`handcalcs`](https://github.com/connorferster/handcalcs) (huge [inspiration](https://github.com/bedrock-engineer/symeval#inspiration) for SymEval), shows in [this "Engineering Calculations: Handcalcs-on-Jupyter vs. Excel" YouTube tutorial](https://www.youtube.com/watch?v=n9Uzy3Eb-XI).
 
 This example shows how you can define an entire table of inputs using marimo ui elements and then chain the result from one equation into the next.
 
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python hide_code="true"}
 (
     compressive_force,
     beam_length,
@@ -367,29 +238,20 @@ def _table_row(s):
     )
 
 input_table_md = mo.md(
+    "### Inputs\n"
     "|     |     |     |     |     |\n"
     "|--------------|--------|---|-----|---|\n"
     + "\n".join(_table_row(s) for s in input_table)
 )
 ```
 
-</details>
-
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python hide_code="true"}
 mo.md(f"""
 {input_table_md}
 """)
 ```
 
-</details>
-
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python hide_code="true"}
 # Like before, create a dictionary with sympy.Symbol keys and pint.Quantity values:
 symbolic_quantities = {
     s["symbol"]: Quantity(input_uis[s["name"]].value, s.get("unit"))
@@ -456,7 +318,7 @@ symbolic_quantities[dcr.symbol] = dcr.quantity
 # Show the whole calulation:
 mo.vstack(
     [
-        # mo.md("### Calculation"),
+        mo.md("### Calculation"),
         mo.hstack(
             [
                 mo.md("Euler buckling stress"),
@@ -498,40 +360,15 @@ mo.vstack(
 )
 ```
 
-</details>
-
-<p align="center">
-  <picture>
-    <source srcset="docs/public/hss.webp" type="image/webp">
-    <img src="docs/public/hss.gif" alt="Increasing the beam length recomputes the Euler buckling stress, lambda factor, axial resistance, and demand-capacity ratio, with DCR rising past 1.0." width="620">
-  </picture>
-</p>
-
-For the live, interactive version:
-
-- go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#axial-resistance-of-a-steel-hss-member) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
-
+```{marimo .python hide_code="true"}
+mo.md(rf"""
 ## Ideal Gas Law
 
-When solving the ideal gas law
+When solving the ideal gas law 
 
-<details>
-<summary>Show code</summary>
+$${sympy.latex(ideal_gas_law)}$$
 
-```python
-P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
-ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)
-ideal_gas_law
-```
-
-</details>
-
-$$
-P V = R T n
-$$
-
-you need to always know three out of four variables ($R = 8.3145 \frac{\mathrm{J}}{\mathrm{K} \cdot \mathrm{mol}}$ is the molar gas constant):
+you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
 
 | Name | Symbol | SI-unit |
 |------|--------|---------|
@@ -543,11 +380,15 @@ you need to always know three out of four variables ($R = 8.3145 \frac{\mathrm{J
 Now, given that SymEval is built on top of SymPy, SymEval will first symbolically rearrange the ideal gas law to isolate our unknown variable on the lefthand side with `sympy.solve`. After which the resulting expression feeds straight into `sym_evalf`.
 
 The marimo ui elements combined with the piston widget are meant to give an [explorable explanation](https://worrydream.com/ExplorableExplanations/) of and some intuition for the ideal gas law.
+""")
+```
 
-<details>
-<summary>Show code</summary>
+```{marimo .python hide_code="true"}
+# Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
+P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
+ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)
+R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
 
-```python
 ideal_gas_law_vars = {
     "P (kPa)": (P_sym, "kPa"),
     "V (Liters)": (V_sym, "l"),
@@ -555,19 +396,16 @@ ideal_gas_law_vars = {
     "n (mol)": (n_sym, "mol"),
 }
 ideal_gas_law_options = list(ideal_gas_law_vars)
+```
 
+```{marimo .python hide_code="true"}
 solve_for_radio = mo.ui.radio(
     options=ideal_gas_law_options,
     value="P (kPa)",
 )
 ```
 
-</details>
-
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python hide_code="true"}
 P_input = mo.ui.slider(
     start=1,
     stop=500,
@@ -615,17 +453,11 @@ igl_inputs = {
 mo.hstack(
     [solve_for_radio, mo.vstack([P_input, V_input, T_input, n_input])],
     align="center",
-    justify="center",
     gap=2,
 )
 ```
 
-</details>
-
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python hide_code="true"}
 # Which variable are we solving for? Everything else is a known input.
 _solve_for_label = solve_for_radio.value
 _solve_for_sym, _solve_for_unit = ideal_gas_law_vars[_solve_for_label]
@@ -636,7 +468,7 @@ _knowns = {
     for _label, (_sym, _unit) in ideal_gas_law_vars.items()
     if _sym != _solve_for_sym
 }
-_knowns[R_sym] = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+_knowns[R_sym] = R_q
 
 # The equation infers its unknown (the one symbol with no value in subs),
 # solves for it, and evaluates: no manual sympy.solve, no output_symbol.
@@ -691,13 +523,6 @@ _oob_html = (
     else ""
 )
 
-# mo.iframe flattens newlines in its HTML serialization, so // line comments
-# would swallow the rest of the (now one-line) script. Convert them to /* */
-# so they survive. See research/issues/marimo--iframe-strips-newlines.md.
-import re as _re
-
-_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js)
-
 _piston_html = f"""<!doctype html>
 <html>
 <body style="margin:0;padding:0;background:#ffffff">
@@ -707,7 +532,7 @@ _piston_html = f"""<!doctype html>
 </div>
 <script>
 {_js_consts}
-{_piston_js}
+{piston_js}
 </script>
 </body></html>"""
 
@@ -720,12 +545,7 @@ mo.hstack(
 )
 ```
 
-</details>
-
-<details>
-<summary>Show code</summary>
-
-```python
+```{marimo .python hide_code="true"}
 piston_js = r"""
 // piston_js
 // Canvas and cylinder dimensions
@@ -891,38 +711,169 @@ requestAnimationFrame(draw);
 """
 ```
 
-</details>
+1. Edit the JavaScript code of the piston here with syntax highlighting.
+2. Copy the JS code into the string in the `piston_js` variable in the Python cell above.
 
-<p align="center">
-  <picture>
-    <source srcset="docs/public/piston.webp" type="image/webp">
-    <img src="docs/public/piston.gif" alt="Changing the solve-for radio button and the sliders updates the piston and the symbolic evaluation of the ideal gas law in real time." width="620">
-  </picture>
-</p>
+```js
+// piston_js
+// Canvas and cylinder dimensions
+const c = document.getElementById("piston-canvas");
+const ctx2d = c.getContext("2d");
+const W = c.width;
+const H = c.height;
+const CYL_X = 70;
+const CYL_W = 130;
+const TOP_MARGIN = 110;
+const BOTTOM_MARGIN = 20;
+const CYL_BOTTOM = H - BOTTOM_MARGIN;
 
-For the live, interactive version:
+// Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
+const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
+const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
+const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
+const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
 
-- go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#ideal-gas-law) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+// V -> gas column height
+// V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
+// gasHeight & pistonY scale linearly across the V-slider range
+const GAS_MIN = 10;
+const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
+const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
+const pistonY = CYL_BOTTOM - gasHeight;
 
-## Inspiration
+// P -> trapezoidal weight block size
+// Until the middle of the P-range, the weight grows in all directions
+// as P increases. At higher P's the weight only scales vertically.
+const WEIGHT_W_MIN = 40;
+const WEIGHT_W_MAX = CYL_W - 6;
+const WEIGHT_H_MIN = 18;
+const WEIGHT_H_MID = 45;
+const WEIGHT_H_MAX = 90;
+const PHASE_SPLIT = 0.5;
+let weightWBottom, weightH;
+if (p01 <= PHASE_SPLIT) {
+  const k = p01 / PHASE_SPLIT;
+  weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
+  weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
+} else {
+  const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
+  weightWBottom = WEIGHT_W_MAX;
+  weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
+}
+const weightWTop = weightWBottom * 0.55;
 
-- [handcalcs](https://github.com/connorferster/handcalcs), renders Python calculation code as LaTeX in Jupyter
-- [CalcPad](https://calcpad-ce.org), engineering calculations DSL with symbolic/numeric workflow
-- Bret Victor's [Explorable Explanations](https://worrydream.com/ExplorableExplanations/)
+// T -> particle speed + warm/cool tint
+const speed = Math.sqrt(T) * 0.11;
+const tintR = Math.round(80 + t01 * (240 - 80));
+const tintG = Math.round(140 - t01 * 80);
+const tintB = Math.round(240 - t01 * 200);
+const tint = `rgb(${tintR},${tintG},${tintB})`;
 
-## Feedback & contributing
+// n -> particle count
+const N_PARTICLES_MIN = 4;
+const N_PARTICLES_MAX = 250;
+const nParticles = Math.max(
+  N_PARTICLES_MIN,
+  Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
+);
 
-Found a bug or have a feature request? [Open an issue](https://github.com/bedrock-engineer/symeval/issues), pull requests are welcome too.
+const particles = [];
+for (let i = 0; i < nParticles; i++) {
+  const ang = Math.random() * Math.PI * 2;
+  particles.push({
+    x: CYL_X + 4 + Math.random() * (CYL_W - 8),
+    y: pistonY + 4 + Math.random() * (gasHeight - 8),
+    vx: Math.cos(ang),
+    vy: Math.sin(ang),
+  });
+}
 
-Want to add a worked example? See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev setup, the docs dev server, and how to add a notebook.
+function draw() {
+  ctx2d.clearRect(0, 0, W, H);
 
-The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`CLAUDE.md`](CLAUDE.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
+  ctx2d.strokeStyle = "#888";
+  ctx2d.lineWidth = 2;
+  ctx2d.beginPath();
+  ctx2d.moveTo(CYL_X, TOP_MARGIN);
+  ctx2d.lineTo(CYL_X, CYL_BOTTOM);
+  ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
+  ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
+  ctx2d.stroke();
 
-## Authors
+  const cx = CYL_X + CYL_W / 2;
+  const wBL = cx - weightWBottom / 2;
+  const wBR = cx + weightWBottom / 2;
+  const wTL = cx - weightWTop / 2;
+  const wTR = cx + weightWTop / 2;
+  const wBY = pistonY - 4;
+  const wTY = wBY - weightH;
+  ctx2d.fillStyle = "#5a5a5a";
+  ctx2d.strokeStyle = "#333";
+  ctx2d.lineWidth = 1.5;
+  ctx2d.beginPath();
+  ctx2d.moveTo(wBL, wBY);
+  ctx2d.lineTo(wBR, wBY);
+  ctx2d.lineTo(wTR, wTY);
+  ctx2d.lineTo(wTL, wTY);
+  ctx2d.closePath();
+  ctx2d.fill();
+  ctx2d.stroke();
 
-Built and maintained by the [Bedrock.engineer](https://bedrock.engineer)s ([Joost Gevaert](https://github.com/JoostGevaert) and [Jules Blom](https://github.com/JulesBlm)).
+  // Ring handle: outer radius AND thickness both scale with P. Inner hole
+  // is always smaller than the ring thickness, so the ring reads as a
+  // chunky rim at all sizes.
+  const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
+  const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
+  const ringInnerR = Math.max(1, ringOuterR - ringThickness);
+  const ringCenterY = wTY - ringOuterR + 2;
+  ctx2d.fillStyle = "#333";
+  ctx2d.beginPath();
+  ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
+  ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
+  ctx2d.closePath();
+  ctx2d.fill();
 
-## License
+  ctx2d.fillStyle = "#fff";
+  const fontSize = Math.min(18, weightH * 0.55);
+  ctx2d.font = fontSize + "px sans-serif";
+  ctx2d.textAlign = "center";
+  ctx2d.textBaseline = "middle";
+  ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
 
-Apache License 2.0, see [LICENSE](LICENSE).
+  ctx2d.fillStyle = "#aaa";
+  ctx2d.strokeStyle = "#333";
+  ctx2d.lineWidth = 1;
+  ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
+  ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
+
+  ctx2d.fillStyle = tint;
+  for (const p of particles) {
+    const mag = Math.hypot(p.vx, p.vy) || 1;
+    const sx = (p.vx / mag) * speed;
+    const sy = (p.vy / mag) * speed;
+    p.x += sx;
+    p.y += sy;
+    if (p.x < CYL_X + 3) {
+      p.x = CYL_X + 3;
+      p.vx = Math.abs(p.vx);
+    } else if (p.x > CYL_X + CYL_W - 3) {
+      p.x = CYL_X + CYL_W - 3;
+      p.vx = -Math.abs(p.vx);
+    }
+    if (p.y < pistonY + 5) {
+      p.y = pistonY + 5;
+      p.vy = Math.abs(p.vy);
+    } else if (p.y > CYL_BOTTOM - 3) {
+      p.y = CYL_BOTTOM - 3;
+      p.vy = -Math.abs(p.vy);
+    }
+    ctx2d.beginPath();
+    ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
+    ctx2d.fill();
+  }
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+// piston_js
+```

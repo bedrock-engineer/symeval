@@ -28,7 +28,7 @@ def _resolve_formula(
     A bare `sympy.Expr` passes through unchanged, with `None` for the output
     symbol (the caller must supply `output_symbol` itself).
 
-    A `sympy.Eq` is solved for its single unknown, the one free symbol that
+    A `sympy.Equality` is solved for its single unknown, the one free symbol that
     has no value in `subs` (everything in `subs` is a known input). When that
     unknown is already isolated on one side of the equation, the other side is
     returned verbatim so the rendered formula keeps the shape the user wrote;
@@ -57,7 +57,7 @@ def _resolve_formula(
     if len(solutions) != 1:
         raise ValueError(
             f"Solving for {unknown} gave {len(solutions)} solutions "
-            f"({solutions}); symeval needs a unique one. Solve the equation "
+            f"({solutions}); SymEval needs a unique one. Solve the equation "
             "yourself and pass the branch you want."
         )
     return solutions[0], unknown
@@ -78,7 +78,7 @@ def quantity_evalf(
 
     Args:
         expr (sympy.Expr): The sympy expression to evaluate. Equations are
-            not accepted here; use `sym_evalf` for a `sympy.Eq`, or solve
+            not accepted here; use `sym_evalf` for a `sympy.Equality`, or solve
             it first and pass the resulting expression.
         subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
             `sympy.Symbol` to `pint.Quantity` (a dimensionless input is still a quantity, `Quantity(x, "")`). Same shape as sympy.evalf's `subs` kwarg, but values
@@ -102,7 +102,7 @@ def quantity_evalf(
     if isinstance(expr, sympy.Equality):
         raise TypeError(
             "quantity_evalf evaluates a bare expression, not an equation. "
-            "Use sym_evalf for a sympy.Eq (it infers the output symbol), or "
+            "Use sym_evalf for a sympy.Equality (it infers the output symbol), or "
             "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
         )
     target_ureg = next(
@@ -316,7 +316,7 @@ class SymbolicEvaluation:
     arithmetic or comparison operators; do math on `.quantity`. (Because the
     delegated magnitude/units make the wrapper quack like a Quantity, pint may
     still duck-type it in arithmetic and hand back a plain Quantity, which is
-    fine.) What this class adds: `.latex` (the rendered working), `.symbol`
+    fine.) What this class adds: `.latex` (the rendered LaTeX), `.symbol`
     (the output sympy.Symbol), and `_repr_latex_`.
 
     `.symbol` is the output sympy.Symbol: reference it when building a later
@@ -360,10 +360,10 @@ def sym_evalf(
     mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
     **evalf_kwargs,
 ) -> "SymbolicEvaluation":
-    """Numerically evaluate `expr` and produce a LaTeX rendering of the working.
+    """Numerically evaluate `expr` and render it as LaTeX.
 
     Same numeric kernel as `quantity_evalf`; the addition is the LaTeX
-    working attached to the returned `SymbolicEvaluation`.
+    rendering attached to the returned `SymbolicEvaluation`.
 
     Args:
         expr (sympy.Expr | sympy.Equality): The expression to evaluate,
@@ -375,7 +375,7 @@ def sym_evalf(
             None (no substitutions).
         output_symbol (str | sympy.Symbol | None): LaTeX label for the
             output: a string like `r"\\sigma"` or a `sympy.Symbol`. The label
-            appears on the left of every line of the rendered working.
+            appears on the left of every line of the rendering.
             Keyword-only. Required for a bare expression; for an equation it
             defaults to the inferred unknown, and an explicit value overrides
             only the rendered label.
@@ -400,7 +400,7 @@ def sym_evalf(
 
     Returns:
         SymbolicEvaluation: The computed `pint.Quantity` with the rendered
-            LaTeX working attached. Renders in marimo / Jupyter via
+            LaTeX rendering attached. Renders in marimo / Jupyter via
             `_repr_latex_`. Has `.quantity`, `.latex`, and `.symbol` for
             chaining into downstream sympy expressions.
 
@@ -419,7 +419,7 @@ def sym_evalf(
         if _inferred_symbol is None:
             raise ValueError(
                 "output_symbol is required when evaluating a bare sympy "
-                "expression. Pass a sympy.Eq instead and the output symbol "
+                "expression. Pass a sympy.Equality instead and the output symbol "
                 "is inferred from the equation."
             )
         output_symbol = _inferred_symbol
