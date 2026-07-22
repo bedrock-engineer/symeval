@@ -193,6 +193,14 @@ $$\begin{align*}
 \sigma &= -6.4\times 10^{7}\ \mathrm{Pa} = -64.3\ \mathrm{MPa}
 \end{align*}$$
 
+Wire the row up to a `marimo.ui.table` and it becomes interactive: pick a member and its axial-stress symbolic evaluation follows, sign and all (compression negative, tension positive).
+
+<p align="center">
+  <img src="docs/public/table.gif" alt="Selecting a member row in the table updates its axial-stress symbolic evaluation below, from -42 MPa to +115 MPa across the members" width="760">
+</p>
+
+Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) for the live version.
+
 ## Axial resistance of a steel HSS member
 
 A worked example from CSA S16-17. Each symbolic evaluation is chained into the
@@ -232,7 +240,7 @@ Paired with marimo's UI elements, this becomes an [explorable explanation](https
   <img src="docs/public/piston.gif" alt="Dragging the volume, temperature, and amount sliders updates the piston animation and the ideal gas law symbolic evaluation in real time" width="620">
 </p>
 
-Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) for the live, interactive version.
+Open the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html) on the docs website, or <open in molab badge> for the live, interactive version.
 
 ## Author
 
