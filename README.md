@@ -259,7 +259,7 @@ axial_stress_eq.sym_evalf(
 For the live, interactive version:
 
 - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#quantity_evalf-on-a-dataframe) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 ## Axial Resistance of a Steel HSS Member
 
@@ -510,7 +510,7 @@ mo.vstack(
 For the live, interactive version:
 
 - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#axial-resistance-of-a-steel-hss-member) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 ## Ideal Gas Law
 
@@ -903,7 +903,7 @@ requestAnimationFrame(draw);
 For the live, interactive version:
 
 - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#ideal-gas-law) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 ## Inspiration
 

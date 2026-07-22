@@ -108,8 +108,12 @@ def pretty_title(stem: str) -> str:
 
 
 def molab_url(name: str) -> str:
-    """The molab URL that opens ``examples/<name>.py`` from GitHub."""
-    return f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/{GITHUB_BRANCH}/examples/{name}.py"
+    """The molab URL that opens ``examples/<name>.py`` from GitHub.
+
+    The trailing ``/wasm`` opens the notebook in the browser-only WASM
+    sandbox rather than a cloud-backed molab session.
+    """
+    return f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/{GITHUB_BRANCH}/examples/{name}.py/wasm"
 
 
 def split_frontmatter(text: str) -> tuple[list[str], str]:

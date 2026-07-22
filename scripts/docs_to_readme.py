@@ -53,7 +53,8 @@ DOCS_SITE = "https://bedrock-engineer.github.io/symeval"
 # render on PyPI, which cannot resolve repo-relative paths.
 IMG_BASE = f"{DOCS_SITE}/public"
 GITHUB_SLUG = "bedrock-engineer/symeval"
-MOLAB_URL = f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/main/examples/getting_started.py"
+# Trailing /wasm opens the notebook in the browser-only WASM sandbox.
+MOLAB_URL = f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/main/examples/getting_started.py/wasm"
 MOLAB_BADGE_IMG = "https://marimo.io/molab-shield.svg"
 
 # The recorded clip that replaces each interactive section's marimo output, keyed
