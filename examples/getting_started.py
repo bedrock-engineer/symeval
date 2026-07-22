@@ -480,24 +480,17 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(Equality, Quantity, mo):
-    # Define Ideal Gas Law sympy.Symbols, Equation and dictionary of variables with units
+def _(Equality):
     P_sym, V_sym, T_sym, n_sym, R_sym = sympy.symbols("P V T n R")
     ideal_gas_law = Equality(P_sym * V_sym, R_sym * T_sym * n_sym)
-    R_q = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
+    ideal_gas_law
+    return P_sym, R_sym, T_sym, V_sym, ideal_gas_law, n_sym
 
-    ideal_gas_law_vars = {
-        "P (kPa)": (P_sym, "kPa"),
-        "V (Liters)": (V_sym, "l"),
-        "T (K)": (T_sym, "K"),
-        "n (mol)": (n_sym, "mol"),
-    }
-    ideal_gas_law_options = list(ideal_gas_law_vars)
 
-    mo.md(rf"""
-    $${sympy.latex(ideal_gas_law)}$$
-
-    you need to always know three out of four variables ($R = {R_q:.4f~L}$ is the molar gas constant):
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    you need to always know three out of four variables ($R = 8.3145 \frac{\mathrm{J}}{\mathrm{K} \cdot \mathrm{mol}}$ is the molar gas constant):
 
     | Name | Symbol | SI-unit |
     |------|--------|---------|
@@ -506,17 +499,7 @@ def _(Equality, Quantity, mo):
     | Temperature | $T$ | $K$ |
     | Number of gas particles | $n$ | $mol$ |
     """)
-    return (
-        P_sym,
-        R_q,
-        R_sym,
-        T_sym,
-        V_sym,
-        ideal_gas_law,
-        ideal_gas_law_options,
-        ideal_gas_law_vars,
-        n_sym,
-    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -530,12 +513,20 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(ideal_gas_law_options, mo):
+def _(P_sym, T_sym, V_sym, mo, n_sym):
+    ideal_gas_law_vars = {
+        "P (kPa)": (P_sym, "kPa"),
+        "V (Liters)": (V_sym, "l"),
+        "T (K)": (T_sym, "K"),
+        "n (mol)": (n_sym, "mol"),
+    }
+    ideal_gas_law_options = list(ideal_gas_law_vars)
+
     solve_for_radio = mo.ui.radio(
         options=ideal_gas_law_options,
         value="P (kPa)",
     )
-    return (solve_for_radio,)
+    return ideal_gas_law_vars, solve_for_radio
 
 
 @app.cell(hide_code=True)
@@ -598,7 +589,6 @@ def _(
     P_input,
     P_sym,
     Quantity,
-    R_q,
     R_sym,
     T_input,
     T_sym,
@@ -623,7 +613,7 @@ def _(
         for _label, (_sym, _unit) in ideal_gas_law_vars.items()
         if _sym != _solve_for_sym
     }
-    _knowns[R_sym] = R_q
+    _knowns[R_sym] = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
 
     # The equation infers its unknown (the one symbol with no value in subs),
     # solves for it, and evaluates: no manual sympy.solve, no output_symbol.

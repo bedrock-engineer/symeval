@@ -163,6 +163,21 @@ def transform_cells(body: str) -> str:
     return _CELL_RE.sub(_render_cell, body)
 
 
+# The piston's JS-editor cell is a `mo.md` block ("1. Edit … 2. Copy …" + a
+# ```js fence) that only makes sense in the live notebook, where you edit the JS
+# with syntax highlighting. On a static docs page it is noise, so drop it. It
+# stays in the source notebooks (symeval_mo.py / getting_started.py).
+_JS_EDITOR_RE = re.compile(
+    r"\n?1\. Edit the JavaScript code of the piston.*?\n```js\n.*?\n```[ \t]*\n?",
+    re.DOTALL,
+)
+
+
+def strip_js_editor(body: str) -> str:
+    """Remove the notebook-only piston JS-editor helper cell."""
+    return _JS_EDITOR_RE.sub("\n", body)
+
+
 def build_page(name: str, exported: str) -> str:
     """Assemble the final ``.qmd`` from marimo's export of ``examples/<name>.py``."""
     front, body = split_frontmatter(exported)
@@ -182,7 +197,7 @@ def build_page(name: str, exported: str) -> str:
         + "\n---\n\n"
         + badge
         + "\n"
-        + transform_cells(body).lstrip("\n")
+        + strip_js_editor(transform_cells(body)).lstrip("\n")
     )
 
 
