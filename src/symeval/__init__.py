@@ -390,8 +390,8 @@ class SymbolicEvaluation:
 def sym_evalf(
     expr: "sympy.Expr | sympy.Equality",
     subs: dict[sympy.Symbol, pint.Quantity | float] | None = None,
-    *,
     output_unit: str | pint.Unit | None = None,
+    *,
     n_display: int = 4,
     mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
     output_symbol: str | sympy.Symbol | None = None,

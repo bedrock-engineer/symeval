@@ -406,8 +406,8 @@ with app.setup(hide_code=True):
     def sym_evalf(
         expr: "sympy.Expr | sympy.Equality",
         subs: dict[sympy.Symbol, pint.Quantity | float] | None = None,
-        *,
         output_unit: str | pint.Unit | None = None,
+        *,
         n_display: int = 4,
         mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
         output_symbol: str | sympy.Symbol | None = None,
@@ -2021,7 +2021,7 @@ def _(Equality, Quantity):
         F, A, sigma = sympy.symbols("F A sigma")
         result = Equality(sigma, F / A).sym_evalf(
             {F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
-            output_unit="MPa",
+            "MPa",  # output_unit is positional too, like in quantity_evalf
         )
         assert abs(result.quantity.magnitude - 500.0) < 0.1
 

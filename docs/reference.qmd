@@ -12,8 +12,8 @@ build a formula symbolically and evaluate it in place.
 sym_evalf(
     expr,
     subs=None,
-    *,
     output_unit=None,
+    *,
     n_display=4,
     mode="multi_line",
     output_symbol=None,
