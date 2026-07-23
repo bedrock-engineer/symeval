@@ -14,11 +14,17 @@ def _quantity_to_sympy_base(quantity: pint.Quantity) -> sympy.Expr:
     """Convert a pint quantity to a sympy expression in base SI units.
 
     Dimensionless quantities return their bare magnitude (a Python float).
+
+    Units use their full names ("kilogram", "meter"), not abbreviations: an
+    abbreviated unit becomes a sympy symbol like `m` that is indistinguishable
+    from an input symbol named `m` (mass, say), silently corrupting the
+    substitution. Full names keep the unit symbols out of the namespace of
+    typical input symbols; `quantity_evalf` guards the residual collisions.
     """
     if quantity.dimensionality == {}:
         return quantity.magnitude
     base = quantity.to_base_units()
-    sympy_units = sympy.sympify(f"{base.units:~D}")
+    sympy_units = sympy.sympify(f"{base.units:D}")
     return base.magnitude * sympy_units
 
 def _coerce_subs(
@@ -129,6 +135,22 @@ def quantity_evalf(
             "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
         )
     base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
+    unit_symbols = set().union(
+        *(
+            v.free_symbols
+            for v in base_subs.values()
+            if isinstance(v, sympy.Expr)
+        ),
+        set(),
+    )
+    collisions = unit_symbols & (expr.free_symbols | set(base_subs))
+    if collisions:
+        names = ", ".join(sorted(str(s) for s in collisions))
+        raise ValueError(
+            f"Input symbol(s) {names} have the same name as an SI base unit "
+            "used in the evaluation, which would corrupt the substitution. "
+            "Rename the symbol(s)."
+        )
     result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
     output_quantity = target_ureg(f"{result_value}")
     if output_unit is not None:

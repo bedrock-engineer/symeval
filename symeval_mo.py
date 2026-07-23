@@ -30,11 +30,17 @@ with app.setup(hide_code=True):
         """Convert a pint quantity to a sympy expression in base SI units.
 
         Dimensionless quantities return their bare magnitude (a Python float).
+
+        Units use their full names ("kilogram", "meter"), not abbreviations: an
+        abbreviated unit becomes a sympy symbol like `m` that is indistinguishable
+        from an input symbol named `m` (mass, say), silently corrupting the
+        substitution. Full names keep the unit symbols out of the namespace of
+        typical input symbols; `quantity_evalf` guards the residual collisions.
         """
         if quantity.dimensionality == {}:
             return quantity.magnitude
         base = quantity.to_base_units()
-        sympy_units = sympy.sympify(f"{base.units:~D}")
+        sympy_units = sympy.sympify(f"{base.units:D}")
         return base.magnitude * sympy_units
 
     def _coerce_subs(
@@ -145,6 +151,22 @@ with app.setup(hide_code=True):
                 "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
             )
         base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
+        unit_symbols = set().union(
+            *(
+                v.free_symbols
+                for v in base_subs.values()
+                if isinstance(v, sympy.Expr)
+            ),
+            set(),
+        )
+        collisions = unit_symbols & (expr.free_symbols | set(base_subs))
+        if collisions:
+            names = ", ".join(sorted(str(s) for s in collisions))
+            raise ValueError(
+                f"Input symbol(s) {names} have the same name as an SI base unit "
+                "used in the evaluation, which would corrupt the substitution. "
+                "Rename the symbol(s)."
+            )
         result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
         output_quantity = target_ureg(f"{result_value}")
         if output_unit is not None:
@@ -2077,6 +2099,28 @@ def _(Equality, Quantity):
                 n_display=5,
             )
         assert any("n_display" in str(_w.message) for _w in _caught)
+
+    def test_no_collision_with_unit_symbols():
+        """Input symbols named like abbreviated units (m, V, s, N) must not collide with the unit symbols the evaluation uses internally (regression: m/V density gave 1/kg**2)."""
+        m, V = sympy.symbols("m V")
+        rho = Equality(sympy.Symbol(r"\rho"), m / V).sym_evalf(
+            {m: Quantity(0.998, "kg"), V: Quantity(1, "m^3")},
+            "kg/m^3",
+        )
+        assert abs(rho.quantity.magnitude - 0.998) < 1e-9
+
+    def test_unit_name_collision_raises():
+        """An input symbol literally named after a base unit raises a clear error instead of corrupting the substitution."""
+        meter, x = sympy.symbols("meter x")
+        try:
+            quantity_evalf(
+                meter * x,
+                {meter: Quantity(2, ""), x: Quantity(3, "m")},
+            )
+        except ValueError as e:
+            assert "meter" in str(e)
+        else:
+            raise AssertionError("Expected ValueError for unit-name collision")
 
     return
 
