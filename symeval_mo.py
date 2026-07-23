@@ -17,7 +17,9 @@ app = marimo.App(width="columns")
 with app.setup(hide_code=True):
     ## EXPORT
 
+    import warnings
     from dataclasses import dataclass
+    from decimal import Decimal
     from typing import Literal
 
     import pint
@@ -34,6 +36,27 @@ with app.setup(hide_code=True):
         base = quantity.to_base_units()
         sympy_units = sympy.sympify(f"{base.units:~D}")
         return base.magnitude * sympy_units
+
+    def _coerce_subs(
+        subs: "dict[sympy.Symbol, pint.Quantity | float] | None",
+    ) -> "tuple[dict[sympy.Symbol, pint.Quantity], pint.UnitRegistry]":
+        """Normalise `subs`: plain numbers become dimensionless quantities.
+
+        Mirrors sympy's `evalf`, which accepts bare numbers in its `subs`. The
+        registry is read from the first pint quantity in `subs` (falling back to
+        Pint's application registry), so coerced values land in the same registry
+        as the real inputs.
+        """
+        subs = subs or {}
+        ureg = next(
+            (q._REGISTRY for q in subs.values() if isinstance(q, pint.Quantity)),
+            pint.get_application_registry(),
+        )
+        coerced = {
+            sym: q if isinstance(q, pint.Quantity) else ureg.Quantity(q)
+            for sym, q in subs.items()
+        }
+        return coerced, ureg
 
     def _resolve_formula(
         formula: "sympy.Expr | sympy.Equality",
@@ -80,7 +103,7 @@ with app.setup(hide_code=True):
 
     def quantity_evalf(
         expr: sympy.Expr,
-        subs: dict[sympy.Symbol, pint.Quantity] | None = None,
+        subs: dict[sympy.Symbol, pint.Quantity | float] | None = None,
         output_unit: str | pint.Unit | None = None,
         **evalf_kwargs,
     ) -> pint.Quantity:
@@ -97,7 +120,7 @@ with app.setup(hide_code=True):
                 not accepted here; use `sym_evalf` for a `sympy.Equality`, or solve
                 it first and pass the resulting expression.
             subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
-                `sympy.Symbol` to `pint.Quantity` (a dimensionless input is still a quantity, `Quantity(x, "")`). Same shape as sympy.evalf's `subs` kwarg, but values
+                `sympy.Symbol` to `pint.Quantity` (a plain number is accepted and treated as dimensionless). Same shape as sympy.evalf's `subs` kwarg, but values
                 carry units. Defaults to None (no substitutions).
             output_unit (str | pint.Unit | None): Target pint unit for the
                 result (e.g. `"MPa"` or `ureg.MPa`). If `None`, the result is
@@ -114,17 +137,13 @@ with app.setup(hide_code=True):
             pint.Quantity: The computed quantity, in `output_unit` if given,
                 else in SI base units.
         """
-        subs = subs or {}
+        subs, target_ureg = _coerce_subs(subs)
         if isinstance(expr, sympy.Equality):
             raise TypeError(
                 "quantity_evalf evaluates a bare expression, not an equation. "
                 "Use sym_evalf for a sympy.Equality (it infers the output symbol), or "
                 "solve first: sympy.solve(eq, unknown)[0].quantity_evalf(...)."
             )
-        target_ureg = next(
-            (q._REGISTRY for q in subs.values() if isinstance(q, pint.Quantity)),
-            pint.get_application_registry(),
-        )
         base_subs = {sym: _quantity_to_sympy_base(q) for sym, q in subs.items()}
         result_value = expr.evalf(subs=base_subs, **evalf_kwargs)
         output_quantity = target_ureg(f"{result_value}")
@@ -155,36 +174,52 @@ with app.setup(hide_code=True):
             target[base] = target.get(base, 0) + exponent
         return quantity.to("*".join(f"{n}**{e}" for n, e in target.items()))
 
+    def _sig_fig_decimal(value: float, n_display: int) -> Decimal:
+        """Round `value` to `n_display` significant figures, as a `Decimal`.
+
+        `Decimal` keeps trailing zeros as significance (500 at 4 significant
+        figures is `500.0`) and its `to_eng_string` provides engineering notation
+        (exponent a multiple of 3), so the stdlib does the digit bookkeeping.
+        """
+        return Decimal(f"{float(value):.{n_display - 1}e}")
+
     def _format_quantity(
         quantity: pint.Quantity,
-        places: int,
+        n_display: int,
         *,
-        scientific: bool,
+        engineering: bool,
         trim: bool,
     ) -> str:
         """Format a pint quantity as a LaTeX `magnitude + unit` string.
 
-        `places` sets the decimal places; `scientific` picks `.Ne` over `.Nf`;
-        `trim` drops trailing zeros (and a dangling decimal point) from the
-        magnitude, so a clean value like 500 renders as `500`, not `500.000`.
+        The magnitude is rounded to `n_display` significant figures. With
+        `engineering` True it renders as engineering notation (mantissa times a
+        power of ten that is a multiple of 3) when an exponent is needed; `trim`
+        drops trailing zeros (and a dangling decimal point), so a clean value
+        like 500 renders as `500`, not `500.0`.
 
-        Rendering at a fixed number of places also rounds away pint's float-based
+        Rounding to significant figures also rounds away pint's float-based
         conversion noise (100 mm^2 becomes 1e-4 m^2, not 9.999e-5).
         """
-        spec = f".{places}e~L" if scientific else f".{places}f~L"
-        formatted = f"{quantity:{spec}}"
-        if not trim:
-            return formatted
-        mag_str, sep, unit_str = formatted.partition("\\ ")
-        if "." in mag_str:
-            mag_str = mag_str.rstrip("0").rstrip(".")
-        return f"{mag_str}{sep}{unit_str}"
+        magnitude = _sig_fig_decimal(quantity.magnitude, n_display)
+        if engineering:
+            eng = magnitude.to_eng_string()
+            mantissa, has_exp, exponent = eng.partition("E")
+            mag_str = (
+                rf"{mantissa}\times 10^{{{int(exponent)}}}" if has_exp else eng
+            )
+        else:
+            mag_str = format(magnitude, "f")
+            if trim and "." in mag_str:
+                mag_str = mag_str.rstrip("0").rstrip(".")
+        unit_latex = f"{quantity.units:~L}"
+        return f"{mag_str}\\ {unit_latex}" if unit_latex else mag_str
 
     def _si_stripped(quantity: pint.Quantity) -> "tuple[pint.Quantity, bool]":
         """Return `(quantity in SI-prefix-free units, whether that changed the unit)`.
 
-        The flag drives the scientific-notation choice: a unit that carried an SI
-        prefix (kN, mm, MPa) reads better in scientific form once stripped to its
+        The flag drives the engineering-notation choice: a unit that carried an SI
+        prefix (kN, mm, MPa) reads better in engineering form once stripped to its
         base unit. Centralised here so the substituted SI line and the result-line
         dual ask the question in one place.
         """
@@ -193,45 +228,47 @@ with app.setup(hide_code=True):
 
     def _format_substituted_value(
         quantity: pint.Quantity,
-        decimals: int,
+        n_display: int,
         *,
         si_stripped: bool = False,
     ) -> str:
         """Format one input value for the substituted form.
 
-        Substituted inputs show one more place than the result (`decimals + 1`),
-        trailing zeros trimmed. With `si_stripped` True the value is shown in SI
-        base units, in scientific notation when stripping changed the unit.
+        Substituted inputs show one more significant figure than the result
+        (`n_display + 1`), trailing zeros trimmed. With `si_stripped` True the
+        value is shown in SI base units, in engineering notation when stripping
+        changed the unit.
         """
         if si_stripped:
-            shown, scientific = _si_stripped(quantity)
+            shown, engineering = _si_stripped(quantity)
         else:
-            shown, scientific = quantity, False
+            shown, engineering = quantity, False
         return _format_quantity(
-            shown, decimals + 1, scientific=scientific, trim=not scientific
+            shown, n_display + 1, engineering=engineering, trim=not engineering
         )
 
     def _format_result(
         quantity: pint.Quantity,
-        decimals: int,
+        n_display: int,
     ) -> "tuple[str, str]":
         """Format the result line, returning `(value_latex, dual_latex)`.
 
-        `value_latex` is the quantity at exactly `decimals` places in its own unit.
-        `dual_latex` prepends a prefix-stripped scientific form (`sci = value`) when
-        the unit carries an SI prefix, otherwise it equals `value_latex`.
+        `value_latex` is the quantity at exactly `n_display` significant figures
+        in its own unit, trailing zeros kept: they carry the precision claim.
+        `dual_latex` prepends a prefix-stripped engineering form (`eng = value`)
+        when the unit carries an SI prefix, otherwise it equals `value_latex`.
         """
-        value_latex = _format_quantity(quantity, decimals, scientific=False, trim=False)
+        value_latex = _format_quantity(quantity, n_display, engineering=False, trim=False)
         stripped, changed = _si_stripped(quantity)
         if changed:
-            sci = _format_quantity(stripped, decimals, scientific=True, trim=False)
-            return value_latex, f"{sci} = {value_latex}"
+            eng = _format_quantity(stripped, n_display, engineering=True, trim=False)
+            return value_latex, f"{eng} = {value_latex}"
         return value_latex, value_latex
 
     def _render_substituted(
         expr: sympy.Expr,
         subs: dict[sympy.Symbol, pint.Quantity],
-        decimals: int,
+        n_display: int,
         *,
         si_stripped: bool = False,
     ) -> str:
@@ -246,7 +283,7 @@ with app.setup(hide_code=True):
         of the input symbols, so sympy.Mul ordering matches the symbolic form.
 
         With `si_stripped` True, each quantity is converted to its SI-prefix-free
-        form (kN -> N, mm -> m) and shown in scientific notation when that
+        form (kN -> N, mm -> m) and shown in engineering notation when that
         conversion changed its unit; this is the extra line rendered in verbose
         mode.
 
@@ -267,7 +304,7 @@ with app.setup(hide_code=True):
 
         for quantity, placeholder in zip(input_quantities, placeholder_syms):
             formatted = _format_substituted_value(
-                quantity, decimals, si_stripped=si_stripped
+                quantity, n_display, si_stripped=si_stripped
             )
             ph_latex = sympy.latex(placeholder)
             if not quantity.dimensionless:
@@ -368,12 +405,12 @@ with app.setup(hide_code=True):
 
     def sym_evalf(
         expr: "sympy.Expr | sympy.Equality",
+        subs: dict[sympy.Symbol, pint.Quantity | float] | None = None,
         *,
-        subs: dict[sympy.Symbol, pint.Quantity] | None = None,
-        output_symbol: str | sympy.Symbol | None = None,
         output_unit: str | pint.Unit | None = None,
-        decimals: int = 3,
+        n_display: int = 4,
         mode: Literal["multi_line", "verbose", "one_line"] = "multi_line",
+        output_symbol: str | sympy.Symbol | None = None,
         **evalf_kwargs,
     ) -> "SymbolicEvaluation":
         """Numerically evaluate `expr` and render it as LaTeX.
@@ -387,29 +424,34 @@ with app.setup(hide_code=True):
                 `subs`) is solved for. For an equation the output symbol is
                 inferred, so `output_symbol` may be omitted.
             subs (dict[sympy.Symbol, pint.Quantity] | None): Mapping from
-                `sympy.Symbol` to `pint.Quantity` (a dimensionless input is still a quantity, `Quantity(x, "")`). Same shape as sympy.evalf's `subs` kwarg. Defaults to
+                `sympy.Symbol` to `pint.Quantity` (a plain number is accepted and treated as dimensionless). Same shape as sympy.evalf's `subs` kwarg. Defaults to
                 None (no substitutions).
-            output_symbol (str | sympy.Symbol | None): LaTeX label for the
-                output: a string like `r"\\sigma"` or a `sympy.Symbol`. The label
-                appears on the left of every line of the rendering.
-                Keyword-only. Required for a bare expression; for an equation it
-                defaults to the inferred unknown, and an explicit value overrides
-                only the rendered label.
             output_unit (str | pint.Unit | None): Target pint unit for the
                 result. If `None`, the result is rendered in SI base units.
                 Defaults to None.
-            decimals (int): Decimal places for the result; substituted inputs
-                show one more place, with trailing zeros trimmed. Defaults to 3.
+            n_display (int): Significant figures for the result; substituted
+                inputs show one more figure, with trailing zeros trimmed.
+                Defaults to 4. Display only: it never changes the computed
+                quantity. Numeric precision is sympy's `n` (15 significant
+                digits by default); a warning is raised when `n < n_display`,
+                because the extra displayed digits would be meaningless.
             mode (Literal["multi_line", "verbose", "one_line"]): Rendering
                 style, defaults to `"multi_line"`:
 
                 - `"multi_line"`: three lines: symbolic form, substituted form with
                   units, then result.
                 - `"verbose"`: four lines: multi_line plus an extra
-                  substituted form in SI base units, in scientific notation.
+                  substituted form in SI base units, in engineering notation.
                 - `"one_line"`: a single line,
                   `symbol = symbolic form = substituted form = result`, with just the
                   variable's unit on the right (no prefix-stripped dual).
+            output_symbol (str | sympy.Symbol | None): LaTeX label for the
+                output: a string like `r"\\sigma"` or a `sympy.Symbol`. The label
+                appears to the left of the symbolic form and of the result;
+                the substituted lines carry no label.
+                Required for a bare expression; for an equation it
+                defaults to the inferred unknown, and an explicit value overrides
+                only the rendered label.
             **evalf_kwargs: Forwarded to `expr.evalf(...)` via
                 `quantity_evalf`. Useful kwargs: `n` (digits of precision),
                 `chop`, `strict`.
@@ -429,7 +471,15 @@ with app.setup(hide_code=True):
         if mode not in _MODES:
             raise ValueError(f"mode must be one of {tuple(_MODES)}, got {mode!r}")
         layout, wants_si = _MODES[mode]
-        subs = subs or {}
+        n_precision = evalf_kwargs.get("n", 15)
+        if n_precision < n_display:
+            warnings.warn(
+                f"n={n_precision} significant digits are computed, but "
+                f"n_display={n_display} are shown; displayed digits beyond the "
+                "computed precision are meaningless. Raise n or lower n_display.",
+                stacklevel=2,
+            )
+        subs, _ = _coerce_subs(subs)
         expr, _inferred_symbol = _resolve_formula(expr, subs)
         if output_symbol is None:
             if _inferred_symbol is None:
@@ -442,10 +492,10 @@ with app.setup(hide_code=True):
 
         expression_latex = sympy.latex(expr)
 
-        substituted_latex = _render_substituted(expr, subs, decimals)
+        substituted_latex = _render_substituted(expr, subs, n_display)
 
         si_substituted_latex = (
-            _render_substituted(expr, subs, decimals, si_stripped=True)
+            _render_substituted(expr, subs, n_display, si_stripped=True)
             if wants_si
             else None
         )
@@ -455,7 +505,7 @@ with app.setup(hide_code=True):
         )
 
         output_var_unit_latex, output_dual_latex = _format_result(
-            output_quantity, decimals
+            output_quantity, n_display
         )
 
         if isinstance(output_symbol, sympy.Symbol):
@@ -588,7 +638,7 @@ def _(mo):
     mo.md(r"""
     For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
 
-    - `decimals` specifies the number of decimals used in LaTeX.
+    - `n_display` specifies the significant figures shown in the LaTeX (defaults to 4).
     - `mode="verbose"` adds an extra line showing all values converted to SI base units.
     """)
     return
@@ -599,7 +649,7 @@ def _(axial_stress_eq, fa_inputs):
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
-        decimals=5,
+        n_display=6,
         mode="verbose",
     )
     return
@@ -618,7 +668,7 @@ def _(axial_stress_eq, fa_inputs):
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
-        decimals=1,
+        n_display=3,
         mode="one_line",
     )
     return
@@ -691,7 +741,6 @@ def _(Quantity, Symbol, axial_stress_eq, selected_member_to_symeval):
             Symbol("A"): Quantity(_sel_row["A_mm2"][0], "mm^2"),
         },
         output_unit="MPa",
-        decimals=1,
     )
     return
 
@@ -866,7 +915,6 @@ def _(
     euler_buckling_stress = _euler_buckling_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="GPa",
-        decimals=3,
         mode="one_line",
     )
     # But now, in order to chain the Euler buckling stress into the next equation,
@@ -882,7 +930,6 @@ def _(
     )
     lambda_factor = _lambda_factor_eq.sym_evalf(
         subs=symbolic_quantities,
-        decimals=3,
         mode="one_line",
     )
     symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
@@ -896,7 +943,6 @@ def _(
     axial_resistance = _axial_resistance_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="MN",
-        decimals=3,
         mode="one_line",
     )
     symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
@@ -908,7 +954,6 @@ def _(
     )
     dcr = _dcr_eq.sym_evalf(
         subs=symbolic_quantities,
-        decimals=3,
         mode="one_line",
     )
     symbolic_quantities[dcr.symbol] = dcr.quantity
@@ -1110,7 +1155,6 @@ def _(
     igl_sym_eval = ideal_gas_law.sym_evalf(
         subs=_knowns,
         output_unit=_solve_for_unit,
-        decimals=2,
     )
 
     # Knowns plus the solved unknown: the full set the piston widget renders.
@@ -1606,7 +1650,6 @@ def _(Quantity):
             },
             output_symbol="F_e",
             output_unit="GPa",
-            decimals=3,
         )
         assert result.quantity.units == Quantity(1, "GPa").units
         assert abs(result.quantity.magnitude - 0.271) < 0.001
@@ -1626,7 +1669,6 @@ def _(Quantity):
             },
             output_symbol="F_e",
             output_unit="GPa",
-            decimals=3,
         )
         assert abs(result.quantity.magnitude - 0.271) < 0.001
 
@@ -1662,7 +1704,6 @@ def _(Quantity):
             subs={A_sym: Quantity(500, "mm^2"), f_y: Quantity(355, "MPa")},
             output_symbol="F",
             output_unit="kN",
-            decimals=1,
         )
         assert abs(result.quantity.magnitude - 177.5) < 0.1
 
@@ -1676,7 +1717,6 @@ def _(Quantity):
             subs={r: Quantity(2, "m"), r_y: Quantity(3, "m")},
             output_symbol="F",
             output_unit="m",
-            decimals=1,
         )
         assert abs(result.quantity.magnitude - 5.0) < 0.1
         rendered = result._repr_latex_()
@@ -1691,7 +1731,6 @@ def _(Quantity):
             subs={m_in: Quantity(2, "kg")},
             output_symbol="m_out",
             output_unit="kg",
-            decimals=2,
         )
         assert result.quantity == Quantity(2, "kg")
         rendered = result._repr_latex_()
@@ -1724,7 +1763,6 @@ def _(Quantity):
             subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
             output_symbol="sigma",
             output_unit="MPa",
-            decimals=2,
         )
         # to_reduced_units was never a hand-written forward -> exercises __getattr__
         assert (
@@ -1753,7 +1791,6 @@ def _(Quantity):
             subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
             output_symbol=r"\sigma",
             output_unit="MPa",
-            decimals=2,
             **kwargs,
         )
 
@@ -1771,9 +1808,9 @@ def _(Quantity, stress_calc):
         multi = stress_calc(mode="multi_line").latex
         verbose = stress_calc(mode="verbose").latex
         assert verbose.count(r"\\") == multi.count(r"\\") + 1
-        assert r"5.000\times 10^{4}" in verbose
-        assert r"\mathrm{N}" in verbose
-        assert r"500.00\ \mathrm{MPa}" in verbose
+        assert r"50000\ \mathrm{N}" in verbose
+        assert r"0.00010000\ \mathrm{m}" in verbose
+        assert r"500.0\times 10^{6}\ \mathrm{Pa} = 500.0\ \mathrm{MPa}" in verbose
 
     def test_sym_evalf_mode_one_line():
         """One-line: no align block, includes substituted intermediate, no prefix-strip dual."""
@@ -1781,7 +1818,7 @@ def _(Quantity, stress_calc):
         assert r"\begin{align" not in one
         assert r"50\ \mathrm{kN}" in one
         assert r"100\ \mathrm{mm}" in one
-        assert r"500.00\ \mathrm{MPa}" in one
+        assert r"500.0\ \mathrm{MPa}" in one
         assert r"\mathrm{Pa} = " not in one
 
     def test_sym_evalf_mode_invalid_raises():
@@ -1822,7 +1859,6 @@ def _(Equality, Quantity, ideal_gas_R):
         result = Equality(sigma, F / A).sym_evalf(
             subs={F: Quantity(-680, "kN"), A: Quantity(10_580, "mm^2")},
             output_unit="MPa",
-            decimals=2,
         )
         assert result.symbol == sigma
         assert abs(result.quantity.magnitude - (-64.27)) < 0.01
@@ -1838,7 +1874,7 @@ def _(Equality, Quantity, ideal_gas_R):
             T: Quantity(273.15, "K"),
             n: Quantity(1, "mol"),
         }
-        result = igl.sym_evalf(subs=knowns, output_unit="kPa", decimals=2)
+        result = igl.sym_evalf(subs=knowns, output_unit="kPa")
         assert result.symbol == P
         assert abs(result.quantity.magnitude - 101.39) < 0.01
 
@@ -1854,7 +1890,6 @@ def _(Equality, Quantity, ideal_gas_R):
                 T: Quantity(273.15, "K"),
             },
             output_unit="mol",
-            decimals=3,
         )
         assert result.symbol == n
         assert abs(result.quantity.magnitude - 1.0) < 0.01
@@ -1865,7 +1900,6 @@ def _(Equality, Quantity, ideal_gas_R):
         result = Equality(F / A, sigma).sym_evalf(
             subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
             output_unit="MPa",
-            decimals=1,
         )
         assert result.symbol == sigma
         assert abs(result.quantity.magnitude - 500.0) < 0.1
@@ -1883,11 +1917,11 @@ def _(Equality, Quantity, ideal_gas_R):
         }
         from_eq = (
             Equality(F_e, expr)
-            .sym_evalf(subs=subs, output_unit="GPa", decimals=3)
+            .sym_evalf(subs=subs, output_unit="GPa")
             .latex
         )
         from_expr = expr.sym_evalf(
-            subs=subs, output_symbol=F_e, output_unit="GPa", decimals=3
+            subs=subs, output_symbol=F_e, output_unit="GPa"
         ).latex
         assert from_eq == from_expr
 
@@ -1898,7 +1932,6 @@ def _(Equality, Quantity, ideal_gas_R):
             subs={F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
             output_symbol=r"\tau",
             output_unit="MPa",
-            decimals=1,
         )
         assert abs(result.quantity.magnitude - 500.0) < 0.1
         assert r"\tau" in result._repr_latex_()
@@ -1977,6 +2010,73 @@ def _(Equality, Quantity, ideal_gas_R):
         assert hasattr(sympy.Expr, "quantity_evalf")
         assert hasattr(sympy.Equality, "sym_evalf")
         assert not hasattr(sympy.Equality, "quantity_evalf")
+
+    return
+
+
+@app.cell
+def _(Equality, Quantity):
+    def test_sym_evalf_subs_positional():
+        """subs may be passed positionally, mirroring quantity_evalf."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        result = Equality(sigma, F / A).sym_evalf(
+            {F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
+            output_unit="MPa",
+        )
+        assert abs(result.quantity.magnitude - 500.0) < 0.1
+
+    def test_subs_accepts_plain_numbers():
+        """Plain numbers in subs are coerced to dimensionless quantities."""
+        F, phi = sympy.symbols("F phi")
+        q = quantity_evalf(
+            F * phi, {F: Quantity(100, "kN"), phi: 0.9}, output_unit="kN"
+        )
+        assert abs(q.magnitude - 90.0) < 1e-9
+        # coerced values land in the registry of the real inputs
+        assert q._REGISTRY is Quantity(1, "kN")._REGISTRY
+        result = sym_evalf(
+            Equality(sympy.Symbol("N_r"), F * phi),
+            {F: Quantity(100, "kN"), phi: 0.9},
+            output_unit="kN",
+        )
+        assert abs(result.quantity.magnitude - 90.0) < 1e-9
+
+    def test_n_display_sig_figs_result():
+        """The result renders at n_display significant figures, zeros kept."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        latex = Equality(sigma, F / A).sym_evalf(
+            {F: Quantity(-680, "kN"), A: Quantity(10_580, "mm^2")},
+            output_unit="MPa",
+        ).latex
+        assert "-64.27" in latex  # default n_display=4
+        result = Equality(sigma, F / A).sym_evalf(
+            {F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
+            output_unit="MPa",
+        )
+        # the trailing zero carries the precision claim
+        assert "500.0" in result.latex
+
+    def test_n_display_engineering_notation():
+        """The prefix-stripped dual uses an exponent that is a multiple of 3."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        latex = Equality(sigma, F / A).sym_evalf(
+            {F: Quantity(-680, "kN"), A: Quantity(10_580, "mm^2")},
+            output_unit="MPa",
+        ).latex
+        assert r"\times 10^{6}" in latex  # -64.27e6 Pa, not -6.427e7
+
+    def test_n_display_beyond_n_warns():
+        """Showing more significant figures than evalf computes warns."""
+        F, A, sigma = sympy.symbols("F A sigma")
+        with warnings.catch_warnings(record=True) as _caught:
+            warnings.simplefilter("always")
+            Equality(sigma, F / A).sym_evalf(
+                {F: Quantity(50, "kN"), A: Quantity(100, "mm^2")},
+                output_unit="MPa",
+                n=3,
+                n_display=5,
+            )
+        assert any("n_display" in str(_w.message) for _w in _caught)
 
     return
 

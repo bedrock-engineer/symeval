@@ -98,7 +98,7 @@ def _(mo):
     mo.md(r"""
     For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
 
-    - `decimals` specifies the number of decimals used in LaTeX.
+    - `n_display` specifies the significant figures shown in the LaTeX (defaults to 4).
     - `mode="verbose"` adds an extra line showing all values converted to SI base units.
     """)
     return
@@ -109,7 +109,7 @@ def _(axial_stress_eq, fa_inputs):
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
-        decimals=5,
+        n_display=6,
         mode="verbose",
     )
     return
@@ -128,7 +128,7 @@ def _(axial_stress_eq, fa_inputs):
     axial_stress_eq.sym_evalf(
         subs=fa_inputs,
         output_unit="MPa",
-        decimals=1,
+        n_display=3,
         mode="one_line",
     )
     return
@@ -201,7 +201,6 @@ def _(Quantity, Symbol, axial_stress_eq, selected_member_to_symeval):
             Symbol("A"): Quantity(_sel_row["A_mm2"][0], "mm^2"),
         },
         output_unit="MPa",
-        decimals=1,
     )
     return
 
@@ -376,7 +375,6 @@ def _(
     euler_buckling_stress = _euler_buckling_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="GPa",
-        decimals=3,
         mode="one_line",
     )
     # But now, in order to chain the Euler buckling stress into the next equation,
@@ -392,7 +390,6 @@ def _(
     )
     lambda_factor = _lambda_factor_eq.sym_evalf(
         subs=symbolic_quantities,
-        decimals=3,
         mode="one_line",
     )
     symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
@@ -406,7 +403,6 @@ def _(
     axial_resistance = _axial_resistance_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="MN",
-        decimals=3,
         mode="one_line",
     )
     symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
@@ -418,7 +414,6 @@ def _(
     )
     dcr = _dcr_eq.sym_evalf(
         subs=symbolic_quantities,
-        decimals=3,
         mode="one_line",
     )
     symbolic_quantities[dcr.symbol] = dcr.quantity
@@ -620,7 +615,6 @@ def _(
     igl_sym_eval = ideal_gas_law.sym_evalf(
         subs=_knowns,
         output_unit=_solve_for_unit,
-        decimals=2,
     )
 
     # Knowns plus the solved unknown: the full set the piston widget renders.

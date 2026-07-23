@@ -11,12 +11,12 @@ build a formula symbolically and evaluate it in place.
 ```python
 sym_evalf(
     expr,
-    *,
     subs=None,
-    output_symbol=None,
+    *,
     output_unit=None,
-    decimals=3,
+    n_display=4,
     mode="multi_line",
+    output_symbol=None,
     **evalf_kwargs,
 ) -> SymbolicEvaluation
 ```
@@ -30,19 +30,19 @@ Call it as a function, or as a method on a SymPy expression or equation:
 ```python
 from symeval import sym_evalf
 
-sym_evalf(equation, subs=values, output_unit="MPa")
-equation.sym_evalf(subs=values, output_unit="MPa")   # equivalent
+sym_evalf(equation, values, output_unit="MPa")
+equation.sym_evalf(values, output_unit="MPa")   # equivalent
 ```
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `expr` | `sympy.Expr \| sympy.Eq` | The formula to evaluate. A `sympy.Eq` is solved for its single unknown (the free symbol not present in `subs`), and its output symbol is inferred. |
-| `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (or a scalar for dimensionless inputs). Same shape as SymPy's `evalf` `subs`. |
-| `output_symbol` | `str \| sympy.Symbol \| None` | LaTeX label for the result, for example `r"\sigma"`. Required for a bare expression; for an equation it defaults to the inferred unknown and an explicit value overrides only the label. |
+| `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (a plain number is accepted and treated as dimensionless). Same shape as SymPy's `evalf` `subs`, and positional like it too. |
 | `output_unit` | `str \| pint.Unit \| None` | Target unit for the result. When `None`, the result is rendered in SI base units. |
-| `decimals` | `int` | Decimal places for the result; substituted inputs show one more place, with trailing zeros trimmed. Defaults to 3. |
+| `n_display` | `int` | Significant figures for the result; substituted inputs show one more figure, with trailing zeros trimmed. Defaults to 4. Display only: it never changes the computed quantity. When `n < n_display`, a warning is raised because the extra displayed digits would be meaningless. |
 | `mode` | `"multi_line" \| "verbose" \| "one_line"` | Rendering style, see below. |
-| `**evalf_kwargs` | | Forwarded to `expr.evalf(...)`, for example `n` (digits of precision), `chop`, `strict`. |
+| `output_symbol` | `str \| sympy.Symbol \| None` | LaTeX label for the result, for example `r"\sigma"`. Required for a bare expression; for an equation it defaults to the inferred unknown and an explicit value overrides only the label. |
+| `**evalf_kwargs` | | Forwarded to `expr.evalf(...)`, for example `n` (significant digits of numeric precision, 15 by default), `chop`, `strict`. |
 
 Returns a [`SymbolicEvaluation`](#symbolicevaluation).
 
@@ -54,30 +54,29 @@ substituted form, then the result.
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+\sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
 `mode="verbose"` adds a fourth line showing every value converted to SI base
-units in scientific notation, useful when you want to audit the unit
-conversions.
+units in engineering notation (exponents a multiple of 3), useful when you
+want to audit the unit conversions.
 
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-&= \frac{\,-6.800\times 10^{5}\ \mathrm{N}}{\,1.058\times 10^{-2}\ \mathrm{m}^{2}} \\
-\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+&= \frac{\,-680.00\times 10^{3}\ \mathrm{N}}{\,0.010580\ \mathrm{m}^{2}} \\
+\sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
 `mode="one_line"` collapses it onto a single line.
 
-$$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}$$
+$$\sigma = \frac{F}{A} = \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} = -64.27\ \mathrm{MPa}$$
 
 ## `quantity_evalf`
 
 ```python
 quantity_evalf(
     expr,
-    *,
     subs=None,
     output_unit=None,
     **evalf_kwargs,
@@ -95,7 +94,7 @@ side (`equation.rhs`).
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `expr` | `sympy.Expr` | The expression to evaluate. |
-| `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (or a scalar). |
+| `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (a plain number is accepted and treated as dimensionless). |
 | `output_unit` | `str \| pint.Unit \| None` | Target unit for the result. When `None`, the result is in SI base units. |
 | `**evalf_kwargs` | | Forwarded to `expr.evalf(...)`. |
 

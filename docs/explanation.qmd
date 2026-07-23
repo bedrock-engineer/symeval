@@ -33,7 +33,7 @@ written out to be checked:
 $$\begin{align*}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+\sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{align*}$$
 
 Showing every step, rather than only the answer, is what lets a reviewer follow
@@ -81,9 +81,11 @@ both are also plain functions (`from symeval import sym_evalf`). The `subs`
 argument has the same shape as `evalf`'s `subs`, with quantities as values, and
 every other `evalf` keyword (`n`, `maxn`, `chop`, `strict`, ...) is forwarded
 verbatim. One distinction worth knowing: `n` is numeric precision (significant
-digits used in the evaluation), while `sym_evalf`'s `decimals` is presentation
-(decimal places shown in the rendering) and never changes the computed
-quantity. The full parameter tables live in the
+digits used in the evaluation, 15 by default), while `sym_evalf`'s `n_display`
+is presentation (significant figures shown in the rendering, 4 by default) and
+never changes the computed quantity. Because both count significant figures,
+the sanity check is direct: when `n < n_display`, SymEval warns that the extra
+displayed digits are meaningless. The full parameter tables live in the
 [API reference](reference.qmd).
 
 ## Chaining one evaluation into the next
