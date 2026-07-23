@@ -3,12 +3,11 @@ name = "symeval"
 version = "0.4.4"
 description = "Symbolic evaluation for engineering calculations — renders expression → numbers with units → result as LaTeX"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = []
 requires-python = ">=3.12"
 dependencies = ["sympy>=1.13", "pint>=0.24"]
-
-[tool.pytest.ini_options]
-pythonpath = ["src"]
 
 [project.urls]
 Homepage = "https://github.com/bedrock-engineer/symeval"
@@ -22,24 +21,28 @@ dev = [
     "pytest>=9.0.3",
     "taskipy>=1.14",
 ]
-# The docs website toolchain. `quarto-cli` is a PyPI wheel that bundles the
-# Quarto binary (>= 1.9.20 is required by the quarto-marimo extension), so the
-# whole site builds through uv with no system-level Quarto install.
+# Docs toolchain: quarto-cli is a PyPI wheel bundling the Quarto binary
+# (>= 1.9.20 required by the quarto-marimo extension), so the site builds
+# through uv with no system-level Quarto install.
 docs = [
     "quarto-cli>=1.9.20",
 ]
 
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
 [tool.taskipy.tasks]
-# Tasks needing positional args (release) wrap their body in `bash -c '…' --`
-# so taskipy's appended args land at $1. Requires `bash` on PATH — present
-# wherever git is (Git for Windows ships Git Bash).
+# The reasoning behind these tasks (environments, sandbox vs locked env) is
+# documented in CONTRIBUTING.md ("Task environments"); the release flow in
+# RELEASING.md.
 install = "uv sync --all-groups"
-# Execute the whole notebook (real pint/sympy values, from its PEP 723 deps) to
-# verify it runs before mobuild extracts the package — a stronger guard than a
-# static `marimo check`, which never runs a cell. taskipy runs it before `build`.
-pre_build = "uvx marimo -y export session --force-overwrite symeval_mo.py"
+# Refresh the locked env before a release; commit uv.lock (see RELEASING.md).
+upgrade = "uv sync --upgrade --all-groups"
+# Smoke test: execute the whole notebook before mobuild extracts the package.
+pre_build = "uv run marimo -y export session --no-sandbox --force-overwrite symeval_mo.py"
 build = "uvx --with pint --with sympy --with pytest mobuild export symeval_mo.py src/symeval/__init__.py"
-test = "uvx --with sympy --with pint --with marimo --with polars pytest symeval_mo.py"
+test = "uv run pytest symeval_mo.py"
 clean = "bash -c 'rm -rf dist/'"
 pre_release = "task build && task test && task docs_readme"
 release = """bash -c '\
@@ -56,10 +59,7 @@ docs_generate = "uv run scripts/extract_getting_started.py && uv run scripts/exa
 docs_preview = "uv run --group docs quarto preview docs/"
 docs_render = "uv run --group docs quarto render docs/"
 docs_build = "task docs_generate && task docs_render"
-# Snapshot the executed getting_started notebook so its computed outputs (LaTeX)
-# are available to the README generator; the .qmd export omits them.
-docs_session = "uvx marimo -y export session --sandbox --force-overwrite examples/getting_started.py"
-# Regenerate README.generated.md from the docs (index.qmd + getting-started.qmd +
-# the session snapshot). Deliberately NOT part of docs_build (that runs in CI);
-# run it locally to refresh the README, then diff against README.md.
+# Snapshot executed getting_started outputs (LaTeX) for the README generator.
+docs_session = "uv run marimo -y export session --no-sandbox --force-overwrite examples/getting_started.py"
+# Not in CI; run locally after changing the docs (see CONTRIBUTING.md).
 docs_readme = "task docs_generate && task docs_session && uv run scripts/docs_to_readme.py"

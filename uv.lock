@@ -1793,7 +1793,7 @@ wheels = [
 [[package]]
 name = "symeval"
 version = "0.4.4"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "pint" },
     { name = "sympy" },
