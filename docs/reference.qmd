@@ -15,7 +15,7 @@ sym_evalf(
     subs=None,
     output_symbol=None,
     output_unit=None,
-    decimals=None,
+    decimals=3,
     mode="multi_line",
     **evalf_kwargs,
 ) -> SymbolicEvaluation
@@ -40,7 +40,7 @@ equation.sym_evalf(subs=values, output_unit="MPa")   # equivalent
 | `subs` | `dict[Symbol, pint.Quantity]` | Maps each symbol to a Pint quantity (or a scalar for dimensionless inputs). Same shape as SymPy's `evalf` `subs`. |
 | `output_symbol` | `str \| sympy.Symbol \| None` | LaTeX label for the result, for example `r"\sigma"`. Required for a bare expression; for an equation it defaults to the inferred unknown and an explicit value overrides only the label. |
 | `output_unit` | `str \| pint.Unit \| None` | Target unit for the result. When `None`, the result is rendered in SI base units. |
-| `decimals` | `int \| None` | Decimal places for the result and the substituted form. `None` uses Pint's natural formatting. |
+| `decimals` | `int` | Decimal places for the result; substituted inputs show one more place, with trailing zeros trimmed. Defaults to 3. |
 | `mode` | `"multi_line" \| "verbose" \| "one_line"` | Rendering style, see below. |
 | `**evalf_kwargs` | | Forwarded to `expr.evalf(...)`, for example `n` (digits of precision), `chop`, `strict`. |
 

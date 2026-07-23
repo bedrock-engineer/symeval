@@ -89,7 +89,7 @@ with app.setup(hide_code=True):
         Mirrors `sympy.Expr.evalf`'s signature. Any extra keyword arguments are
         captured by Python's `**evalf_kwargs` (a standard mechanism for
         collecting unmatched kwargs into a dict) and forwarded verbatim to
-        `expr.evalf(...)`, so `n`, `maxn`, `chop`, `strict`, `quiet`, and
+        `expr.evalf(...)`, so `n`, `maxn`, `chop`, `strict`, `quad`, and
         `verbose` all work without being listed here individually.
 
         Args:
