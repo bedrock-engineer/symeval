@@ -16,6 +16,8 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 | 2\. Formula with substituted quantities (value + unit) | $\rho = \dfrac{0.998\ \mathrm{kg}}{1\ \mathrm{L}}$ |
 | 3\. Result (density of water) | $\rho = 998\ \dfrac{\mathrm{kg}}{\mathrm{m}^3}$ |
 
+SymEval integrates seamlessly with [marimo](https://docs.marimo.io) and [Quarto](https://quarto.org), such that you can make [explorable explanations ](https://worrydream.com/ExplorableExplanations)in Python notebooks or websites, and automate calculation report generation.
+
 [Get started](https://bedrock-engineer.github.io/symeval/getting-started.html) [GitHub](https://github.com/bedrock-engineer/symeval) [PyPI](https://pypi.org/project/symeval/)
 
 ## Highlights
@@ -25,6 +27,8 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 - 📏 **Unit-aware**: `pint.Quantity`s carry units through every step and convert to your chosen output unit.
 - 🧮 **SymPy-native**: first rearrange or simplify your equation symbolically using SymPy, then evaluate.
 - 📊 **DataFrame-ready**: use `quantity_evalf()` to compute a unit-aware column on a `DataFrame`.
+- 🔄 **Reactive**: tweak an input in a marimo notebook or on a website, and every dependent symbolic evaluation updates instantly.
+- 🤖 **Automatable**: render calculation reports with Quarto (HTML, PDF, Word, ...) or run marimo notebooks as scripts to regenerate reports whenever inputs change.
 
 ## Quickstart
 
