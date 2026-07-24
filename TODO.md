@@ -7,6 +7,7 @@
 - Show expected vs actual rendering visually for all (or most) tests, so a rendering that is green but ugly still gets caught by eye. Group tests by theme, each theme in its own marimo column. Never in column 0: that holds the implementation plus the curated Getting started tutorial, which is extracted into `examples/getting_started.py`, the docs and the README.
 - Build something that works well for functions, such as e.g.
     `f(x)=1.9sin((2π/2.36)x)`
+- Switch the substituted-value spacing from `\medspace` to `\thinspace` in the library source (`symeval_mo.py`, `_render_substituted`: the `\medspace\left(...\right)` wrap and the `\medspace{formatted}` replace). `\medspace` is an amsmath macro GitHub's MathJax does not define (renders the literal name in red); `\thinspace` is plain TeX (defined without amsmath) and letters-only, so it survives GitHub Markdown's backslash-escaping (unlike `\,`, which unescapes to a literal comma) and renders on GitHub, PyPI's MathJax, and KaTeX (marimo/Jupyter). Do this live via marimo-pair and eyeball the slightly tighter 3mu vs 4mu gap. Once the source emits `\thinspace`, delete the `\medspace`→`\thinspace` replacement in `scripts/docs_to_readme.py` (`_tidy_latex`) so the spacing command has a single source of truth (the downstream replace is the current working stopgap).
 
 
 ## Examples
