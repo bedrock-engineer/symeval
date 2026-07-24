@@ -136,7 +136,7 @@ axial_stress
 $$
 \begin{aligned}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
+&= \frac{\thinspace-680\ \mathrm{kN}}{\thinspace10580\ \mathrm{mm}^{2}} \\
 \sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
 \end{aligned}
 $$
@@ -158,8 +158,8 @@ axial_stress_eq.sym_evalf(
 $$
 \begin{aligned}
 \sigma &= \frac{F}{A} \\
-&= \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} \\
-&= \frac{\medspace-680000.0\ \mathrm{N}}{\medspace0.01058000\ \mathrm{m}^{2}} \\
+&= \frac{\thinspace-680\ \mathrm{kN}}{\thinspace10580\ \mathrm{mm}^{2}} \\
+&= \frac{\thinspace-680000.0\ \mathrm{N}}{\thinspace0.01058000\ \mathrm{m}^{2}} \\
 \sigma &= -64.2722\times 10^{6}\ \mathrm{Pa} = -64.2722\ \mathrm{MPa}
 \end{aligned}
 $$
@@ -176,7 +176,7 @@ axial_stress_eq.sym_evalf(
 ```
 
 $$
-\sigma = \frac{F}{A} = \frac{\medspace-680\ \mathrm{kN}}{\medspace10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}
+\sigma = \frac{F}{A} = \frac{\thinspace-680\ \mathrm{kN}}{\thinspace10580\ \mathrm{mm}^{2}} = -64.3\ \mathrm{MPa}
 $$
 
 ## `quantity_evalf()` on a `DataFrame`

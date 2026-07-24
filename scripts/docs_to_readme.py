@@ -134,10 +134,15 @@ def _tidy_latex(latex: str) -> str:
     r"""Normalise marimo/sympy LaTeX for GitHub: drop the leading ``\displaystyle``
     (SymbolicEvaluation._repr_latex_ adds it for left-justified inline rendering;
     the README re-wraps each block as centered ``$$`` display math, where it is
-    redundant). ``\medspace`` is left as-is: MathJax (GitHub) renders it, and it
-    survives Markdown's backslash-escaping, unlike ``\,`` (which the parser
-    unescapes to a literal comma before MathJax runs)."""
-    return re.sub(r"^\\displaystyle\s+", "", latex)
+    redundant), then swap ``\medspace`` for ``\thinspace``. Two constraints meet
+    here: ``\,`` is unescaped to a literal comma by Markdown's backslash-escaping
+    before MathJax runs (backslash-before-punctuation), while ``\medspace`` is an
+    amsmath macro GitHub's MathJax does not define (it prints the name in red).
+    ``\thinspace`` is letters-only (escape-proof) and plain TeX (defined without
+    amsmath), so it survives Markdown and renders on both GitHub and PyPI's
+    MathJax."""
+    latex = re.sub(r"^\\displaystyle\s+", "", latex)
+    return latex.replace(r"\medspace", r"\thinspace")
 
 
 def session_latex() -> list[str]:
