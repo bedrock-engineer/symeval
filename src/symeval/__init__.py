@@ -420,10 +420,10 @@ class SymbolicEvaluation:
         return getattr(self.quantity, name)
 
     def _repr_latex_(self) -> str:
-        # Inline `$...$`, not display `$$...$$`, so the evaluation renders
-        # left-justified when dropped into a marimo/Jupyter layout (display
-        # math is centered by the host CSS). `\displaystyle` restores the full
-        # size that inline math would otherwise shrink.
+        # Inline `$...$` (not display `$$...$$`) so the evaluation renders
+        # left-justified in a marimo/Jupyter layout; `\displaystyle` keeps it
+        # full-size. This differs from marimo's centered display of a bare sympy
+        # Expr/Eq; to center an evaluation, wrap `.latex` in `$${...}$$` yourself.
         return rf"$\displaystyle {self.latex}$"
 
     def __repr__(self):
@@ -542,11 +542,10 @@ def sym_evalf(
     else:
         output_sym = sympy.Symbol(str(output_symbol))
     sym_latex = sympy.latex(output_sym)
-    # `full_latex` is the BARE LaTeX (no `$` delimiters, no `\displaystyle`).
-    # SymbolicEvaluation._repr_latex_ wraps it as inline `$\displaystyle ...$`
-    # for a left-justified default render. Callers embedding the math elsewhere
-    # wrap `result.latex` themselves: `$\displaystyle {...}$` for a
-    # left-justified inline block, `$${...}$$` for a centered display block.
+    # `full_latex` is the BARE LaTeX (no `$` delimiters, no `\displaystyle`), the
+    # `sympy.latex()` convention. SymbolicEvaluation._repr_latex_ wraps it as
+    # inline `$\displaystyle ...$` for a left-justified render; wrap `result.latex`
+    # in `$${...}$$` yourself to center it (matching marimo's bare-sympy display).
     working = _Working(
         symbol=sym_latex,
         symbolic=expression_latex,

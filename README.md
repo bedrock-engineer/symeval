@@ -714,7 +714,15 @@ _piston_html = f"""<!doctype html>
 _piston_iframe = mo.iframe(_piston_html, width="290px", height="380px")
 
 mo.hstack(
-    [_piston_iframe, mo.vstack([ideal_gas_law, igl_sym_eval])],
+    [
+        _piston_iframe,
+        mo.vstack(
+            [
+                mo.md(rf"$\displaystyle {sympy.latex(ideal_gas_law)}$"),
+                igl_sym_eval,
+            ]
+        ),
+    ],
     align="center",
     gap=2,
 )
