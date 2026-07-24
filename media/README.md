@@ -23,14 +23,14 @@ npx playwright install chromium   # first time only (recorders)
    `RELEASING.md`), serve from the project env, which has the local `symeval`:
 
    ```sh
-   uv run marimo run --no-sandbox ../examples/getting_started.py --headless -p 2821 --no-token
+   uv run marimo run --no-sandbox ../examples/getting_started.py --headless -p 2821 --no-token --watch
    ```
 
    To record the published version instead, the sandbox serve pulls `symeval`
    from PyPI (its PEP 723 header):
 
    ```sh
-   uvx marimo run --sandbox ../examples/getting_started.py --headless -p 2821 --no-token
+   uvx marimo run --sandbox ../examples/getting_started.py --headless -p 2821 --no-token --watch
    ```
 
 2. Record — each writes `../docs/public/<name>.{gif,mp4,webp}`:

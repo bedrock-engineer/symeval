@@ -18,7 +18,7 @@ const SCENES = [
   { dur: 210, node: <CodeToLatexScene /> },
   { dur: 80, node: <ClipsIntro /> },
   { dur: 130, node: <ClipScene src="table.mp4" title="DataFrame-ready" startFrom={29} /> },
-  { dur: 150, node: <ClipScene src="hss.mp4" title="Chained checks" startFrom={45} shiftX={70} shiftY={-35} scale={1.16} /> },
+  { dur: 150, node: <ClipScene src="hss.mp4" title="Chained checks" startFrom={45} shiftX={70} shiftY={-35} scale={1.05} /> },
   { dur: 300, node: <ClipScene src="piston.mp4" title="Explorable explanations" startFrom={30} /> },
 ];
 

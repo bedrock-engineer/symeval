@@ -51,17 +51,10 @@ tree, and committing the lock records exactly which versions were tested.
 The example clips (`docs/public/*.{gif,mp4,webp}`, recorded by `media/`) show
 live SymEval output, and the promo video embeds them. When the release changes
 the API or the rendering, re-record them *before* releasing, against the local
-package, so the release deploys prose, outputs, and clips atomically:
+package, so the release deploys prose, outputs, and clips atomically.
 
-```bash
-uv run marimo run --no-sandbox examples/getting_started.py --headless -p 2821 --no-token
-```
+See [media/README.md](./media/README.md) for guidance on how to record the clip and render the promo video.
 
-then follow `media/README.md` (the `npm run piston / hss / table` recorders and
-the Remotion promo render), commit the new assets, and release. The
-`--sandbox`/PyPI serve documented in `media/README.md` works too, but only
-*after* `task pypi`, which leaves the deployed site with stale clips until a
-second push.
 
 ## What each command does
 
