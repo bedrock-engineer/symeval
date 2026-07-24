@@ -180,7 +180,7 @@ symbolic evaluation updates, in a notebook or on a website.
 
 Automation comes from the tooling around the notebook: Quarto renders it to an
 HTML, PDF, or Word calculation report, and a marimo notebook runs as a plain
-Python script, so reports can be regenerate whenever inputs change.
+Python script, so reports can be regenerated whenever inputs change.
 
 ## No wheels reinvented
 
