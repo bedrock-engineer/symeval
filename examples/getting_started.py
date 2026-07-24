@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.23.15"
 app = marimo.App()
 
 @app.cell(hide_code=True)
@@ -96,7 +96,7 @@ def _(axial_stress_eq, fa_inputs):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
+    For convenience, it's also possible to call `sym_evalf` as a method on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
 
     - `n_display` specifies the significant figures shown in the LaTeX (defaults to 4).
     - `mode="verbose"` adds an extra line showing all values converted to SI base units.
@@ -118,7 +118,7 @@ def _(axial_stress_eq, fa_inputs):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `mode="one_line"` collapses the equation, subtituted quantities and result onto a single line:
+    `mode="one_line"` collapses the equation, substituted quantities and result onto a single line:
     """)
     return
 
@@ -375,6 +375,7 @@ def _(
     euler_buckling_stress = _euler_buckling_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="GPa",
+        n_display=3,
         mode="one_line",
     )
     # But now, in order to chain the Euler buckling stress into the next equation,
@@ -390,6 +391,7 @@ def _(
     )
     lambda_factor = _lambda_factor_eq.sym_evalf(
         subs=symbolic_quantities,
+        n_display=3,
         mode="one_line",
     )
     symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
@@ -403,7 +405,8 @@ def _(
     axial_resistance = _axial_resistance_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="MN",
-        mode="one_line",
+        n_display=3,
+        # mode="one_line",
     )
     symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
@@ -414,6 +417,7 @@ def _(
     )
     dcr = _dcr_eq.sym_evalf(
         subs=symbolic_quantities,
+        n_display=3,
         mode="one_line",
     )
     symbolic_quantities[dcr.symbol] = dcr.quantity
@@ -425,7 +429,7 @@ def _(
             mo.hstack(
                 [
                     mo.md("Euler buckling stress"),
-                    mo.md(rf"$\displaystyle {euler_buckling_stress.latex}$"),
+                    euler_buckling_stress,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -434,7 +438,7 @@ def _(
             mo.hstack(
                 [
                     mo.md(r"$\lambda$ factor"),
-                    mo.md(rf"$\displaystyle {lambda_factor.latex}$"),
+                    lambda_factor,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -443,7 +447,7 @@ def _(
             mo.hstack(
                 [
                     mo.md("Axial resistance"),
-                    mo.md(rf"$\displaystyle {axial_resistance.latex}$"),
+                    axial_resistance,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -452,7 +456,7 @@ def _(
             mo.hstack(
                 [
                     mo.md("Demand capacity ratio"),
-                    mo.md(rf"$\displaystyle {dcr.latex}$"),
+                    dcr,
                 ],
                 widths=[1, 4],
                 align="center",

@@ -51,23 +51,23 @@ Returns a [`SymbolicEvaluation`](#symbolicevaluation).
 `mode="multi_line"` (the default) renders three lines: the symbolic form, the
 substituted form, then the result.
 
-$$\begin{align*}
+$$\begin{aligned}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
 \sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
-\end{align*}$$
+\end{aligned}$$
 
 `mode="verbose"` adds a fourth line showing every value converted to coherent
 SI units (kN to N, mm to m, km/h to m/s) in engineering notation (exponents a
 multiple of 3), useful when you want to audit the unit conversions. The result
 line carries the same conversion as its left half.
 
-$$\begin{align*}
+$$\begin{aligned}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
 &= \frac{\,-680.00\times 10^{3}\ \mathrm{N}}{\,0.010580\ \mathrm{m}^{2}} \\
 \sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
-\end{align*}$$
+\end{aligned}$$
 
 `mode="one_line"` collapses it onto a single line.
 

@@ -30,11 +30,11 @@ written out to be checked:
 3. **Result.** The evaluated quantity, converted to the output unit you asked
    for.
 
-$$\begin{align*}
+$$\begin{aligned}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
 \sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
-\end{align*}$$
+\end{aligned}$$
 
 Showing every step, rather than only the answer, is what lets a reviewer follow
 the reasoning: the formula is stated, the inputs are visible with their units,

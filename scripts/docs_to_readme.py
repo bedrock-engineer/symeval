@@ -131,28 +131,44 @@ def _clean_callout_body(body: str) -> str:
 # Session outputs
 # --------------------------------------------------------------------------- #
 def _tidy_latex(latex: str) -> str:
-    r"""Normalise marimo/sympy LaTeX for GitHub: ``\medspace`` renders poorly, so
-    fall back to the standard thin space ``\,`` (as the hand-written README used)."""
+    r"""Normalise marimo/sympy LaTeX for GitHub: drop the leading ``\displaystyle``
+    (SymbolicEvaluation._repr_latex_ adds it for left-justified inline rendering;
+    the README re-wraps each block as centered ``$$`` display math, where it is
+    redundant), then swap ``\medspace`` (renders poorly on GitHub) for the
+    standard thin space ``\,`` (as the hand-written README used)."""
+    latex = re.sub(r"^\\displaystyle\s+", "", latex)
     return latex.replace(r"\medspace", r"\,")
 
 
 def session_latex() -> list[str]:
-    """Ordered LaTeX outputs (arithmatex ``marimo-tex`` blocks) from the session.
+    r"""Ordered LaTeX outputs (arithmatex ``marimo-tex`` blocks) from the session.
 
     For getting_started these are, in order: the axial-stress equation, the
     default / verbose / one-line evaluations, then the selected-member
     evaluation in the DataFrame section (which the GIF replaces).
+
+    marimo renders display math as ``||[ … ||]`` and inline as ``||( … ||)``.
+    SymbolicEvaluation now renders inline (``$\displaystyle …$``) so it left-
+    justifies, so its outputs are inline blocks beginning with ``\displaystyle``;
+    bare sympy equations still render as display blocks. Plain ``$…$`` math in
+    prose (e.g. the ``$\lambda$`` label) is inline without ``\displaystyle`` and
+    is skipped.
     """
     data = json.loads(SESSION.read_text())
     out: list[str] = []
+    block = re.compile(
+        r"<marimo-tex[^>]*>\s*\|\|([\[(])(.*?)\|\|[\])]\s*</marimo-tex>", re.DOTALL
+    )
     for cell in data["cells"]:
         for output in cell.get("outputs", []):
             if output.get("type") != "data":
                 continue
             markup = output["data"].get("text/html", "")
-            match = re.search(r"<marimo-tex[^>]*>\s*\|\|\[(.*?)\|\|\]\s*</marimo-tex>", markup, re.DOTALL)
-            if match:
-                out.append(_tidy_latex(html.unescape(match.group(1)).strip()))
+            for m in block.finditer(markup):
+                opener, raw = m.group(1), html.unescape(m.group(2)).strip()
+                if opener == "(" and not raw.startswith(r"\displaystyle"):
+                    continue  # inline prose math, not an equation output
+                out.append(_tidy_latex(raw))
     return out
 
 

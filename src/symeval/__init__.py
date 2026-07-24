@@ -360,9 +360,13 @@ def _layout_one_line(working: _Working) -> str:
     )
 
 def _layout_align(working: _Working) -> str:
-    """Arrange a working as a stacked LaTeX `align*` block.
+    """Arrange a working as a stacked LaTeX `aligned` block.
 
-    Includes the SI-base substituted line when the working carries one (verbose).
+    Uses `aligned`, not `align*`: `aligned` is an inner environment, legal
+    inside `$...$` and `$$...$$`, so `.latex` renders wherever it is dropped
+    (marimo, Jupyter, Quarto). `align*` is an outer environment that KaTeX
+    (and strictly MathJax) reject when nested. Includes the SI-base
+    substituted line when the working carries one (verbose).
     """
     lines = [
         rf"{working.symbol} &= {working.symbolic} \\",
@@ -371,7 +375,7 @@ def _layout_align(working: _Working) -> str:
     if working.si_substituted is not None:
         lines.append(rf"&= {working.si_substituted} \\")
     lines.append(rf"{working.symbol} &= {working.result_dual}")
-    return "\\begin{align*}\n" + "\n".join(lines) + "\n\\end{align*}"
+    return "\\begin{aligned}\n" + "\n".join(lines) + "\n\\end{aligned}"
 
 # The one place a mode is defined: its layout, and whether it carries the SI line.
 # Adding a mode is one entry here (plus a layout function if the arrangement is new).
@@ -416,7 +420,11 @@ class SymbolicEvaluation:
         return getattr(self.quantity, name)
 
     def _repr_latex_(self) -> str:
-        return f"$$ {self.latex} $$"
+        # Inline `$...$`, not display `$$...$$`, so the evaluation renders
+        # left-justified when dropped into a marimo/Jupyter layout (display
+        # math is centered by the host CSS). `\displaystyle` restores the full
+        # size that inline math would otherwise shrink.
+        return rf"$\displaystyle {self.latex}$"
 
     def __repr__(self):
         return f"SymbolicEvaluation({self.quantity!r})"
@@ -534,10 +542,11 @@ def sym_evalf(
     else:
         output_sym = sympy.Symbol(str(output_symbol))
     sym_latex = sympy.latex(output_sym)
-    # `full_latex` is the BARE LaTeX (no `$` delimiters). SymbolicEvaluation._repr_latex_
-    # adds `$$...$$` for the default display rendering. Callers embedding the
-    # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
-    # `$${...}$$` for display).
+    # `full_latex` is the BARE LaTeX (no `$` delimiters, no `\displaystyle`).
+    # SymbolicEvaluation._repr_latex_ wraps it as inline `$\displaystyle ...$`
+    # for a left-justified default render. Callers embedding the math elsewhere
+    # wrap `result.latex` themselves: `$\displaystyle {...}$` for a
+    # left-justified inline block, `$${...}$$` for a centered display block.
     working = _Working(
         symbol=sym_latex,
         symbolic=expression_latex,

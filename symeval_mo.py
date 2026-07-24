@@ -376,9 +376,13 @@ with app.setup(hide_code=True):
         )
 
     def _layout_align(working: _Working) -> str:
-        """Arrange a working as a stacked LaTeX `align*` block.
+        """Arrange a working as a stacked LaTeX `aligned` block.
 
-        Includes the SI-base substituted line when the working carries one (verbose).
+        Uses `aligned`, not `align*`: `aligned` is an inner environment, legal
+        inside `$...$` and `$$...$$`, so `.latex` renders wherever it is dropped
+        (marimo, Jupyter, Quarto). `align*` is an outer environment that KaTeX
+        (and strictly MathJax) reject when nested. Includes the SI-base
+        substituted line when the working carries one (verbose).
         """
         lines = [
             rf"{working.symbol} &= {working.symbolic} \\",
@@ -387,7 +391,7 @@ with app.setup(hide_code=True):
         if working.si_substituted is not None:
             lines.append(rf"&= {working.si_substituted} \\")
         lines.append(rf"{working.symbol} &= {working.result_dual}")
-        return "\\begin{align*}\n" + "\n".join(lines) + "\n\\end{align*}"
+        return "\\begin{aligned}\n" + "\n".join(lines) + "\n\\end{aligned}"
 
     # The one place a mode is defined: its layout, and whether it carries the SI line.
     # Adding a mode is one entry here (plus a layout function if the arrangement is new).
@@ -432,7 +436,11 @@ with app.setup(hide_code=True):
             return getattr(self.quantity, name)
 
         def _repr_latex_(self) -> str:
-            return f"$$ {self.latex} $$"
+            # Inline `$...$`, not display `$$...$$`, so the evaluation renders
+            # left-justified when dropped into a marimo/Jupyter layout (display
+            # math is centered by the host CSS). `\displaystyle` restores the full
+            # size that inline math would otherwise shrink.
+            return rf"$\displaystyle {self.latex}$"
 
         def __repr__(self):
             return f"SymbolicEvaluation({self.quantity!r})"
@@ -550,10 +558,11 @@ with app.setup(hide_code=True):
         else:
             output_sym = sympy.Symbol(str(output_symbol))
         sym_latex = sympy.latex(output_sym)
-        # `full_latex` is the BARE LaTeX (no `$` delimiters). SymbolicEvaluation._repr_latex_
-        # adds `$$...$$` for the default display rendering. Callers embedding the
-        # math elsewhere wrap explicitly via `result.latex` (`${...}$` for inline,
-        # `$${...}$$` for display).
+        # `full_latex` is the BARE LaTeX (no `$` delimiters, no `\displaystyle`).
+        # SymbolicEvaluation._repr_latex_ wraps it as inline `$\displaystyle ...$`
+        # for a left-justified default render. Callers embedding the math elsewhere
+        # wrap `result.latex` themselves: `$\displaystyle {...}$` for a
+        # left-justified inline block, `$${...}$$` for a centered display block.
         working = _Working(
             symbol=sym_latex,
             symbolic=expression_latex,
@@ -673,7 +682,7 @@ def _(axial_stress_eq, fa_inputs):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
+    For convenience, it's also possible to call `sym_evalf` as a method on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
 
     - `n_display` specifies the significant figures shown in the LaTeX (defaults to 4).
     - `mode="verbose"` adds an extra line showing all values converted to SI base units.
@@ -695,7 +704,7 @@ def _(axial_stress_eq, fa_inputs):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    `mode="one_line"` collapses the equation, subtituted quantities and result onto a single line:
+    `mode="one_line"` collapses the equation, substituted quantities and result onto a single line:
     """)
     return
 
@@ -952,6 +961,7 @@ def _(
     euler_buckling_stress = _euler_buckling_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="GPa",
+        n_display=3,
         mode="one_line",
     )
     # But now, in order to chain the Euler buckling stress into the next equation,
@@ -967,6 +977,7 @@ def _(
     )
     lambda_factor = _lambda_factor_eq.sym_evalf(
         subs=symbolic_quantities,
+        n_display=3,
         mode="one_line",
     )
     symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
@@ -980,7 +991,8 @@ def _(
     axial_resistance = _axial_resistance_eq.sym_evalf(
         subs=symbolic_quantities,
         output_unit="MN",
-        mode="one_line",
+        n_display=3,
+        # mode="one_line",
     )
     symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
@@ -991,6 +1003,7 @@ def _(
     )
     dcr = _dcr_eq.sym_evalf(
         subs=symbolic_quantities,
+        n_display=3,
         mode="one_line",
     )
     symbolic_quantities[dcr.symbol] = dcr.quantity
@@ -1002,7 +1015,7 @@ def _(
             mo.hstack(
                 [
                     mo.md("Euler buckling stress"),
-                    mo.md(rf"$\displaystyle {euler_buckling_stress.latex}$"),
+                    euler_buckling_stress,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -1011,7 +1024,7 @@ def _(
             mo.hstack(
                 [
                     mo.md(r"$\lambda$ factor"),
-                    mo.md(rf"$\displaystyle {lambda_factor.latex}$"),
+                    lambda_factor,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -1020,7 +1033,7 @@ def _(
             mo.hstack(
                 [
                     mo.md("Axial resistance"),
-                    mo.md(rf"$\displaystyle {axial_resistance.latex}$"),
+                    axial_resistance,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -1029,7 +1042,7 @@ def _(
             mo.hstack(
                 [
                     mo.md("Demand capacity ratio"),
-                    mo.md(rf"$\displaystyle {dcr.latex}$"),
+                    dcr,
                 ],
                 widths=[1, 4],
                 align="center",
@@ -1782,7 +1795,7 @@ def _(Quantity):
         assert result.quantity.units == Quantity(1, "GPa").units
         assert abs(result.quantity.magnitude - 0.271) < 0.001
         assert "F_{e}" in result._repr_latex_()
-        assert "\\begin{align*}" in result._repr_latex_()
+        assert "\\begin{aligned}" in result._repr_latex_()
 
     def test_sym_evalf_method_on_expr():
         """The monkey-patched `expr.sym_evalf(...)` method works the same way."""
@@ -1801,7 +1814,7 @@ def _(Quantity):
         assert abs(result.quantity.magnitude - 0.271) < 0.001
 
     def test_sym_evalf_renders_three_step_latex():
-        """SymbolicEvaluation._repr_latex_ shows the three-step align block."""
+        """SymbolicEvaluation._repr_latex_ shows the three-step aligned block."""
         x, y = sympy.symbols("x y")
         expr = x**2 + y**2
         result = sym_evalf(
@@ -1810,8 +1823,9 @@ def _(Quantity):
             output_symbol="z",
         )
         rendered = result._repr_latex_()
-        assert "\\begin{align*}" in rendered
-        assert "$$" in rendered
+        assert "\\begin{aligned}" in rendered
+        assert rendered.startswith(r"$\displaystyle ") and rendered.endswith("$")
+        assert "$$" not in rendered
 
     def test_sym_evalf_no_output_unit():
         """Without `output_unit`, the result lands in SI base units."""

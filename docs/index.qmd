@@ -74,11 +74,11 @@ usains_speed
 
 You should now see the symbolic evaluation of Usain Bolt's world record speed on the 100-meter dash in km/h:
 
-$$\begin{align*}
+$$\begin{aligned}
 v &= \frac{d}{t} \\
 &= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
 v &= 10.4\ \frac{\mathrm{m}}{\mathrm{s}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
-\end{align*}$$
+\end{aligned}$$
 
 Head to the [Getting started](getting-started.qmd) tutorial for a live, interactive walkthrough and more advanced SymEval functionality, or read [how SymEval works](explanation.qmd) for the ideas behind SymEval.
 
