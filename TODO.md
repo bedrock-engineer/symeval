@@ -4,7 +4,7 @@
 - Consider [sciform](https://sciform.readthedocs.io) as a dev-only test oracle for the sig-fig engineering formatter: property-test `_format_quantity` against `sciform.Formatter(round_mode="sig_fig", ...)`. (The `n_display` reframe itself shipped: `decimals` replaced by `n_display` significant figures, `Decimal`-based formatter, `n >= n_display` warning, `subs` positional in both entry points, plain numbers coerced to dimensionless, `output_symbol` moved last.)
 - Re-record the example clips (`media/recorders/`: piston, hss, table) and re-render the promo video (`media/remotion/`) **before** the `n_display` release: they show the old `decimals=` API and old number formatting. Serve locally against the current source (see "API-breaking releases" in `RELEASING.md`), record, commit, then release.
 - Move the sandbox/reproducibility checks to CI: the release gate now runs in the locked project env (`pre_build`, `test`, `docs_session` all `uv run`), so nothing regularly verifies that `symeval_mo.py`'s and `getting_started.py`'s PEP 723 headers still work for a fresh `uvx marimo edit --sandbox` user. A scheduled or per-PR CI job should run the sandbox session exports.
-- Why is speed shown in m/h, rather than m/s in the pre-answer?
+- Show expected vs actual rendering visually for all (or most) tests, so a rendering that is green but ugly still gets caught by eye. Group tests by theme, each theme in its own marimo column. Never in column 0: that holds the implementation plus the curated Getting started tutorial, which is extracted into `examples/getting_started.py`, the docs and the README.
 - Build something that works well for functions, such as e.g.
     `f(x)=1.9sin((2π/2.36)x)`
 

@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.14"
+__generated_with = "0.23.15"
 app = marimo.App(width="columns")
 
 with app.setup(hide_code=True):
@@ -173,11 +173,18 @@ with app.setup(hide_code=True):
             output_quantity = output_quantity.to(output_unit)
         return output_quantity
 
-    def _strip_si_prefixes(quantity: pint.Quantity) -> pint.Quantity:
-        """Convert a quantity to its SI-prefix-free equivalent (kN -> N, MPa -> Pa, mm -> m).
+    def _to_coherent_si(quantity: pint.Quantity) -> pint.Quantity:
+        """Convert a quantity to its coherent SI equivalent (kN -> N, MPa -> Pa, mm -> m, km/h -> m/s).
 
-        `kg` is left as-is because it is itself the SI base unit for mass, even
-        though pint internally represents it as kilo*gram.
+        Two steps per unit. First drop any SI prefix, so kN becomes N and MPa
+        becomes Pa. Then, if what remains is not a coherent SI unit, expand it to
+        SI base units: hour becomes second, litre becomes m^3, gram becomes
+        kilogram. Coherence is read off the conversion factor to base units: it is
+        exactly 1 for a coherent unit (pascal -> 1 kg/(m s^2)) and something else
+        otherwise (hour -> 3600 s).
+
+        Without the second step a speed in km/h would render as m/h, a unit no one
+        uses. `kg` needs no special case here because it is already coherent.
         """
         if quantity.dimensionless:
             return quantity
@@ -193,7 +200,15 @@ with app.setup(hide_code=True):
                 base = "kilogram" if (prefix, b) == ("kilo", "gram") else b
             if base is None:
                 base = unit_name
-            target[base] = target.get(base, 0) + exponent
+            in_base = ureg.Quantity(1, base).to_base_units()
+            if abs(in_base.magnitude - 1.0) > 1e-12:
+                # Not coherent (hour, litre, gram): take its SI base expansion.
+                for base_name, base_exponent in dict(in_base.units._units).items():
+                    target[base_name] = (
+                        target.get(base_name, 0) + base_exponent * exponent
+                    )
+            else:
+                target[base] = target.get(base, 0) + exponent
         return quantity.to("*".join(f"{n}**{e}" for n, e in target.items()))
 
     def _sig_fig_decimal(value: float, n_display: int) -> Decimal:
@@ -237,32 +252,32 @@ with app.setup(hide_code=True):
         unit_latex = f"{quantity.units:~L}"
         return f"{mag_str}\\ {unit_latex}" if unit_latex else mag_str
 
-    def _si_stripped(quantity: pint.Quantity) -> "tuple[pint.Quantity, bool]":
-        """Return `(quantity in SI-prefix-free units, whether that changed the unit)`.
+    def _coherent_si(quantity: pint.Quantity) -> "tuple[pint.Quantity, bool]":
+        """Return `(quantity in coherent SI units, whether that changed the unit)`.
 
         The flag drives the engineering-notation choice: a unit that carried an SI
-        prefix (kN, mm, MPa) reads better in engineering form once stripped to its
-        base unit. Centralised here so the substituted SI line and the result-line
-        dual ask the question in one place.
+        prefix (kN, mm, MPa) or was not coherent (km/h, L) reads better in
+        engineering form once converted. Centralised here so the substituted SI
+        line and the result-line dual ask the question in one place.
         """
-        stripped = _strip_si_prefixes(quantity)
-        return stripped, stripped.units != quantity.units
+        converted = _to_coherent_si(quantity)
+        return converted, converted.units != quantity.units
 
     def _format_substituted_value(
         quantity: pint.Quantity,
         n_display: int,
         *,
-        si_stripped: bool = False,
+        si_form: bool = False,
     ) -> str:
         """Format one input value for the substituted form.
 
         Substituted inputs show one more significant figure than the result
-        (`n_display + 1`), trailing zeros trimmed. With `si_stripped` True the
-        value is shown in SI base units, in engineering notation when stripping
+        (`n_display + 1`), trailing zeros trimmed. With `si_form` True the value
+        is shown in coherent SI units, in engineering notation when the conversion
         changed the unit.
         """
-        if si_stripped:
-            shown, engineering = _si_stripped(quantity)
+        if si_form:
+            shown, engineering = _coherent_si(quantity)
         else:
             shown, engineering = quantity, False
         return _format_quantity(
@@ -277,13 +292,13 @@ with app.setup(hide_code=True):
 
         `value_latex` is the quantity at exactly `n_display` significant figures
         in its own unit, trailing zeros kept: they carry the precision claim.
-        `dual_latex` prepends a prefix-stripped engineering form (`eng = value`)
-        when the unit carries an SI prefix, otherwise it equals `value_latex`.
+        `dual_latex` prepends a coherent-SI engineering form (`eng = value`) when
+        the unit is not already coherent SI, otherwise it equals `value_latex`.
         """
         value_latex = _format_quantity(quantity, n_display, engineering=False, trim=False)
-        stripped, changed = _si_stripped(quantity)
+        converted, changed = _coherent_si(quantity)
         if changed:
-            eng = _format_quantity(stripped, n_display, engineering=True, trim=False)
+            eng = _format_quantity(converted, n_display, engineering=True, trim=False)
             return value_latex, f"{eng} = {value_latex}"
         return value_latex, value_latex
 
@@ -292,7 +307,7 @@ with app.setup(hide_code=True):
         subs: dict[sympy.Symbol, pint.Quantity],
         n_display: int,
         *,
-        si_stripped: bool = False,
+        si_form: bool = False,
     ) -> str:
         """Render the substituted form: `expr` with each input symbol replaced by its formatted value and unit.
 
@@ -304,10 +319,10 @@ with app.setup(hide_code=True):
         inside `SymEvalPH10Z`. Placeholder indices follow the canonical sort order
         of the input symbols, so sympy.Mul ordering matches the symbolic form.
 
-        With `si_stripped` True, each quantity is converted to its SI-prefix-free
-        form (kN -> N, mm -> m) and shown in engineering notation when that
-        conversion changed its unit; this is the extra line rendered in verbose
-        mode.
+        With `si_form` True, each quantity is converted to its coherent SI form
+        (kN -> N, mm -> m, km/h -> m/s) and shown in engineering notation when
+        that conversion changed its unit; this is the extra line rendered in
+        verbose mode.
 
         A value carrying a unit is wrapped in ``\\left(...\\right)`` when it sits
         under an exponent, so the power binds to the whole quantity, not the unit.
@@ -326,7 +341,7 @@ with app.setup(hide_code=True):
 
         for quantity, placeholder in zip(input_quantities, placeholder_syms):
             formatted = _format_substituted_value(
-                quantity, n_display, si_stripped=si_stripped
+                quantity, n_display, si_form=si_form
             )
             ph_latex = sympy.latex(placeholder)
             if not quantity.dimensionless:
@@ -517,7 +532,7 @@ with app.setup(hide_code=True):
         substituted_latex = _render_substituted(expr, subs, n_display)
 
         si_substituted_latex = (
-            _render_substituted(expr, subs, n_display, si_stripped=True)
+            _render_substituted(expr, subs, n_display, si_form=True)
             if wants_si
             else None
         )
@@ -1598,6 +1613,97 @@ def _(mo):
 @app.cell(column=1, hide_code=True)
 def _(mo):
     mo.md(r"""
+    # Gallery
+
+    Contains short examples that are used in several places in the docs and / or that are relevant for how things render.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Density: the three parts
+
+    The opening example of `docs/index.qmd` (rendered there as a hand-written
+    table) and of `docs/explanation.qmd`. Also the example that flushed out the
+    unit-symbol collision: `m` (mass) versus `m` (metre).
+    """)
+    return
+
+
+@app.cell
+def _(Equality, Quantity, Symbol):
+    sym_evalf(
+        Equality(Symbol(r"\rho"), Symbol("m") / Symbol("V")),
+        {Symbol("m"): Quantity(0.998, "kg"), Symbol("V"): Quantity(1, "L")},
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Usain Bolt's speed
+
+    The Quickstart snippet of `docs/index.qmd` (and so of the README). Shows a
+    non-coherent output unit: the dual on the result line converts km/h to m/s
+    rather than stripping the prefix to m/h.
+
+    ### Quickstart
+    """)
+    return
+
+
+@app.cell
+def _(Equality, Quantity, Symbol):
+    # from pint import Quantity
+    # from symeval import sym_evalf
+    # from sympy import Equality, Symbol
+
+    _usains_speed = sym_evalf(
+        Equality(Symbol("v"), Symbol("d") / Symbol("t")),
+        subs={
+            Symbol("d"): Quantity(100, "m"), 
+            Symbol("t"): Quantity(9.58, "s")
+        },
+        output_unit="km/h",     # Play around with the unit!
+        n_display=3             # Significant figures, defaults to 4
+    )
+    _usains_speed
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Promo video
+    """)
+    return
+
+
+@app.cell
+def _(Equality, Quantity, Symbol):
+    usains_speed = sym_evalf(
+        Equality(Symbol("v"), Symbol("d") / Symbol("t")),
+        subs={
+            Symbol("d"): Quantity(100, "m"), 
+            Symbol("t"): Quantity(9.58, "s")
+        },
+        output_unit="km/h"
+    )
+    return (usains_speed,)
+
+
+@app.cell
+def _(usains_speed):
+    usains_speed
+    return
+
+
+@app.cell(column=2, hide_code=True)
+def _(mo):
+    mo.md(r"""
     # `pytest` Tests
     """)
     return
@@ -2121,6 +2227,30 @@ def _(Equality, Quantity):
             assert "meter" in str(e)
         else:
             raise AssertionError("Expected ValueError for unit-name collision")
+
+    def test_dual_uses_coherent_si_units():
+        """The result dual converts non-coherent units, not just SI prefixes: km/h shows m/s, never m/h."""
+        d, t = sympy.symbols("d t")
+        result = Equality(sympy.Symbol("v"), d / t).sym_evalf(
+            {d: Quantity(100, "m"), t: Quantity(9.58, "s")},
+            "km/h",
+            n_display=3,
+        )
+        result_line = result.latex.splitlines()[-2]
+        assert r"10.4\ \frac{\mathrm{m}}{\mathrm{s}}" in result_line
+        assert r"37.6\ \frac{\mathrm{km}}{\mathrm{h}}" in result_line
+        assert r"\frac{\mathrm{m}}{\mathrm{h}}" not in result_line
+
+    def test_verbose_si_line_converts_litres():
+        """The verbose SI line expands non-coherent input units (1 L -> 0.001 m^3)."""
+        m, V = sympy.symbols("m V")
+        si_line = Equality(sympy.Symbol(r"\rho"), m / V).sym_evalf(
+            {m: Quantity(0.998, "kg"), V: Quantity(1, "L")},
+            "kg/m^3",
+            mode="verbose",
+        ).latex.splitlines()[-3]
+        assert r"0.0010000\ \mathrm{m}^{3}" in si_line
+        assert r"\mathrm{l}" not in si_line
 
     return
 
