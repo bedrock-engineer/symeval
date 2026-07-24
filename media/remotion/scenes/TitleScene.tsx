@@ -9,9 +9,9 @@ import { Latex } from "../components/Latex";
 // (Remotion's publicDir, set in remotion.config.ts).
 
 const STEPS = [
-  { n: 1, label: "Formula", tex: String.raw`\sigma = \dfrac{F}{A}` },
-  { n: 2, label: "Substituted values + units", tex: String.raw`= \dfrac{-680\ \text{kN}}{10580\ \text{mm}^2}` },
-  { n: 3, label: "Result", tex: String.raw`= -64.3\ \text{MPa}` },
+  { n: 1, label: "Formula", tex: String.raw`v = \dfrac{d}{t}` },
+  { n: 2, label: "Substituted values + units", tex: String.raw`= \dfrac{100\ \text{m}}{9.58\ \text{s}}` },
+  { n: 3, label: "Result", tex: String.raw`= 37.58\ \dfrac{\text{km}}{\text{h}}` },
 ];
 
 const Appear: React.FC<{ delay: number; children: React.ReactNode; y?: number }> = ({ delay, children, y = 40 }) => {

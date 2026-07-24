@@ -65,27 +65,25 @@ from pint import Quantity
 from symeval import sym_evalf
 from sympy import Equality, Symbol
 
-speed_eq = Equality(Symbol("v"), Symbol("d") / Symbol("t"))
-
 usains_speed = sym_evalf(
-    speed_eq,
+    Equality(Symbol("v"), Symbol("d") / Symbol("t")),
     subs={
         Symbol("d"): Quantity(100, "m"), 
         Symbol("t"): Quantity(9.58, "s")
     },
     output_unit="km/h",     # Play around with the unit!
-    decimals=1              # Defaults to 3
+    n_display=3             # Significant figures, defaults to 4
 )
 usains_speed
 ```
 
 You should now see the symbolic evaluation of Usain Bolt's world record speed on the 100-meter dash in km/h:
 
-$$\begin{align*}
+$$\begin{aligned}
 v &= \frac{d}{t} \\
 &= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
-v &= 3.8\times 10^{4}\ \frac{\mathrm{m}}{\mathrm{h}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
-\end{align*}$$
+v &= 10.4\ \frac{\mathrm{m}}{\mathrm{s}} = 37.6\ \frac{\mathrm{km}}{\mathrm{h}}
+\end{aligned}$$
 
 # More advanced SymEval functionality
 
@@ -136,43 +134,43 @@ axial_stress
 ```
 
 $$
-\begin{align*}
+\begin{aligned}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-\sigma &= -6.427\times 10^{7}\ \mathrm{Pa} = -64.272\ \mathrm{MPa}
-\end{align*}
+\sigma &= -64.27\times 10^{6}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
+\end{aligned}
 $$
 
-For convenience, it's also possible to call `sym_evalf` as a metod on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
+For convenience, it's also possible to call `sym_evalf` as a method on a `sympy.Equality`. Moreover, there are a few keyword arguments (kwargs) to help you nicely format the LaTeX:
 
-- `decimals` specifies the number of decimals used in LaTeX.
+- `n_display` specifies the significant figures shown in the LaTeX (defaults to 4).
 - `mode="verbose"` adds an extra line showing all values converted to SI base units.
 
 ```python
 axial_stress_eq.sym_evalf(
     subs=fa_inputs,
     output_unit="MPa",
-    decimals=5,
+    n_display=6,
     mode="verbose",
 )
 ```
 
 $$
-\begin{align*}
+\begin{aligned}
 \sigma &= \frac{F}{A} \\
 &= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-&= \frac{\,-6.800000\times 10^{5}\ \mathrm{N}}{\,1.058000\times 10^{-2}\ \mathrm{m}^{2}} \\
-\sigma &= -6.42722\times 10^{7}\ \mathrm{Pa} = -64.27221\ \mathrm{MPa}
-\end{align*}
+&= \frac{\,-680000.0\ \mathrm{N}}{\,0.01058000\ \mathrm{m}^{2}} \\
+\sigma &= -64.2722\times 10^{6}\ \mathrm{Pa} = -64.2722\ \mathrm{MPa}
+\end{aligned}
 $$
 
-`mode="one_line"` collapses the equation, subtituted quantities and result onto a single line:
+`mode="one_line"` collapses the equation, substituted quantities and result onto a single line:
 
 ```python
 axial_stress_eq.sym_evalf(
     subs=fa_inputs,
     output_unit="MPa",
-    decimals=1,
+    n_display=3,
     mode="one_line",
 )
 ```
@@ -247,7 +245,6 @@ axial_stress_eq.sym_evalf(
         Symbol("A"): Quantity(_sel_row["A_mm2"][0], "mm^2"),
     },
     output_unit="MPa",
-    decimals=1,
 )
 ```
 
@@ -410,7 +407,7 @@ _euler_buckling_eq = Equality(
 euler_buckling_stress = _euler_buckling_eq.sym_evalf(
     subs=symbolic_quantities,
     output_unit="GPa",
-    decimals=3,
+    n_display=3,
     mode="one_line",
 )
 # But now, in order to chain the Euler buckling stress into the next equation,
@@ -426,7 +423,7 @@ _lambda_factor_eq = Equality(
 )
 lambda_factor = _lambda_factor_eq.sym_evalf(
     subs=symbolic_quantities,
-    decimals=3,
+    n_display=3,
     mode="one_line",
 )
 symbolic_quantities[lambda_factor.symbol] = lambda_factor.quantity
@@ -440,8 +437,8 @@ _axial_resistance_eq = Equality(
 axial_resistance = _axial_resistance_eq.sym_evalf(
     subs=symbolic_quantities,
     output_unit="MN",
-    decimals=3,
-    mode="one_line",
+    n_display=3,
+    # mode="one_line",
 )
 symbolic_quantities[axial_resistance.symbol] = axial_resistance.quantity
 
@@ -452,7 +449,7 @@ _dcr_eq = Equality(
 )
 dcr = _dcr_eq.sym_evalf(
     subs=symbolic_quantities,
-    decimals=3,
+    n_display=3,
     mode="one_line",
 )
 symbolic_quantities[dcr.symbol] = dcr.quantity
@@ -464,36 +461,36 @@ mo.vstack(
         mo.hstack(
             [
                 mo.md("Euler buckling stress"),
-                mo.md(rf"$\displaystyle {euler_buckling_stress.latex}$"),
+                euler_buckling_stress,
             ],
-            widths=[1, 4],
+            widths=[2, 7],
             align="center",
             gap=2,
         ),
         mo.hstack(
             [
                 mo.md(r"$\lambda$ factor"),
-                mo.md(rf"$\displaystyle {lambda_factor.latex}$"),
+                lambda_factor,
             ],
-            widths=[1, 4],
+            widths=[2, 7],
             align="center",
             gap=2,
         ),
         mo.hstack(
             [
                 mo.md("Axial resistance"),
-                mo.md(rf"$\displaystyle {axial_resistance.latex}$"),
+                axial_resistance,
             ],
-            widths=[1, 4],
+            widths=[2, 7],
             align="center",
             gap=2,
         ),
         mo.hstack(
             [
                 mo.md("Demand capacity ratio"),
-                mo.md(rf"$\displaystyle {dcr.latex}$"),
+                dcr,
             ],
-            widths=[1, 4],
+            widths=[2, 7],
             align="center",
             gap=2,
         ),
@@ -647,7 +644,6 @@ _knowns[R_sym] = Quantity(1, "molar_gas_constant").to("J/(mol*K)")
 igl_sym_eval = ideal_gas_law.sym_evalf(
     subs=_knowns,
     output_unit=_solve_for_unit,
-    decimals=2,
 )
 
 # Knowns plus the solved unknown: the full set the piston widget renders.
@@ -718,7 +714,15 @@ _piston_html = f"""<!doctype html>
 _piston_iframe = mo.iframe(_piston_html, width="290px", height="380px")
 
 mo.hstack(
-    [_piston_iframe, mo.vstack([ideal_gas_law, igl_sym_eval])],
+    [
+        _piston_iframe,
+        mo.vstack(
+            [
+                mo.md(rf"$\displaystyle {sympy.latex(ideal_gas_law)}$"),
+                igl_sym_eval,
+            ]
+        ),
+    ],
     align="center",
     gap=2,
 )

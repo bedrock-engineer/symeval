@@ -1,4 +1,4 @@
-// Scene 2 — the axial-stress snippet types in line by line, then its rendered
+// Scene 2 — the Usain's-speed snippet types in line by line, then its rendered
 // symbolic evaluation slides in beside it.
 
 import React from "react";
@@ -7,19 +7,19 @@ import { CARD, COLORS, FONTS } from "../theme";
 import { Code } from "../components/Code";
 import { Latex } from "../components/Latex";
 
-const SNIPPET = String.raw`axial_stress = sym_evalf(
-    Equality(Symbol(r"\sigma"), Symbol("F") / Symbol("A")),
+const SNIPPET = String.raw`usains_speed = sym_evalf(
+    Equality(Symbol("v"), Symbol("d") / Symbol("t")),
     subs={
-        Symbol("F"): Quantity(-680, "kN"),
-        Symbol("A"): Quantity(10_580, "mm^2"),
+        Symbol("d"): Quantity(100, "m"),
+        Symbol("t"): Quantity(9.58, "s"),
     },
-    output_unit="MPa",
+    output_unit="km/h",
 )`;
 
 const RESULT = String.raw`\begin{aligned}
-\sigma &= \frac{F}{A} \\[6pt]
-&= \frac{-680\ \text{kN}}{10580\ \text{mm}^2} \\[6pt]
-\sigma &= -64.3\ \text{MPa}
+v &= \frac{d}{t} \\[6pt]
+&= \frac{100\ \text{m}}{9.58\ \text{s}} \\[6pt]
+v &= 10.44\ \frac{\text{m}}{\text{s}} = 37.58\ \frac{\text{km}}{\text{h}}
 \end{aligned}`;
 
 const LINES = SNIPPET.split("\n").length;

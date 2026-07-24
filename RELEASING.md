@@ -30,6 +30,32 @@ That's it. Two commands.
 
 Taskipy runs a `pre_<name>` hook before its tasks. That's how `pre_release` (build, test, and regenerate `README.md`) is automatically run before `release`.
 
+### Before releasing (optional but recommended)
+
+Refresh the locked dependencies and test against them, so each release is
+verified against current versions while the release gate itself stays
+deterministic (`pre_build`, `test`, and `docs_session` all run in the locked
+project env):
+
+```bash
+uv run task upgrade         # uv sync --upgrade --all-groups
+uv run task test
+git commit -m "Upgrade locked dependencies" uv.lock
+```
+
+Do this before `task release`, not during: `release` requires a clean working
+tree, and committing the lock records exactly which versions were tested.
+
+### API-breaking releases: re-record the clips first
+
+The example clips (`docs/public/*.{gif,mp4,webp}`, recorded by `media/`) show
+live SymEval output, and the promo video embeds them. When the release changes
+the API or the rendering, re-record them *before* releasing, against the local
+package, so the release deploys prose, outputs, and clips atomically.
+
+See [media/README.md](./media/README.md) for guidance on how to record the clip and render the promo video.
+
+
 ## What each command does
 
 ### `task release <version>`

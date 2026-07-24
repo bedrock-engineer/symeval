@@ -30,11 +30,29 @@ written out to be checked:
 3. **Result.** The evaluated quantity, converted to the output unit you asked
    for.
 
-$$\begin{align*}
-\sigma &= \frac{F}{A} \\
-&= \frac{\,-680\ \mathrm{kN}}{\,10580\ \mathrm{mm}^{2}} \\
-\sigma &= -6.43\times 10^{7}\ \mathrm{Pa} = -64.27\ \mathrm{MPa}
-\end{align*}$$
+<details>
+<summary>Show code</summary>
+
+```python
+from pint import Quantity
+from symeval import sym_evalf
+from sympy import Equality, Symbol
+
+usains_speed = sym_evalf(
+    Equality(Symbol("v"), Symbol("d") / Symbol("t")),
+    subs={Symbol("d"): Quantity(100, "m"), Symbol("t"): Quantity(9.58, "s")},
+    output_unit="km/h",
+)
+usains_speed
+```
+
+</details>
+
+$$\begin{aligned}
+v &= \frac{d}{t} \\
+&= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
+v &= 10.44\ \frac{\mathrm{m}}{\mathrm{s}} = 37.58\ \frac{\mathrm{km}}{\mathrm{h}}
+\end{aligned}$$
 
 Showing every step, rather than only the answer, is what lets a reviewer follow
 the reasoning: the formula is stated, the inputs are visible with their units,
@@ -76,15 +94,69 @@ functionality on top of it, and their names say what each one adds:
 
 The alignment carries through the API. Just as `evalf` is a method on every
 SymPy expression, importing SymEval attaches both entry points to `sympy.Expr`,
-so `expr.sym_evalf(...)` reads exactly like the `expr.evalf(...)` it extends;
-both are also plain functions (`from symeval import sym_evalf`). The `subs`
-argument has the same shape as `evalf`'s `subs`, with quantities as values, and
-every other `evalf` keyword (`n`, `maxn`, `chop`, `strict`, ...) is forwarded
-verbatim. One distinction worth knowing: `n` is numeric precision (significant
-digits used in the evaluation), while `sym_evalf`'s `decimals` is presentation
-(decimal places shown in the rendering) and never changes the computed
-quantity. The full parameter tables live in the
-[API reference](reference.qmd).
+so `expr.sym_evalf(...)` reads exactly like the `expr.evalf(...)` it extends.
+
+Both are also plain functions (`from symeval import sym_evalf`), and the `subs`
+argument has the same shape as `evalf`'s `subs`, with quantities as values.
+Every other `evalf` kwarg (`n`, `maxn`, `chop`, `strict`, ...) is forwarded
+verbatim.
+
+One distinction worth knowing: `n` is numeric precision (significant
+digits used in the evaluation, 15 by default), while `sym_evalf`'s `n_display`
+is presentation (significant figures shown in the rendering, 4 by default) and
+never changes the computed quantity. Because both count significant figures,
+the sanity check is direct: when `n < n_display`, SymEval warns that the extra
+displayed digits are meaningless. Head to the [API reference](reference.qmd)
+for full parameter tables.
+
+## Rendering a `SymbolicEvaluation`
+
+A `SymbolicEvaluation` is both a rendering and a value; it exposes each
+separately, so you always get the one you meant.
+
+**`_repr_latex_` — the automatic display.** Returning the object as a cell's
+value triggers it, and marimo or Jupyter render the result. It returns the
+evaluation wrapped as inline `$\displaystyle …$`: inline math renders
+**left-justified**, and `\displaystyle` keeps it full size.
+
+```python
+usains_speed    # left-justified
+```
+
+$\displaystyle \begin{aligned}
+v &= \frac{d}{t} \\
+&= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
+v &= 10.44\ \frac{\mathrm{m}}{\mathrm{s}} = 37.58\ \frac{\mathrm{km}}{\mathrm{h}}
+\end{aligned}$
+
+**`.latex` — the rendering as a string.** The same body, but **bare**: no `$`
+delimiters and no `\displaystyle`, so it carries no justification of its own. You
+choose when you wrap it — `$\displaystyle …$` reproduces the left-justified
+display above, `$$…$$` centers it.
+
+```python
+mo.md(rf"$${usains_speed.latex}$$")    # centered
+```
+
+$$\begin{aligned}
+v &= \frac{d}{t} \\
+&= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
+v &= 10.44\ \frac{\mathrm{m}}{\mathrm{s}} = 37.58\ \frac{\mathrm{km}}{\mathrm{h}}
+\end{aligned}$$
+
+**`.quantity` and `str()` — the value.** The plain `pint.Quantity` in your output
+unit, for arithmetic, chaining, or a DataFrame column. It carries full precision:
+`n_display` rounds the display, not the value.
+
+```python
+usains_speed.quantity   # <Quantity(37.5782881, 'kilometer / hour')>
+str(usains_speed)       # '37.578288100208766 kilometer / hour'
+```
+
+The split is deliberate: `_repr_latex_` and `.latex` are the *rendering* (an
+automatic display, or a string you compose), while `.quantity` (and `str`) is the
+*value*. So `f"{usains_speed}"` gives you the quantity, not the math — reach for
+`.latex` when you mean the rendering.
 
 ## Chaining one evaluation into the next
 
@@ -123,5 +195,4 @@ falls back to Pint's application registry.
 **No rendering runtime.** SymEval renders through `_repr_latex_`, the standard
 hook [marimo](https://docs.marimo.io) and Jupyter already look for. There is no
 marimo dependency and no cell magic: the same `SymbolicEvaluation` object
-displays anywhere the LaTeX representation is understood, and in plain Python
-it still holds the computed quantity and the rendered LaTeX as attributes.
+displays anywhere the LaTeX representation is understood.

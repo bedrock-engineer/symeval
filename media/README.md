@@ -18,11 +18,19 @@ npx playwright install chromium   # first time only (recorders)
 
 ## Example clips (`recorders/`)
 
-1. Serve the tutorial notebook as a live marimo app (its PEP 723 header pulls
-   `symeval` from PyPI):
+1. Serve the tutorial notebook as a live marimo app. To record **unreleased**
+   changes (the usual case: re-record before an API-changing release, see
+   `RELEASING.md`), serve from the project env, which has the local `symeval`:
 
    ```sh
-   uvx marimo run --sandbox ../examples/getting_started.py --headless -p 2821 --no-token
+   uv run marimo run --no-sandbox ../examples/getting_started.py --headless -p 2821 --no-token --watch
+   ```
+
+   To record the published version instead, the sandbox serve pulls `symeval`
+   from PyPI (its PEP 723 header):
+
+   ```sh
+   uvx marimo run --sandbox ../examples/getting_started.py --headless -p 2821 --no-token --watch
    ```
 
 2. Record — each writes `../docs/public/<name>.{gif,mp4,webp}`:

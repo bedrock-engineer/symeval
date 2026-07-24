@@ -22,6 +22,39 @@ its command body, at any time:
 uv run task -l
 ```
 
+### Task environments
+
+The task bodies are terse on purpose; the reasoning lives here.
+
+- **Most tasks run in the locked project env** (`uv run`, versions from
+  `uv.lock`): deterministic, offline, and reproducible. The `uv_build`
+  build-system makes `uv sync` install `symeval` itself in editable mode, so
+  any task can import the current source without tricks.
+- **`pre_build`** executes the whole notebook (`marimo export session`) as an
+  end-to-end smoke test before `build` extracts the package with mobuild — a
+  stronger guard than a static `marimo check`, which never runs a cell.
+  Taskipy runs it automatically before `build`.
+- **`docs_session`** snapshots the executed `getting_started.py` so its
+  computed outputs (LaTeX) are available to the README generator (the `.qmd`
+  export omits them). It runs `--no-sandbox` deliberately: the notebook's
+  sandbox would install `symeval` from PyPI, which breaks the docs pipeline
+  for any release that changes the API. The `--sandbox` header stays in the
+  notebook for users and molab; the docs must document the current source.
+- **`upgrade`** is the deliberate freshness step: it re-resolves the lock to
+  current versions. Run it before a release, test, and commit `uv.lock` (see
+  `RELEASING.md`), so the release gate stays deterministic while each release
+  is tested against current dependencies.
+- **`build`** runs mobuild via `uvx` — it's an external tool, not a project
+  dependency.
+- **`docs_readme`** is deliberately **not** part of `docs_build` (which CI
+  runs); run it locally after changing the docs, then commit `README.md`.
+- **`release`** wraps its body in `bash -c '…' --` so taskipy's appended
+  arguments land at `$1`. Requires `bash` on PATH — present wherever git is
+  (Git for Windows ships Git Bash).
+- Nothing local exercises the notebooks' PEP 723 sandbox headers anymore
+  (`uvx marimo edit --sandbox` for fresh contributors); that check is planned
+  for CI (see `TODO.md`).
+
 ## The source of truth
 
 Almost everything lives in **`symeval_mo.py`**, a single marimo notebook laid out
