@@ -12,7 +12,7 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 | 2\. Formula with substituted quantities (value + unit) | $\rho = \dfrac{0.998\ \mathrm{kg}}{1\ \mathrm{L}}$ |
 | 3\. Result (density of water) | $\rho = 998\ \dfrac{\mathrm{kg}}{\mathrm{m}^3}$ |
 
-SymEval integrates seamlessly with [marimo](https://docs.marimo.io "marimo docs") and [Quarto](https://quarto.org "Quarto docs"), such that you can make [explorable explanations ](https://worrydream.com/ExplorableExplanations "Explorable explanations by Bret Victor")in Python notebooks or websites, and automate calculation report generation.
+SymEval integrates seamlessly with [marimo](https://docs.marimo.io "marimo docs") and [Quarto](https://quarto.org "Quarto docs"), such that you can make [explorable explanations ](https://worrydream.com/ExplorableExplanations "Explorable explanations by Bret Victor") in Python notebooks or websites, and automate calculation report generation.
 
 [Get started](getting-started.qmd){.btn .btn-primary} [GitHub](https://github.com/bedrock-engineer/symeval){.btn .btn-outline-secondary} [PyPI](https://pypi.org/project/symeval/){.btn .btn-outline-secondary}
 
