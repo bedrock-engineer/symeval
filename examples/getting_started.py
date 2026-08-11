@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.23.16"
 app = marimo.App()
 
 @app.cell(hide_code=True)
@@ -599,7 +599,7 @@ def _(
     mo,
     n_input,
     n_sym,
-    piston_js,
+    piston_js_editor,
     solve_for_radio,
 ):
     # Which variable are we solving for? Everything else is a known input.
@@ -671,7 +671,7 @@ def _(
     # so they survive. See research/issues/marimo--iframe-strips-newlines.md.
     import re as _re
 
-    _piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js)
+    _piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js_editor.value)
 
     _piston_html = f"""<!doctype html>
     <html>
@@ -706,8 +706,8 @@ def _(
 
 @app.cell(hide_code=True)
 def _():
-    piston_js = r"""
-    // piston_js
+    # this is just the initial value; does not update when the editor text changes
+    initial_piston_js_str = r"""// piston_js
     // Canvas and cylinder dimensions
     const c = document.getElementById("piston-canvas");
     const ctx2d = c.getContext("2d");
@@ -869,180 +869,21 @@ def _():
     requestAnimationFrame(draw);
     // piston_js
     """
-    return (piston_js,)
+    return (initial_piston_js_str,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    1. Edit the JavaScript code of the piston here with syntax highlighting.
-    2. Copy the JS code into the string in the `piston_js` variable in the Python cell above.
-
-    ```js
-    // piston_js
-    // Canvas and cylinder dimensions
-    const c = document.getElementById("piston-canvas");
-    const ctx2d = c.getContext("2d");
-    const W = c.width;
-    const H = c.height;
-    const CYL_X = 70;
-    const CYL_W = 130;
-    const TOP_MARGIN = 110;
-    const BOTTOM_MARGIN = 20;
-    const CYL_BOTTOM = H - BOTTOM_MARGIN;
-
-    // Calculate normalized (0 - 1) volume, pressure, temperature & No. particles
-    const v01 = Math.max(0, Math.min(1, (V - V_MIN) / (V_MAX - V_MIN)));
-    const p01 = Math.max(0, Math.min(1, (P - P_MIN) / (P_MAX - P_MIN)));
-    const t01 = Math.max(0, Math.min(1, (T - T_MIN) / (T_MAX - T_MIN)));
-    const n01 = Math.max(0, Math.min(1, (n - N_MIN) / (N_MAX - N_MIN)));
-
-    // V -> gas column height
-    // V at V_MIN gives GAS_MIN, V at V_MAX gives GAS_MAX
-    // gasHeight & pistonY scale linearly across the V-slider range
-    const GAS_MIN = 10;
-    const GAS_MAX = H - TOP_MARGIN - BOTTOM_MARGIN;
-    const gasHeight = GAS_MIN + v01 * (GAS_MAX - GAS_MIN);
-    const pistonY = CYL_BOTTOM - gasHeight;
-
-    // P -> trapezoidal weight block size
-    // Until the middle of the P-range, the weight grows in all directions
-    // as P increases. At higher P's the weight only scales vertically.
-    const WEIGHT_W_MIN = 40;
-    const WEIGHT_W_MAX = CYL_W - 6;
-    const WEIGHT_H_MIN = 18;
-    const WEIGHT_H_MID = 45;
-    const WEIGHT_H_MAX = 90;
-    const PHASE_SPLIT = 0.5;
-    let weightWBottom, weightH;
-    if (p01 <= PHASE_SPLIT) {
-      const k = p01 / PHASE_SPLIT;
-      weightWBottom = WEIGHT_W_MIN + k * (WEIGHT_W_MAX - WEIGHT_W_MIN);
-      weightH = WEIGHT_H_MIN + k * (WEIGHT_H_MID - WEIGHT_H_MIN);
-    } else {
-      const k = (p01 - PHASE_SPLIT) / (1 - PHASE_SPLIT);
-      weightWBottom = WEIGHT_W_MAX;
-      weightH = WEIGHT_H_MID + k * (WEIGHT_H_MAX - WEIGHT_H_MID);
-    }
-    const weightWTop = weightWBottom * 0.55;
-
-    // T -> particle speed + warm/cool tint
-    const speed = Math.sqrt(T) * 0.11;
-    const tintR = Math.round(80 + t01 * (240 - 80));
-    const tintG = Math.round(140 - t01 * 80);
-    const tintB = Math.round(240 - t01 * 200);
-    const tint = `rgb(${tintR},${tintG},${tintB})`;
-
-    // n -> particle count
-    const N_PARTICLES_MIN = 4;
-    const N_PARTICLES_MAX = 250;
-    const nParticles = Math.max(
-      N_PARTICLES_MIN,
-      Math.min(N_PARTICLES_MAX, Math.round(n01 * N_PARTICLES_MAX)),
-    );
-
-    const particles = [];
-    for (let i = 0; i < nParticles; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      particles.push({
-        x: CYL_X + 4 + Math.random() * (CYL_W - 8),
-        y: pistonY + 4 + Math.random() * (gasHeight - 8),
-        vx: Math.cos(ang),
-        vy: Math.sin(ang),
-      });
-    }
-
-    function draw() {
-      ctx2d.clearRect(0, 0, W, H);
-
-      ctx2d.strokeStyle = "#888";
-      ctx2d.lineWidth = 2;
-      ctx2d.beginPath();
-      ctx2d.moveTo(CYL_X, TOP_MARGIN);
-      ctx2d.lineTo(CYL_X, CYL_BOTTOM);
-      ctx2d.lineTo(CYL_X + CYL_W, CYL_BOTTOM);
-      ctx2d.lineTo(CYL_X + CYL_W, TOP_MARGIN);
-      ctx2d.stroke();
-
-      const cx = CYL_X + CYL_W / 2;
-      const wBL = cx - weightWBottom / 2;
-      const wBR = cx + weightWBottom / 2;
-      const wTL = cx - weightWTop / 2;
-      const wTR = cx + weightWTop / 2;
-      const wBY = pistonY - 4;
-      const wTY = wBY - weightH;
-      ctx2d.fillStyle = "#5a5a5a";
-      ctx2d.strokeStyle = "#333";
-      ctx2d.lineWidth = 1.5;
-      ctx2d.beginPath();
-      ctx2d.moveTo(wBL, wBY);
-      ctx2d.lineTo(wBR, wBY);
-      ctx2d.lineTo(wTR, wTY);
-      ctx2d.lineTo(wTL, wTY);
-      ctx2d.closePath();
-      ctx2d.fill();
-      ctx2d.stroke();
-
-      // Ring handle: outer radius AND thickness both scale with P. Inner hole
-      // is always smaller than the ring thickness, so the ring reads as a
-      // chunky rim at all sizes.
-      const ringOuterR = 5 + p01 * 6; // 5 -> 11 px
-      const ringThickness = 2.5 + p01 * 3; // 2.5 -> 5.5 px
-      const ringInnerR = Math.max(1, ringOuterR - ringThickness);
-      const ringCenterY = wTY - ringOuterR + 2;
-      ctx2d.fillStyle = "#333";
-      ctx2d.beginPath();
-      ctx2d.arc(cx, ringCenterY, ringOuterR, 0, Math.PI * 2);
-      ctx2d.arc(cx, ringCenterY, ringInnerR, 0, Math.PI * 2, true);
-      ctx2d.closePath();
-      ctx2d.fill();
-
-      ctx2d.fillStyle = "#fff";
-      const fontSize = Math.min(18, weightH * 0.55);
-      ctx2d.font = fontSize + "px sans-serif";
-      ctx2d.textAlign = "center";
-      ctx2d.textBaseline = "middle";
-      ctx2d.fillText("kg", cx, (wBY + wTY) / 2);
-
-      ctx2d.fillStyle = "#aaa";
-      ctx2d.strokeStyle = "#333";
-      ctx2d.lineWidth = 1;
-      ctx2d.fillRect(CYL_X, pistonY - 4, CYL_W, 8);
-      ctx2d.strokeRect(CYL_X, pistonY - 4, CYL_W, 8);
-
-      ctx2d.fillStyle = tint;
-      for (const p of particles) {
-        const mag = Math.hypot(p.vx, p.vy) || 1;
-        const sx = (p.vx / mag) * speed;
-        const sy = (p.vy / mag) * speed;
-        p.x += sx;
-        p.y += sy;
-        if (p.x < CYL_X + 3) {
-          p.x = CYL_X + 3;
-          p.vx = Math.abs(p.vx);
-        } else if (p.x > CYL_X + CYL_W - 3) {
-          p.x = CYL_X + CYL_W - 3;
-          p.vx = -Math.abs(p.vx);
-        }
-        if (p.y < pistonY + 5) {
-          p.y = pistonY + 5;
-          p.vy = Math.abs(p.vy);
-        } else if (p.y > CYL_BOTTOM - 3) {
-          p.y = CYL_BOTTOM - 3;
-          p.vy = -Math.abs(p.vy);
-        }
-        ctx2d.beginPath();
-        ctx2d.arc(p.x, p.y, 2.4, 0, Math.PI * 2);
-        ctx2d.fill();
-      }
-
-      requestAnimationFrame(draw);
-    }
-    requestAnimationFrame(draw);
-    // piston_js
-    ```
-    """)
-    return
+@app.cell
+def _(initial_piston_js_str, mo):
+    # JavaScript Code Editor
+    piston_js_editor = mo.ui.code_editor(
+        value=initial_piston_js_str,
+        language="javascript",
+        max_height=550,
+        debounce=300, # without this the piston tries to update immediately,
+        label="Piston JavaScript"
+    )
+    piston_js_editor
+    return (piston_js_editor,)
 
 
 if __name__ == "__main__":

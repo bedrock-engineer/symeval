@@ -967,7 +967,7 @@ _oob_html = (
 # so they survive. See research/issues/marimo--iframe-strips-newlines.md.
 import re as _re
 
-_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js)
+_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js_editor.value)
 
 _piston_html = f"""<!doctype html>
 <html>
@@ -1071,7 +1071,7 @@ _oob_html = (
 # so they survive. See research/issues/marimo--iframe-strips-newlines.md.
 import re as _re
 
-_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js)
+_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js_editor.value)
 
 _piston_html = f"""<!doctype html>
 <html>
@@ -1107,8 +1107,8 @@ mo.hstack(
 <summary>Show code</summary>
 
 ```python
-piston_js = r"""
-// piston_js
+# this is just the initial value; does not update when the editor text changes
+initial_piston_js_str = r"""// piston_js
 // Canvas and cylinder dimensions
 const c = document.getElementById("piston-canvas");
 const ctx2d = c.getContext("2d");
@@ -1275,8 +1275,8 @@ requestAnimationFrame(draw);
 </details>
 
 ```{python .marimo}
-piston_js = r"""
-// piston_js
+# this is just the initial value; does not update when the editor text changes
+initial_piston_js_str = r"""// piston_js
 // Canvas and cylinder dimensions
 const c = document.getElementById("piston-canvas");
 const ctx2d = c.getContext("2d");
@@ -1438,6 +1438,30 @@ function draw() {
 requestAnimationFrame(draw);
 // piston_js
 """
+```
+
+```python
+# JavaScript Code Editor
+piston_js_editor = mo.ui.code_editor(
+    value=initial_piston_js_str,
+    language="javascript",
+    max_height=550,
+    debounce=300, # without this the piston tries to update immediately,
+    label="Piston JavaScript"
+)
+piston_js_editor
+```
+
+```{python .marimo}
+# JavaScript Code Editor
+piston_js_editor = mo.ui.code_editor(
+    value=initial_piston_js_str,
+    language="javascript",
+    max_height=550,
+    debounce=300, # without this the piston tries to update immediately,
+    label="Piston JavaScript"
+)
+piston_js_editor
 ```
 
 <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
