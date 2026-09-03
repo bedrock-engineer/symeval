@@ -31,7 +31,22 @@ Any islands page with a cell whose output is `mo.iframe(...)`. Live example
 (the piston animation): https://bedrock-engineer.github.io/symeval/getting-started.html
 (open the console and reload).
 
+## Where it lives
+
+The `onload` is hardcoded in `mo.iframe`'s serialization
+(`marimo/_output/formatting.py`, the `h.iframe(..., onload="__resizeIframe(this)")`
+call). The helper is only defined in the app shell, as an inline
+`<script data-marimo="true">` in `marimo/_static/index.html`; nothing in the
+islands runtime (`@marimo-team/islands`) defines it.
+
 ## Expected
 
 The islands runtime defines the same `__resizeIframe` helper the app provides
 (or the serialized output omits the `onload` when the helper is absent).
+
+## Workaround
+
+Copy the helper from `_static/index.html` into the site's own
+`include-in-header`, guarded with `window.__resizeIframe ??= ...` so an
+upstream definition wins once it exists. This silences the error and restores
+iframe auto-resizing on islands pages.

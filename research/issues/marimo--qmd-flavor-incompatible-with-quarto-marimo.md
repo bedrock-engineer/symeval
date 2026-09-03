@@ -1,90 +1,63 @@
 # Issue draft → `marimo-team/marimo`
 
-**Title:** `marimo export md --flavor qmd` output is not rendered by the current `quarto-marimo` extension (frontmatter key + code-fence form mismatch)
+**Title:** `marimo export md --flavor qmd` output does not render under
+quarto-marimo: `header:` vs `pyproject:` frontmatter, and no `engine: marimo`
+line
 
 ---
 
 ## Summary
 
-`marimo export md --flavor qmd` produces a `.qmd` that the current
-[`quarto-marimo`](https://github.com/marimo-team/quarto-marimo) engine extension
-(0.4.5) does **not** render as interactive islands. Two things are emitted in a
-form the extension no longer consumes:
+`marimo export md --flavor qmd` produces a `.qmd` that the quarto-marimo
+engine extension does not render as interactive islands, and `quarto render`
+exits 0 with no warning: the page simply has zero islands and the frontmatter
+dumped into the body as text.
 
-1. **Frontmatter key.** The exporter writes `header:`; the extension reads
-   `pyproject:` (see `command.py` / `extract.py` in quarto-marimo, which lift
-   `pyproject` into the PEP 723 script metadata).
-2. **Code fence.** The exporter writes ```` ```{marimo .python} ```` (Quarto engine
-   `marimo`, class `.python`); the extension auto-detects
-   ```` ```{python .marimo} ```` (engine `python`, class `.marimo`). The language
-   token and the class are effectively **swapped**.
+As of quarto-marimo `0.5.0` the fence form is **no longer part of the
+problem**: the exporter's native ```` ```{marimo .python} ```` fences render
+fine (verified, including the `hide_code="true"` attribute form). Two
+mismatches remain:
 
-Net effect: the exported notebook renders with **zero** marimo islands — the
-cells fall through to Quarto's Jupyter engine and are not hydrated.
+1. **Frontmatter key.** The exporter writes the PEP 723 block under
+   `header:`; the extension only reads `pyproject:`
+   (`python/quarto_marimo/document.py`). Verified: a dependency declared under
+   `header:` is not installed in the render sandbox and its import fails in
+   the rendered output, while the same block under `pyproject:` works.
+2. **No `engine: marimo`.** quarto-marimo `0.5.0` removed the
+   `marimo-deprecated.lua` filter that claimed files by scanning for fences,
+   so a page is only routed to the marimo engine when its frontmatter says
+   `engine: marimo`. The exporter does not emit that line, so the raw export
+   renders as literal text.
 
 ## Environment
 
-- marimo `0.23.14`
-- quarto-marimo extension `0.4.5`
-- Quarto `1.9.38` (installed via the `quarto-cli` PyPI wheel)
+- marimo `0.24.0`
+- quarto-marimo extension `0.5.0` (on `0.4.5` the fence form was a third
+  mismatch; fixed since)
+- Quarto `1.10.18` (installed via the `quarto-cli` PyPI wheel)
 - Linux (WSL2)
 
 ## Reproduction
 
 ```sh
 uvx marimo export md --flavor qmd notebook.py -o out.qmd
+quarto render out.qmd   # extension installed via quarto add marimo-team/quarto-marimo
 ```
 
-`out.qmd` frontmatter and cells look like:
+**Actual:** exit 0; no islands; `header:` block visible as body text.
 
-```yaml
----
-title: ...
-marimo-version: 0.23.14
-header: |-
-  # /// script
-  # dependencies = ["marimo", ...]
-  # ///
----
-```
+**Expected:** interactive marimo islands, or at minimum a warning that the
+page was not claimed by the marimo engine.
 
-```` ```{marimo .python} ````
-
-Then, in a Quarto project with the extension installed
-(`quarto add marimo-team/quarto-marimo`):
-
-```sh
-quarto render out.qmd
-```
-
-**Actual:** no `marimo-island` elements in the output HTML; cells are not
-interactive.
-
-**Expected:** interactive marimo islands.
-
-## Evidence
-
-Rendering three minimal fence forms with the 0.4.5 extension (one trivial
-`import marimo as mo; mo.md("hi")` cell each):
-
-| Fence | Source | `marimo-island` markers |
-| --- | --- | --- |
-| ```` ```{marimo .python} ```` | `marimo export --flavor qmd` | **0** |
-| ```` ```{python .marimo} ```` | quarto-marimo's documented form | 3 |
-| ```` ```python {.marimo} ```` | (display block + `.marimo` attr) | 3 |
-
-The extension's own `marimo-deprecated.lua` confirms the intended form:
-
-> "The marimo engine extension now auto-detects `{python .marimo}` code blocks."
-
-A side-by-side of the raw export vs. a hand-corrected version is attached
-(`getting-started_export.qmd` vs `getting-started_corrected-export.qmd`): the
-only differences are `header:` → `pyproject:` and `{marimo .python}` →
-`{python .marimo}`.
+Renaming `header:` to `pyproject:` and adding `engine: marimo` to the
+frontmatter is the complete fix on `0.5.0`: with only those two edits the
+export renders with all islands (verified on a 16-cell notebook).
 
 ## Suggested fix
 
-Have the `qmd` flavor emit output the current `quarto-marimo` engine consumes:
-`pyproject:` frontmatter and ```` ```{python .marimo} ```` fences. (Or coordinate a
-single canonical format with the quarto-marimo maintainers — cross-reference to
-a companion issue on that repo.)
+Have the `qmd` flavor emit `pyproject:` instead of `header:` and include
+`engine: marimo` in the frontmatter. Failing that, the silence is the worst
+part: a document routed past the marimo engine renders cell fences as literal
+text with exit 0, so a warning from either side would already help.
+(Cross-reference to a companion issue on the quarto-marimo repo if the
+maintainers prefer the extension to accept `header:`.)

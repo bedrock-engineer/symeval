@@ -58,6 +58,13 @@ Use `/* … */` block comments and semicolon-terminate every statement, so the
 script survives being collapsed onto one line. But this is fragile; preserving
 newlines in the `srcdoc` is the real fix.
 
+## Where it lives
+
+The stripping is `flatten_string` (`marimo/_output/utils.py`), which
+`mo.iframe`'s serialization wraps around the whole `h.iframe(...)` element in
+`marimo/_output/formatting.py` — flattening the element also flattens the
+`srcdoc` payload inside it.
+
 ## Note
 
 This reproduces with plain marimo via `.text` (above), independent of Quarto —
