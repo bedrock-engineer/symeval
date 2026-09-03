@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.24.0"
 app = marimo.App()
 
 @app.cell(hide_code=True)
@@ -19,7 +19,7 @@ def _(mo):
     mo.md(r"""
     # Getting started with SymEval
 
-    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations, then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows symbolically (LaTeX) you how to arrive at the result.
+    SymEval allows you to define [SymPy](https://docs.sympy.org/latest/index.html) equations, then substitute [Pint](https://pint.readthedocs.io/en/stable/) quantities (value + unit), and then shows you symbolically (LaTeX) how to arrive at the result.
 
     Below some examples that start with the basics and progressively show more powerful SymEval funcionality and usecases.
 
@@ -666,9 +666,9 @@ def _(
         else ""
     )
 
-    # mo.iframe flattens newlines in its HTML serialization, so // line comments
-    # would swallow the rest of the (now one-line) script. Convert them to /* */
-    # so they survive. See research/issues/marimo--iframe-strips-newlines.md.
+    # marimo's static/session export collapses srcdoc to one line, so `//`
+    # comments would swallow the whole script; rewrite them as /* */ blocks.
+    # See research/issues/marimo--iframe-strips-newlines.md.
     import re as _re
 
     _piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js_editor.value)
@@ -872,14 +872,14 @@ def _():
     return (initial_piston_js_str,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(initial_piston_js_str, mo):
     # JavaScript Code Editor
     piston_js_editor = mo.ui.code_editor(
         value=initial_piston_js_str,
         language="javascript",
         max_height=550,
-        debounce=300, # without this the piston tries to update immediately,
+        debounce=True,
         label="Piston JavaScript"
     )
     piston_js_editor
