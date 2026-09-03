@@ -13,6 +13,18 @@ $code-color: $bedrock-green-600;
 $text-muted: $bedrock-gray;
 
 /*-- scss:rules --*/
+// quarto-marimo 0.5's islands-bridge CSS puts overflow-x: auto on every island
+// container, which (per CSS) forces overflow-y to auto as well. marimo outputs
+// routinely overhang their line boxes by a few pixels (KaTeX display math
+// struts, the JSON tree view), so each output grew a tiny vertical scrollbar.
+// Restore visible overflow (the 0.4.5 behavior); the upstream rules are
+// zero-specificity (:where), so this plain selector wins.
+marimo-quarto-island.marimo-island-host,
+.marimo-island-host marimo-island,
+.marimo-island-host marimo-cell-output {
+  overflow: visible;
+}
+
 // Match bedrock-web-old: smaller external-link icon.
 a.external::after {
   background-size: 0.5em;
