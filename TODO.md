@@ -36,30 +36,17 @@ Diataxis-style docs. Inspiration:
 - https://geopandas.org/en/stable (Flow: Getting Started → Installation → Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts)
 
 Feedback (which maybe are (quarto-)marimo bugs too?):
-- The checkboxes in the "quantity_evalf() on a DataFrame"-table don't show well which row is selected. Only the row is highlighted, but the checkbox of the selected row is not checked.
-- The radio button element renders horizontally, instead of vertically as in the marimo notebook.
+- The checkboxes in the "quantity_evalf() on a DataFrame"-table don't show well which row is selected, and the radio renders horizontally instead of vertically. Drafted as an upstream issue: `research/issues/mo-ui-elements-not-so-nice-in-quarto.md` (on 0.5.0 the checkbox gained a barely visible checkmark but lost the row and hover highlights; the radio is unchanged).
 
 ## (quarto-)marimo issues
-Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  
-I want to submit issues to the marimo and quarto-marimo repos to report these bugs, and then get stuff to work now by changing the scripts and modifying quarto-marimo. Then I might also want to submit PRs to quarto-marimo and/or marimo to resolve the issues we submitted.
+**Next step: file the drafts in `research/issues/` upstream** (re-capture the screenshots first; the Discord CDN links in the mo.ui draft expire). Then maybe submit PRs to quarto-marimo and/or marimo to resolve them. The drafts:
 
-- Upgrade `docs/_extensions` to quarto-marimo v0.5.0 (released 2026-08-25, we're on 0.4.5) in its own PR. Findings from a first attempt (2026-09-03, reverted):
-    - v0.5.0 drops the fence auto-detection (the `marimo-deprecated.lua` filter is gone); without `engine: marimo` in the page frontmatter the `{python .marimo}` cells render as literal text. Fix: emit `engine: marimo` from `build_page` in `scripts/examples_to_qmd.py`.
-    - With that fix the page rendered and the piston worked (hydration is faster too: v0.5.0 compiles the document as one shared marimo app and reuses the worker), but the getting-started page came out really messy. Investigate before upgrading.
-    - The `{python .marimo}` fence is **not** deprecated in v0.5.0: the docs state both `python {.marimo}` and `{python .marimo}` are supported (which resolves the question below).
-    - The duplicate `mo.ui.code_editor` island bug (see `research/issues/marimo--islands-duplicate-code-editor.md`) reproduces on v0.5.0 as well.
-- The piston JS editor cell is stripped from the docs export (`strip_js_editor` in `scripts/examples_to_qmd.py`) because of that duplicate-editor bug; once it's fixed upstream, consider putting the editor back on the docs page.
-- Where did it come from that the
-    ```{python .marimo}
-    # marimo Python code
-    ```
-    syntax is deprecated? (which it says in the script) I'd say it's not. Quarto's [Code Blocks docs](https://quarto.org/docs/computations/python.html#code-blocks) specifically state that "Code blocks that use braces around the language name (e.g. ```{python}```) are executable, and will be run by Quarto during render."
-    `marimo export md --flavor qmd` exports a `header` instead of `pyproject`, and ```{marimo .python}``` instead of ```{python .marimo}```, see @./examples/getting-started_export.qmd vs @./examples/getting-started_corrected-export.qmd
-    I'd say this is a `marimo export md --flavor qmd` bug?
-- `#| echo / editor / code-fold: true / false` special quarto comments
-    - Not possible to only show code. When you use `#| echo: true` it directly shows the code **and** the editor. To me it makes more sense to show the code **or*** the editor, but not both at the same time.
-    - The [quarto-marimo home page](https://marimo-team.github.io/quarto-marimo/index.html) states there's an `#| editor: true` special comment, but it actually doesn't do anything, and neither does #| echo: false, because that's default behavior anyway.
-    - Not possible to make code collapsible. The `#| code-fold: true` flag doesn't do anything.
-    - No **per-cell static vs reactive** marker: on the tutorial the intro (axial stress) was meant to be static and the rest reactive, but currently all cells are reactive islands. Needs something like a `#| reactive: true / false` special comment driven from the source notebook.
+- `marimo--iframe-strips-newlines.md` → marimo: `mo.iframe` srcdoc newline stripping in static/session export (why `strip_js_editor`'s regex workaround exists; still reproduces on 0.24.0).
+- `marimo--islands-duplicate-code-editor.md` → marimo: islands render a `mo.ui.code_editor` output twice (why the piston editor cell is stripped from the docs export via `strip_js_editor` in `scripts/examples_to_qmd.py`; once fixed upstream, consider putting the editor back on the docs page).
+- `marimo--islands-resize-iframe-undefined.md` → marimo: every `mo.iframe` island logs `ReferenceError: __resizeIframe is not defined` (harmless, pre-existing on 0.4.5).
+- `marimo--qmd-flavor-incompatible-with-quarto-marimo.md` → marimo: `marimo export md --flavor qmd` emits `header:` instead of `pyproject:` and ```` ```{marimo .python} ```` instead of ```` ```{python .marimo} ````, so quarto-marimo renders zero islands from it (why `examples_to_qmd.py` rewrites the export; see @./examples/getting-started_export.qmd vs @./examples/getting-started_corrected-export.qmd). The old "fence is deprecated" question is resolved: v0.5.0's docs state both fence forms are supported.
+- `quarto-marimo--cell-option-handling.md` → quarto-marimo: updated for 0.5.0. `#| echo: true` (code without editor) and `#| editor: true` now work; still no `code-fold` (our `<details>` wrapper stays) and still no per-cell static-vs-reactive marker (`#| reactive: true / false` suggestion).
+- `quarto-marimo--islands-bridge-overflow-scrollbars.md` → quarto-marimo: 0.5.0's islands-bridge `overflow-x: auto` forces `overflow-y: auto`, giving every KaTeX/tree output a tiny vertical scrollbar. Worked around in `docs/theme.scss` (`overflow: visible` on the island containers); drop that override once fixed upstream.
+- `mo-ui-elements-not-so-nice-in-quarto.md` → marimo: `mo.ui.table` selection state and `mo.ui.radio` orientation render with lower fidelity on islands than in the app (see Docs feedback above).
 
-The piston mo.iframe was not appearing in the Getting started guide. This is actually an issue with how marimo exports to HTML, as I understand it.
+Follow-up now that 0.5.0 handles cell options properly: `scripts/examples_to_qmd.py` may be able to drop its hand-rendered read-only ```` ```python ```` blocks in favor of `#| echo: true`.

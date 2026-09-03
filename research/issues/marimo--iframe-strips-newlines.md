@@ -18,7 +18,11 @@ or rendered statically** (e.g. via `quarto-marimo` or `marimo export html`).
 
 ## Environment
 
-- marimo `0.23.14`
+- marimo `0.23.14`; still reproduces on `0.24.0` via the static/session export
+  path (`marimo export session`, quarto-marimo islands). On `0.24.0` the
+  live-kernel `.text` path serves the iframe from a virtual file
+  (`src='./@file/...'`) with newlines intact, but exports still collapse the
+  `srcdoc` to one line.
 - Python 3.13, Linux (WSL2)
 
 ## Reproduction

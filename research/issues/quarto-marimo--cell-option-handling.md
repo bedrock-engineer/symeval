@@ -1,73 +1,48 @@
 # Issue draft → `marimo-team/quarto-marimo`
 
-**Title:** Cell options `editor` and `code-fold` are no-ops; no way to show read-only code (without the editor)
+**Title:** Cell option gaps remaining in 0.5.0: `code-fold` is a no-op, and no
+per-cell static-vs-reactive marker
 
 ---
 
-## Summary
+## Status history
 
-Reading the render path in `_extensions/marimo-team/marimo/extract.py` (0.4.5),
-several documented / expected cell options do not take effect:
+Originally drafted against `0.4.5`, where `#| editor` was a declared-but-dead
+option and `#| echo: true` showed the code *together with* the interactive
+editor, with no way to show read-only code on its own.
 
-1. **`editor` is a no-op.** `default_config` includes `"editor": False`, but
-   `editor` is never read in the render path. `get_mime_render` only forwards
-   `echo` (as `display_code`) and `eval` (as `reactive` / `is_reactive`) to
-   `stub.render(...)`. So `#| editor: true` does nothing — even though the
-   [quarto-marimo home page](https://marimo-team.github.io/quarto-marimo/index.html)
-   documents an `editor` option.
-2. **`code-fold` is unsupported.** It is not in `default_config` and not
-   referenced anywhere, so `#| code-fold: true` does nothing (Quarto's native
-   code folding does not apply to the rendered islands).
-3. **No "read-only code" display.** `#| echo: true` shows the code, but
-   (observed) it appears *together with* the interactive editor; there is no way
-   to show read-only code on its own. The option that would presumably control
-   this, `editor`, is the dead one in (1). (Note: `echo` itself works both ways —
-   `#| echo: false` correctly hides the code and simply matches the default;
-   that is expected, not a bug.)
+**Fixed in `0.5.0`** (verified in `python/quarto_marimo/authoring.py` and
+`compiler.py`): `#| echo: true` now renders a read-only code block without the
+editor (`renders_author_source` renders plain source unless `editor` is also
+true), and `#| editor: true` works as documented (implies showing the source,
+as an editor). The recognized per-cell options are now: `echo`, `editor`,
+`output`, `server-output`, `error`, `include`, `eval`, `disabled`,
+`unparsable`, `hide-code`, `hide-output`, `name`, `column`.
+
+The two gaps below remain on `0.5.0`.
 
 ## Environment
 
-- quarto-marimo extension `0.4.5`
-- marimo `0.23.14`
-- Quarto `1.9.38`
+- quarto-marimo extension `0.5.0` (also `0.4.5`)
+- marimo `0.24.0`
+- Quarto `1.10.18`
 - Linux (WSL2)
 
-## Where in the source
+## 1. `code-fold` is unsupported
 
-`extract.py`:
+`#| code-fold: true` does nothing: it is not among the recognized render
+options, and Quarto's native code folding does not apply to the rendered
+islands. There is no way to make a cell's code collapsible. (Our workaround:
+the docs generator wraps the code in a manual `<details>` block.)
 
-```python
-default_config = {
-    "eval": True,
-    "echo": False,
-    "output": True,
-    "error": True,
-    "include": True,
-    "editor": False,   # <- declared, but never consumed in the render path
-}
-```
+## 2. No per-cell static-vs-reactive marker
 
-```python
-render_options = {
-    "display_code": config["echo"],
-    "reactive": eval_enabled and not mime_sensitive,
-}
-# ...
-stub.render(display_code=config["echo"], is_reactive=bool(render_options["reactive"]))
-# `config["editor"]` and any `code-fold` are not passed through.
-```
+All executed cells become reactive islands. There is no way to mark one cell
+as "run at build time, render the static output, don't hydrate" while the rest
+of the page stays reactive, e.g. a tutorial whose intro example should be
+static and whose later widgets should be live. `#| eval: false` /
+`#| disabled: true` skip execution entirely, which is not the same thing.
 
-## Reproduction
-
-A minimal doc with one `{python .marimo}` cell per option
-(`#| echo: true`, `#| echo: false`, `#| editor: true`, `#| code-fold: true`)
-renders identically regardless of `editor` / `code-fold`, and only `echo: true`
-changes whether code is shown. (Minimal `opts.qmd` can be attached.)
-
-## Expected / suggestion
-
-- Make `editor` and `code-fold` behave as documented, **or** remove them from
-  `default_config` / the docs to avoid implying they work.
-- Consider a clear separation between "show code (read-only)" and "show editor",
-  since the current single `echo` knob plus a reactive island tends to surface
-  both together.
+Suggestion: a `#| reactive: true / false` cell option (default true) that
+renders the build-time output as static HTML and excludes the cell from
+hydration.
