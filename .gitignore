@@ -31,7 +31,11 @@ node_modules/
 /docs/examples/*.html
 /docs/**/*_files/
 /docs/libs/
+# quarto-marimo's marimo-engine.js is a loader shim that downloads these
+# versioned artifacts from the GitHub release on first render.
 /docs/_extensions/**/marimo-engine-v*.js
+/docs/_extensions/**/browser-v*.js
+/docs/_extensions/**/assets/
 
 # Coding agents
 # Keeps agent scratch and git worktrees (e.g. .claude/worktrees/) out of history.

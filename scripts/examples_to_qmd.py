@@ -22,13 +22,16 @@ quarto-marimo engine extension (>= 0.4) consumes, so we rewrite it:
 
 1. **Frontmatter.** marimo writes the PEP 723 script metadata under a ``header:``
    key; the extension reads it from ``pyproject:`` (see
-   ``_extensions/marimo-team/marimo/extract.py``). ``marimo-version`` is dropped.
+   ``_extensions/marimo-team/marimo/python/extract.py``). ``marimo-version`` is
+   dropped.
 
 2. **Cell fences.** marimo exports ``` ```{marimo .python} ``` (engine ``marimo``,
-   class ``.python``); the extension auto-detects ``` ```{python .marimo} ```
+   class ``.python``); the extension consumes ``` ```{python .marimo} ```
    (engine ``python``, class ``.marimo``) — the language token and class are
    swapped, so marimo's form renders zero islands. We rewrite to the extension's
-   form. (Bug reports: ``research/issues/``.)
+   form, and emit ``engine: marimo`` in the frontmatter because quarto-marimo
+   >= 0.5 no longer claims files by scanning for fences. (Bug reports:
+   ``research/issues/``.)
 
 3. **Code display.** A ``{python .marimo}`` island hides its code by default, and
    ``#| echo: true`` also shows the interactive *editor*, which we do not want on
@@ -190,7 +193,9 @@ def build_page(name: str, exported: str) -> str:
     header = extract_header_block(front)
     pyproject = "\n".join(f"  {line}" for line in header.splitlines())
 
-    frontmatter = [f"title: {pretty_title(name)}"]
+    # quarto-marimo >= 0.5 no longer claims files by scanning for marimo
+    # fences; without this the {python .marimo} cells render as literal text.
+    frontmatter = [f"title: {pretty_title(name)}", "engine: marimo"]
     if pyproject:
         frontmatter.append("pyproject: |")
         frontmatter.append(pyproject)
