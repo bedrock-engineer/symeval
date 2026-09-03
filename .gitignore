@@ -31,6 +31,13 @@ node_modules/
 /docs/examples/*.html
 /docs/**/*_files/
 /docs/libs/
+# Notebook pages are generated from examples/*.py by the pre-render hook
+# (scripts/examples_to_qmd.py); the check_islands post-render script guards
+# against a silently islandless page, which is what made committing them safe
+# to stop.
+/docs/getting-started.qmd
+/docs/examples/*.qmd
+
 # quarto-marimo's marimo-engine.js is a loader shim that downloads these
 # versioned artifacts from the GitHub release on first render.
 /docs/_extensions/**/marimo-engine-v*.js

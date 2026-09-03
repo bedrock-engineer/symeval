@@ -13,6 +13,13 @@ project:
   render:
     - "*.qmd"
     - "examples/*.qmd"
+  # The notebook pages are generated from examples/*.py on every render (the
+  # generator only rewrites a .qmd when its content changed, so the preview
+  # watcher does not loop), and the render fails if a marimo page came out
+  # with zero islands: quarto-marimo failing to claim a page is silent
+  # (exit 0, cells as literal text), so the check has to live out here.
+  pre-render: uv run ../scripts/examples_to_qmd.py
+  post-render: uv run ../scripts/check_islands.py
   # Static media served verbatim at <site-url>/public/…: the README GIFs/clips and
   # promo video (which no page references, but need stable absolute URLs, e.g. for PyPI),
   # plus the logo (referenced below, and reused by the Remotion promo video via staticFile).
@@ -70,3 +77,31 @@ format:
     code-copy: true
     code-overflow: wrap
     html-math-method: katex
+    # mo.iframe outputs set onload="__resizeIframe(this)", but only marimo's
+    # app shell defines that helper (marimo/_static/index.html); the islands
+    # runtime does not, so every iframe load logs a ReferenceError and the
+    # iframe never auto-resizes. Define it ourselves (verbatim marimo's
+    # implementation, guarded so an upstream definition wins). Issue draft:
+    # research/issues/marimo--islands-resize-iframe-undefined.md.
+    include-in-header:
+      - text: |
+          <script>
+            window.__resizeIframe ??= function (obj) {
+              const scrollbarHeight = 20;
+              function setHeight() {
+                if (!obj.contentWindow?.document?.documentElement) return;
+                const element = obj.contentWindow.document.documentElement;
+                if (element.scrollHeight === element.clientHeight) return;
+                const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+                const newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+                if (obj.style.height !== `${newHeight}px`) {
+                  obj.style.height = `${newHeight}px`;
+                }
+              }
+              setHeight();
+              const resizeObserver = new ResizeObserver(() => setHeight());
+              if (obj.contentWindow?.document?.body) {
+                resizeObserver.observe(obj.contentWindow.document.body);
+              }
+            };
+          </script>
