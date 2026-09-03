@@ -166,6 +166,24 @@ def transform_cells(body: str) -> str:
     return _CELL_RE.sub(_render_cell, body)
 
 
+# The piston JS editor (`mo.ui.code_editor`) only earns its place in the live
+# notebook. On the docs page the islands runtime renders the editor twice (it
+# re-renders the cell output without removing the static snapshot; see
+# research/issues/marimo--islands-duplicate-code-editor.md), so drop the cell
+# and point the piston iframe at the editor's initial value, which stays on
+# the page. It remains in the source notebooks (symeval_mo.py / getting_started.py).
+def strip_js_editor(body: str) -> str:
+    """Remove the piston JS-editor cell; docs use its initial value directly."""
+
+    def _drop(match: re.Match[str]) -> str:
+        if "piston_js_editor = mo.ui.code_editor" in match.group("code"):
+            return ""
+        return match.group(0)
+
+    body = _CELL_RE.sub(_drop, body)
+    return body.replace("piston_js_editor.value", "initial_piston_js_str")
+
+
 def build_page(name: str, exported: str) -> str:
     """Assemble the final ``.qmd`` from marimo's export of ``examples/<name>.py``."""
     front, body = split_frontmatter(exported)
@@ -180,7 +198,7 @@ def build_page(name: str, exported: str) -> str:
     # HTML element (not the ![]() markdown badge) at both the top and the bottom,
     # so a reader can jump to the live notebook from either end of the page.
     badge = f'<a href="{molab_url(name)}"><img src="{BADGE_IMG}" alt="Open in molab"></a>'
-    body_md = transform_cells(body).strip("\n")
+    body_md = transform_cells(strip_js_editor(body)).strip("\n")
 
     return (
         "---\n"

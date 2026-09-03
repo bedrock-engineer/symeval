@@ -691,12 +691,12 @@ _oob_html = (
     else ""
 )
 
-# mo.iframe flattens newlines in its HTML serialization, so // line comments
-# would swallow the rest of the (now one-line) script. Convert them to /* */
-# so they survive. See research/issues/marimo--iframe-strips-newlines.md.
+# marimo's static/session export collapses srcdoc to one line, so `//`
+# comments would swallow the whole script; rewrite them as /* */ blocks.
+# See research/issues/marimo--iframe-strips-newlines.md.
 import re as _re
 
-_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js_editor.value)
+_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", initial_piston_js_str)
 
 _piston_html = f"""<!doctype html>
 <html>
@@ -900,18 +900,6 @@ requestAnimationFrame(draw);
 ```
 
 </details>
-
-```python
-# JavaScript Code Editor
-piston_js_editor = mo.ui.code_editor(
-    value=initial_piston_js_str,
-    language="javascript",
-    max_height=550,
-    debounce=300, # without this the piston tries to update immediately,
-    label="Piston JavaScript"
-)
-piston_js_editor
-```
 
 <p align="center">
   <picture>
