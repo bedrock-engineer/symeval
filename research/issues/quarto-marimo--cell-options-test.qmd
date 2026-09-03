@@ -1,0 +1,69 @@
+---
+title: Cell options test
+engine: marimo
+---
+
+## s1 default (no options)
+
+```{python .marimo}
+a1 = "s1-default"
+a1
+```
+
+## s2 echo true
+
+```{python .marimo}
+#| echo: true
+a2 = "s2-echo"
+a2
+```
+
+## s3 code-fold true (no echo)
+
+```{python .marimo}
+#| code-fold: true
+a3 = "s3-fold"
+a3
+```
+
+## s4 echo true + code-fold true
+
+```{python .marimo}
+#| echo: true
+#| code-fold: true
+a4 = "s4-echo-fold"
+a4
+```
+
+## s5 echo true + code-fold true + code-summary
+
+```{python .marimo}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show the code"
+a5 = "s5-summary"
+a5
+```
+
+## s6 editor true
+
+```{python .marimo}
+#| editor: true
+a6 = "s6-editor"
+a6
+```
+
+## s7 marimo-export style hide_code attribute
+
+```{python .marimo hide_code="true"}
+a7 = "s7-hide-code"
+a7
+```
+
+## s8 echo false explicit
+
+```{python .marimo}
+#| echo: false
+a8 = "s8-echo-false"
+a8
+```
