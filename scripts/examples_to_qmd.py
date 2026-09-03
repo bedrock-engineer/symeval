@@ -166,19 +166,22 @@ def transform_cells(body: str) -> str:
     return _CELL_RE.sub(_render_cell, body)
 
 
-# The piston's JS-editor cell is a `mo.md` block ("1. Edit … 2. Copy …" + a
-# ```js fence) that only makes sense in the live notebook, where you edit the JS
-# with syntax highlighting. On a static docs page it is noise, so drop it. It
-# stays in the source notebooks (symeval_mo.py / getting_started.py).
-_JS_EDITOR_RE = re.compile(
-    r"\n?1\. Edit the JavaScript code of the piston.*?\n```js\n.*?\n```[ \t]*\n?",
-    re.DOTALL,
-)
-
-
+# The piston JS editor (`mo.ui.code_editor`) only earns its place in the live
+# notebook. On the docs page the islands runtime renders the editor twice (it
+# re-renders the cell output without removing the static snapshot; see
+# research/issues/marimo--islands-duplicate-code-editor.md), so drop the cell
+# and point the piston iframe at the editor's initial value, which stays on
+# the page. It remains in the source notebooks (symeval_mo.py / getting_started.py).
 def strip_js_editor(body: str) -> str:
-    """Remove the notebook-only piston JS-editor helper cell."""
-    return _JS_EDITOR_RE.sub("\n", body)
+    """Remove the piston JS-editor cell; docs use its initial value directly."""
+
+    def _drop(match: re.Match[str]) -> str:
+        if "piston_js_editor = mo.ui.code_editor" in match.group("code"):
+            return ""
+        return match.group(0)
+
+    body = _CELL_RE.sub(_drop, body)
+    return body.replace("piston_js_editor.value", "initial_piston_js_str")
 
 
 def build_page(name: str, exported: str) -> str:
@@ -195,7 +198,7 @@ def build_page(name: str, exported: str) -> str:
     # HTML element (not the ![]() markdown badge) at both the top and the bottom,
     # so a reader can jump to the live notebook from either end of the page.
     badge = f'<a href="{molab_url(name)}"><img src="{BADGE_IMG}" alt="Open in molab"></a>'
-    body_md = strip_js_editor(transform_cells(body)).strip("\n")
+    body_md = transform_cells(strip_js_editor(body)).strip("\n")
 
     return (
         "---\n"

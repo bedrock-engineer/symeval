@@ -43,6 +43,12 @@ Feedback (which maybe are (quarto-)marimo bugs too?):
 Here it seems there's actually some bugs in how `quarto-marimo` and `marimo export md --flavor qmd` work.  
 I want to submit issues to the marimo and quarto-marimo repos to report these bugs, and then get stuff to work now by changing the scripts and modifying quarto-marimo. Then I might also want to submit PRs to quarto-marimo and/or marimo to resolve the issues we submitted.
 
+- Upgrade `docs/_extensions` to quarto-marimo v0.5.0 (released 2026-08-25, we're on 0.4.5) in its own PR. Findings from a first attempt (2026-09-03, reverted):
+    - v0.5.0 drops the fence auto-detection (the `marimo-deprecated.lua` filter is gone); without `engine: marimo` in the page frontmatter the `{python .marimo}` cells render as literal text. Fix: emit `engine: marimo` from `build_page` in `scripts/examples_to_qmd.py`.
+    - With that fix the page rendered and the piston worked (hydration is faster too: v0.5.0 compiles the document as one shared marimo app and reuses the worker), but the getting-started page came out really messy. Investigate before upgrading.
+    - The `{python .marimo}` fence is **not** deprecated in v0.5.0: the docs state both `python {.marimo}` and `{python .marimo}` are supported (which resolves the question below).
+    - The duplicate `mo.ui.code_editor` island bug (see `research/issues/marimo--islands-duplicate-code-editor.md`) reproduces on v0.5.0 as well.
+- The piston JS editor cell is stripped from the docs export (`strip_js_editor` in `scripts/examples_to_qmd.py`) because of that duplicate-editor bug; once it's fixed upstream, consider putting the editor back on the docs page.
 - Where did it come from that the
     ```{python .marimo}
     # marimo Python code

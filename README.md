@@ -16,7 +16,7 @@ Write a [SymPy](https://docs.sympy.org) equation, substitute [Pint](https://pint
 | 2\. Formula with substituted quantities (value + unit) | $\rho = \dfrac{0.998\ \mathrm{kg}}{1\ \mathrm{L}}$ |
 | 3\. Result (density of water) | $\rho = 998\ \dfrac{\mathrm{kg}}{\mathrm{m}^3}$ |
 
-SymEval integrates seamlessly with [marimo](https://docs.marimo.io) and [Quarto](https://quarto.org), such that you can make [explorable explanations ](https://worrydream.com/ExplorableExplanations)in Python notebooks or websites, and automate calculation report generation.
+SymEval integrates seamlessly with [marimo](https://docs.marimo.io) and [Quarto](https://quarto.org), such that you can make [explorable explanations ](https://worrydream.com/ExplorableExplanations) in Python notebooks or websites, and automate calculation report generation.
 
 [Get started](https://bedrock-engineer.github.io/symeval/getting-started.html) [GitHub](https://github.com/bedrock-engineer/symeval) [PyPI](https://pypi.org/project/symeval/)
 
@@ -691,12 +691,12 @@ _oob_html = (
     else ""
 )
 
-# mo.iframe flattens newlines in its HTML serialization, so // line comments
-# would swallow the rest of the (now one-line) script. Convert them to /* */
-# so they survive. See research/issues/marimo--iframe-strips-newlines.md.
+# marimo's static/session export collapses srcdoc to one line, so `//`
+# comments would swallow the whole script; rewrite them as /* */ blocks.
+# See research/issues/marimo--iframe-strips-newlines.md.
 import re as _re
 
-_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js)
+_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", initial_piston_js_str)
 
 _piston_html = f"""<!doctype html>
 <html>
@@ -734,8 +734,8 @@ mo.hstack(
 <summary>Show code</summary>
 
 ```python
-piston_js = r"""
-// piston_js
+# this is just the initial value; does not update when the editor text changes
+initial_piston_js_str = r"""// piston_js
 // Canvas and cylinder dimensions
 const c = document.getElementById("piston-canvas");
 const ctx2d = c.getContext("2d");
