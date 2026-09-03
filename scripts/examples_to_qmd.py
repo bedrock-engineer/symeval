@@ -17,32 +17,28 @@ Primary pages (``PRIMARY_PAGES``) render to the docs root; the rest land in the
 
 Why the transform exists
 ------------------------
-``marimo export md --flavor qmd`` does not currently produce output the
-quarto-marimo engine extension (>= 0.4) consumes, so we rewrite it:
+``marimo export md --flavor qmd`` does not produce output the quarto-marimo
+engine extension consumes as-is (quarto-marimo 0.5.0 accepts marimo's native
+``` ```{marimo .python} ``` cell fences, verified 2026-09-03, so the fence
+rewrite this script used to do is gone), leaving three gaps we bridge:
 
 1. **Frontmatter.** marimo writes the PEP 723 script metadata under a ``header:``
-   key; the extension reads it from ``pyproject:`` (see
-   ``_extensions/marimo-team/marimo/python/extract.py``). ``marimo-version`` is
-   dropped.
-
-2. **Cell fences.** marimo exports ``` ```{marimo .python} ``` (engine ``marimo``,
-   class ``.python``); the extension consumes ``` ```{python .marimo} ```
-   (engine ``python``, class ``.marimo``) — the language token and class are
-   swapped, so marimo's form renders zero islands. We rewrite to the extension's
-   form, and emit ``engine: marimo`` in the frontmatter because quarto-marimo
-   >= 0.5 no longer claims files by scanning for fences. (Bug reports:
+   key; the extension only reads ``pyproject:`` (verified: a dependency declared
+   under ``header:`` is not installed in the render sandbox). ``marimo-version``
+   is dropped, and we emit ``engine: marimo`` because quarto-marimo >= 0.5 no
+   longer claims files by scanning for fences. (Bug reports:
    ``research/issues/``.)
 
-3. **Code display.** A ``{python .marimo}`` island hides its code by default, and
-   ``#| echo: true`` also shows the interactive *editor*, which we do not want on
-   a docs page. So we render the code ourselves as a normal, read-only
-   ``` ```python ``` block:
+2. **Code display.** An island hides its code by default, and while 0.5.0's
+   ``#| echo: true`` shows a read-only code block, it renders client-side after
+   hydration, gets no Quarto syntax highlighting or copy button, and hidden
+   cells would lose their code entirely (``#| code-fold`` is a no-op on
+   islands). So we render the code ourselves at build time:
 
    - **visible cell** -> a ``` ```python ``` block *above* the island (code, then
      the island's output);
-   - **hidden cell** (``hide_code="true"``) -> the island (output only) followed
-     by a collapsible ``<details>`` with the code (``#| code-fold`` is a no-op on
-     islands).
+   - **hidden cell** (``hide_code="true"``) -> a collapsible ``<details>`` with
+     the code, then the island (output only).
 
 The ``.py`` files stay the single source of truth (edit those, or the
 ``symeval_mo.py`` column behind ``getting_started.py``, then regenerate); the
@@ -145,10 +141,14 @@ def extract_header_block(front: list[str]) -> str:
 
 
 def _render_cell(match: re.Match[str]) -> str:
-    """Turn one marimo-exported cell into a quarto-marimo island + code display."""
+    """Add a build-time code display to one marimo-exported cell (island).
+
+    The island keeps marimo's native ```{marimo .python}``` fence unchanged;
+    quarto-marimo 0.5.0 consumes it directly.
+    """
     code = match.group("code")
     hidden = match.group("hide") is not None
-    island = f"```{{python .marimo}}\n{code}\n```"
+    island = match.group(0)
     display = f"```python\n{code}\n```"
     if hidden:
         # Hidden cell: collapsible code above, island's output below (mirrors the
@@ -159,8 +159,9 @@ def _render_cell(match: re.Match[str]) -> str:
             "</details>\n\n"
             f"{island}"
         )
-    # Visible cell: read-only code block above, island (output) below. We avoid
-    # `#| echo: true` because it also renders the interactive editor.
+    # Visible cell: read-only code block above, island (output) below. We render
+    # it at build time rather than via `#| echo: true`, which only appears after
+    # hydration and lacks Quarto's highlighting and copy button.
     return f"{display}\n\n{island}"
 
 
@@ -242,8 +243,14 @@ def main() -> None:
 
         out = output_path(nb.stem)
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(page)
-        print(f"Wrote {out.relative_to(REPO_ROOT)}")
+        # Write-if-changed keeps `quarto preview` stable: this runs as the
+        # project's pre-render hook, and rewriting an identical file would
+        # retrigger the preview watcher on every render.
+        if out.exists() and out.read_text() == page:
+            print(f"Unchanged {out.relative_to(REPO_ROOT)}")
+        else:
+            out.write_text(page)
+            print(f"Wrote {out.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":

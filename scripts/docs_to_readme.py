@@ -227,12 +227,14 @@ def build_top_and_inspiration() -> tuple[str, str]:
 # --------------------------------------------------------------------------- #
 # getting-started.qmd -> the "More advanced" body
 # --------------------------------------------------------------------------- #
-ISLAND_RE = re.compile(r"^```\{python \.marimo\}\n.*?\n```[ \t]*$\n?", re.DOTALL | re.MULTILINE)
+ISLAND_RE = re.compile(
+    r"^```\{marimo \.python[^}]*\}\n.*?\n```[ \t]*$\n?", re.DOTALL | re.MULTILINE
+)
 CODE_BLOCK_RE = re.compile(r"```python\n(?P<code>.*?)\n```", re.DOTALL)
 
 
 def strip_islands(body: str) -> str:
-    """Drop the ``{python .marimo}`` islands (GitHub cannot execute them) and the
+    """Drop the ``{marimo .python}`` islands (GitHub cannot execute them) and the
     ``<!---->`` cell separators marimo emits between adjacent markdown cells."""
     body = ISLAND_RE.sub("", body)
     # Blank the marker but keep its newline, so adjacent cells stay separated by a
