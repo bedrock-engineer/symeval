@@ -138,11 +138,13 @@ display above, `$$…$$` centers it.
 mo.md(rf"$${usains_speed.latex}$$")    # centered
 ```
 
-$$\begin{aligned}
+$$
+\begin{aligned}
 v &= \frac{d}{t} \\
 &= \frac{100\ \mathrm{m}}{9.58\ \mathrm{s}} \\
 v &= 10.44\ \frac{\mathrm{m}}{\mathrm{s}} = 37.58\ \frac{\mathrm{km}}{\mathrm{h}}
-\end{aligned}$$
+\end{aligned}
+$$
 
 **`.quantity` and `str()` — the value.** The plain `pint.Quantity` in your output
 unit, for arithmetic, chaining, or a DataFrame column. It carries full precision:
