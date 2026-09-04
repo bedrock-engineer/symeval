@@ -1,6 +1,6 @@
 [project]
 name = "symeval"
-version = "0.5.2"
+version = "0.5.3"
 description = "Symbolic evaluation for engineering calculations — renders expression → numbers with units → result as LaTeX"
 readme = "README.md"
 license = "Apache-2.0"
@@ -43,17 +43,9 @@ upgrade = "uv sync --upgrade --all-groups"
 pre_build = "uv run marimo -y export session --no-sandbox --force-overwrite symeval_mo.py"
 build = "uvx --with pint --with sympy --with pytest mobuild export symeval_mo.py src/symeval/__init__.py"
 test = "uv run pytest symeval_mo.py"
-clean = "bash -c 'rm -rf dist/'"
+clean = "uv run python -c \"import shutil; shutil.rmtree('dist', ignore_errors=True)\""
 pre_release = "task build && task test && task docs_readme"
-release = """bash -c '\
-[ -n "$1" ] || { echo "Usage: uv run task release <version>"; exit 1; } && \
-git diff --quiet HEAD || { echo "working tree not clean"; exit 1; } && \
-uv version "$1" && \
-git commit -m "Release $1" pyproject.toml uv.lock && \
-git tag "$1" && \
-git push && git push --tags && \
-gh release create "$1" --generate-notes\
-' --"""
+release = "uv run python scripts/release.py"
 pypi = "task clean && uv build && uv publish"
 docs_generate = "uv run scripts/extract_getting_started.py && uv run scripts/examples_to_qmd.py"
 docs_preview = "uv run --group docs quarto preview docs/"

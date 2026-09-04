@@ -3,25 +3,6 @@
 How to cut a new release of SymEval and publish it to PyPI.
 
 ```bash
-uv run task release 0.#.#  # build, test & regenerate README (pre_release), bump version, commit, tag, push, create GitHub release
-uv run task pypi           # clean dist/, build wheel, publish to PyPI
-```
-
-## One-time setup
-
-1. **Sync dev deps** — `uv sync --group dev`. This installs [`taskipy`](https://github.com/illBeRoy/taskipy), the task runner that reads `[tool.taskipy.tasks]` from `pyproject.toml`.
-2. **Install [`gh`](https://cli.github.com/)** — on Ubuntu/WSL: `sudo apt install gh`. Then `gh auth login`.
-3. **Create a [PyPI](https://pypi.org/) account** if you don't have one. Verify that the name `symeval` is free at <https://pypi.org/project/symeval/>.
-4. **Create a PyPI API token** at <https://pypi.org/manage/account/token/>. For the very first publish it has to be account-wide (project-scoped tokens can't be created for a project that doesn't exist yet).
-5. Add the token to your shell rc:
-   ```bash
-   export UV_PUBLISH_TOKEN=pypi-AgEI...
-   ```
-6. **After the first publish:** go back to PyPI, generate a new token **scoped to the `symeval` project**, replace the account-wide token in your shell rc with it, and delete the account-wide token.
-
-## Per-release flow
-
-```bash
 uv run task release 0.#.#   # build, test & regenerate README (pre_release), bump version, commit, tag, push, create GitHub release
 uv run task pypi            # clean dist/, build wheel, publish to PyPI
 ```
@@ -64,7 +45,7 @@ See [media/README.md](./media/README.md) for guidance on how to record the clip 
 2. Checks the working tree is clean. If you have uncommitted changes (including a stale `__init__.py` from a forgotten `task build`, or a stale `README.md` from changed docs), the release aborts — commit the regenerated files and re-run.
 3. `uv version <version>` — bumps the version in `pyproject.toml` *and* `uv.lock` (the lock file records the project's own version, so the two stay in sync).
 4. `git commit -m "Release <version>" pyproject.toml uv.lock` — commits only those two files. Any other modified files stay uncommitted.
-5. `git tag <version>` — creates an unsigned annotated tag.
+5. `git tag -a <version> -m "Release <version>"` — creates an unsigned annotated tag, so the tag object records who cut the release and when, independent of the commit.
 6. `git push && git push --tags` — pushes the commit and the tag to GitHub.
 7. `gh release create <version> --generate-notes` — creates a GitHub release using GitHub's auto-generated notes (list of merged PRs since the last tag, plus first-time contributors).
 
@@ -92,3 +73,15 @@ The version lives only in `pyproject.toml`. There is no `symeval.__version__` �
 - **`task release` succeeded but `task pypi` failed** — the tag and GitHub release are live but PyPI has nothing. Fix the issue, re-run `uv run task pypi`. The tag is fine — it points at the right commit.
 - **`task pypi` partially succeeded** (some files uploaded, some failed) — you cannot re-upload a file for an already-published version. Bump to the next patch version and re-release.
 - **You published a broken version** — PyPI versions cannot be deleted, only [yanked](https://pypi.org/help/#yanked). Yank from the project's PyPI page (Manage → Releases → Options → Yank) and release a fix as the next patch version. Yanking hides the version from `pip install symeval` but keeps it installable for users who pinned it.
+
+## One-time setup
+
+1. **Sync dev deps** — `uv sync --group dev`. This installs [`taskipy`](https://github.com/illBeRoy/taskipy), the task runner that reads `[tool.taskipy.tasks]` from `pyproject.toml`.
+2. **Install [`gh`](https://cli.github.com/)** — on Ubuntu/WSL: `sudo apt install gh`. Then `gh auth login`.
+3. **Create a [PyPI](https://pypi.org/) account** if you don't have one. Verify that the name `symeval` is free at <https://pypi.org/project/symeval/>.
+4. **Create a PyPI API token** at <https://pypi.org/manage/account/token/>. For the very first publish it has to be account-wide (project-scoped tokens can't be created for a project that doesn't exist yet).
+5. Add the token to your shell rc:
+   ```bash
+   export UV_PUBLISH_TOKEN=pypi-AgEI...
+   ```
+6. **After the first publish:** go back to PyPI, generate a new token **scoped to the `symeval` project**, replace the account-wide token in your shell rc with it, and delete the account-wide token.
