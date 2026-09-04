@@ -45,7 +45,7 @@ See [media/README.md](./media/README.md) for guidance on how to record the clip 
 2. Checks the working tree is clean. If you have uncommitted changes (including a stale `__init__.py` from a forgotten `task build`, or a stale `README.md` from changed docs), the release aborts — commit the regenerated files and re-run.
 3. `uv version <version>` — bumps the version in `pyproject.toml` *and* `uv.lock` (the lock file records the project's own version, so the two stay in sync).
 4. `git commit -m "Release <version>" pyproject.toml uv.lock` — commits only those two files. Any other modified files stay uncommitted.
-5. `git tag <version>` — creates an unsigned annotated tag.
+5. `git tag -a <version> -m "Release <version>"` — creates an unsigned annotated tag, so the tag object records who cut the release and when, independent of the commit.
 6. `git push && git push --tags` — pushes the commit and the tag to GitHub.
 7. `gh release create <version> --generate-notes` — creates a GitHub release using GitHub's auto-generated notes (list of merged PRs since the last tag, plus first-time contributors).
 

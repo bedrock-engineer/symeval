@@ -35,7 +35,7 @@ def main() -> None:
 
     run("uv", "version", version)
     run("git", "commit", "-m", f"Release {version}", "pyproject.toml", "uv.lock")
-    run("git", "tag", version)
+    run("git", "tag", "-a", version, "-m", f"Release {version}")
     run("git", "push")
     run("git", "push", "--tags")
     run("gh", "release", "create", version, "--generate-notes")
