@@ -232,12 +232,12 @@ def main() -> None:
              str(nb), "-o", str(tmp_path), "-f"],
             check=True,
         )
-        page = build_page(nb.stem, tmp_path.read_text())
+        page = build_page(nb.stem, tmp_path.read_text(encoding="utf-8"))
         tmp_path.unlink(missing_ok=True)
 
         out = output_path(nb.stem)
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(page)
+        out.write_text(page, encoding="utf-8")
         print(f"Wrote {out.relative_to(REPO_ROOT)}")
 
 

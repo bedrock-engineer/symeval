@@ -190,7 +190,9 @@ def extract_examples_column(source: str) -> str:
 
 def main() -> None:
     NOTEBOOK.parent.mkdir(parents=True, exist_ok=True)
-    NOTEBOOK.write_text(extract_examples_column(SOURCE.read_text()))
+    NOTEBOOK.write_text(
+        extract_examples_column(SOURCE.read_text(encoding="utf-8")), encoding="utf-8"
+    )
     print(f"Wrote {NOTEBOOK.relative_to(REPO_ROOT)}")
 
     # Validate the extracted notebook. `marimo check` is static: it parses the

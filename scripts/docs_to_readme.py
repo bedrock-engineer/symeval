@@ -159,7 +159,7 @@ def session_latex() -> list[str]:
     prose (e.g. the ``$\lambda$`` label) is inline without ``\displaystyle`` and
     is skipped.
     """
-    data = json.loads(SESSION.read_text())
+    data = json.loads(SESSION.read_text(encoding="utf-8"))
     out: list[str] = []
     block = re.compile(
         r"<marimo-tex[^>]*>\s*\|\|([\[(])(.*?)\|\|[\])]\s*</marimo-tex>", re.DOTALL
@@ -205,7 +205,7 @@ def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 def build_top_and_inspiration() -> tuple[str, str]:
     """The README heading + intro/highlights/quickstart, and the Inspiration block."""
-    front, body = split_frontmatter(INDEX.read_text())
+    front, body = split_frontmatter(INDEX.read_text(encoding="utf-8"))
 
     # Everything before "Head to the [Getting started]" is the top of the README.
     cut = body.index("Head to the [Getting started]")
@@ -321,7 +321,7 @@ def inject_ideal_gas_output(section: str, igl_latex: str) -> str:
 
 def build_advanced_body() -> str:
     """Transform getting-started.qmd into the README's "More advanced" body."""
-    _, body = split_frontmatter(GETTING_STARTED.read_text())
+    _, body = split_frontmatter(GETTING_STARTED.read_text(encoding="utf-8"))
     # Drop the molab badges the .qmd now carries at its top and bottom (the README
     # adds its own per-section badges); matches the HTML element and the ![]() form.
     body = re.sub(r"(?m)^.*molab-shield\.svg.*$\n?", "", body)
@@ -354,7 +354,7 @@ def main() -> None:
     top, inspiration = build_top_and_inspiration()
     advanced = build_advanced_body()
 
-    readme = TEMPLATE.read_text()
+    readme = TEMPLATE.read_text(encoding="utf-8")
     for marker, value in {
         "<!-- {{TOP}} -->": top.rstrip(),
         "<!-- {{BODY}} -->": advanced.rstrip(),
@@ -364,7 +364,7 @@ def main() -> None:
             raise SystemExit(f"template {TEMPLATE.name} is missing marker {marker}")
         readme = readme.replace(marker, value)
 
-    OUT.write_text(GENERATED_HEADER + readme)
+    OUT.write_text(GENERATED_HEADER + readme, encoding="utf-8")
     print(f"Wrote {OUT.relative_to(REPO_ROOT)} ({len(readme.splitlines())} lines)")
 
 
