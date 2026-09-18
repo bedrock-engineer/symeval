@@ -17,6 +17,8 @@ Issues = "https://github.com/bedrock-engineer/symeval/issues"
 [dependency-groups]
 dev = [
     "marimo>=0.23.14",
+    "numpy>=2.0",
+    "plotly>=5.24",
     "polars>=1.40.1",
     "pytest>=9.0.3",
     "taskipy>=1.14",

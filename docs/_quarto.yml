@@ -18,6 +18,11 @@ project:
   # plus the logo (referenced below, and reused by the Remotion promo video via staticFile).
   resources:
     - public
+    # examples/public/, mirrored here by scripts/examples_to_qmd.py: image
+    # references in an example page's markdown are relative to the source
+    # notebook's own public/ folder (marimo's static-asset convention), so
+    # a copy needs to be deployed alongside the rendered example page too.
+    - examples/public
 
 website:
   title: "SymEval"
@@ -32,24 +37,16 @@ website:
   favicon: assets/favicon_io/favicon.ico
   page-navigation: true
   back-to-top-navigation: true
-  # Navbar-only: the logo + "SymEval" brand (links home) and the page links all
-  # live in one top bar, so it stays put on every page, shows the logo on
-  # desktop and mobile, and collapses to a single hamburger on narrow screens.
-  # A navbar + sidebar together would stack two bars; a 4-page site needs only
-  # the navbar.
+  # Navbar + sidebar (nav variant B in the docs/_quarto-variant-*.yml files):
+  # brand navbar on top, page nav (including the Examples gallery) in a left
+  # sidebar. Known trade-off vs navbar-only: on narrow screens the navbar AND
+  # the sidebar each render their own bar (the "double bar").
   navbar:
     background: light
     logo: public/symeval-logo.svg
     logo-alt: "SymEval home"
     title: "SymEval"
     search: true
-    left:
-      - text: "Getting started"
-        href: getting-started.qmd
-      - text: "How SymEval works"
-        href: explanation.qmd
-      - text: "API reference"
-        href: reference.qmd
     right:
       - icon: github
         href: "https://github.com/bedrock-engineer/symeval"
@@ -57,6 +54,15 @@ website:
       - icon: box-seam
         href: "https://pypi.org/project/symeval/"
         aria-label: PyPI
+  sidebar:
+    style: floating
+    contents:
+      - href: getting-started.qmd
+      - href: explanation.qmd
+      - href: reference.qmd
+      - section: "Examples"
+        contents:
+          - href: examples/simply-supported-beam.qmd
 
 brand:
   light: _brand.yml

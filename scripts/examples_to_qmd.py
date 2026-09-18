@@ -57,6 +57,7 @@ Run it with uv so the inline dependency metadata above provisions marimo::
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -239,6 +240,17 @@ def main() -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(page, encoding="utf-8")
         print(f"Wrote {out.relative_to(REPO_ROOT)}")
+
+    # examples/public/ is marimo's reserved convention for a notebook's local
+    # static assets (served at /public/<file> by `marimo edit`/`run`, and
+    # auto-resolved by mo.md()'s markdown image handling). Mirrored into
+    # docs/examples/public/ so the same relative image references also
+    # resolve when quarto serves the rendered page.
+    public_src = EXAMPLES / "public"
+    if public_src.is_dir():
+        public_out = EXAMPLES_OUT / "public"
+        shutil.copytree(public_src, public_out, dirs_exist_ok=True)
+        print(f"Copied {public_src.relative_to(REPO_ROOT)} -> {public_out.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":
