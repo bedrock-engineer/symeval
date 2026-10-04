@@ -47,11 +47,11 @@ clean = "uv run python -c \"import shutil; shutil.rmtree('dist', ignore_errors=T
 pre_release = "task build && task test && task docs_readme"
 release = "uv run python scripts/release.py"
 pypi = "task clean && uv build && uv publish"
-docs_generate = "uv run scripts/extract_getting_started.py && uv run scripts/examples_to_qmd.py"
+docs_generate = "uv run scripts/extract_getting_started.py && uv run scripts/docs_prerender.py"
 docs_preview = "uv run --group docs quarto preview docs/"
 docs_render = "uv run --group docs quarto render docs/"
 docs_build = "task docs_generate && task docs_render"
 # Snapshot executed getting_started outputs (LaTeX) for the README generator.
-docs_session = "uv run marimo -y export session --no-sandbox --force-overwrite examples/getting_started.py"
+docs_session = "uv run marimo -y export session --no-sandbox --force-overwrite docs/getting_started.py"
 # Not in CI; run locally after changing the docs (see CONTRIBUTING.md).
 docs_readme = "task docs_generate && task docs_session && uv run scripts/docs_to_readme.py"

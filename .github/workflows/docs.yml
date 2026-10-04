@@ -10,7 +10,6 @@ on:
     branches: [main]
     paths:
       - "docs/**"
-      - "examples/**"
       - "symeval_mo.py"
       - "scripts/**"
       - "pyproject.toml"
@@ -40,8 +39,9 @@ jobs:
       - name: Install the docs toolchain (quarto-cli, marimo, polars)
         run: uv sync --group docs
 
-      # Regenerate the notebook pages from symeval_mo.py / examples/ so the
-      # deployed site always matches source, then render. The getting-started
+      # Regenerate the notebook pages (docs/getting_started.py from
+      # symeval_mo.py, then every notebook in docs/ to a .qmd) so the deployed
+      # site always matches source, then render. The getting-started
       # page executes against symeval from PyPI, resolved via each page's
       # dependency header.
       - name: Build the docs site (regenerate pages + render)

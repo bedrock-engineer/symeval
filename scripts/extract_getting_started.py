@@ -17,9 +17,9 @@ columns:
     column 2 — the tests
 
 This script writes the tutorial as a self-contained, single-column marimo
-notebook to:
+notebook into the Quarto docs project:
 
-    examples/getting_started.py
+    docs/getting_started.py
 
 Two spans are dropped: the ``with app.setup:`` block (the inline implementation)
 and the setup-cell explanation before the tutorial heading. The header is taken
@@ -36,8 +36,9 @@ The source notebook is a multi-column marimo app (``App(width="columns")``); the
 extracted notebook is a plain single-column notebook, so the ``width="columns"``
 layout and the ``column=0`` cell marker are stripped.
 
-The generated ``.py`` is the source for the docs website: ``examples_to_qmd.py``
-renders it (and the other ``examples/*.py``) to Quarto ``.qmd`` pages.
+The generated ``.py`` is a docs source: the ``pre-render:`` hook
+(``docs_prerender.py``, built on the generic ``mo_to_qmd.py``) renders every
+marimo notebook under ``docs/`` to a Quarto ``.qmd`` page next to it.
 
 Run it with uv so the inline dependency metadata above provisions marimo::
 
@@ -53,7 +54,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE = REPO_ROOT / "symeval_mo.py"
-NOTEBOOK = REPO_ROOT / "examples" / "getting_started.py"
+NOTEBOOK = REPO_ROOT / "docs" / "getting_started.py"
 
 # The implementation column defines these inline, so the examples import them
 # commented-out. In the standalone notebook they come from the package.

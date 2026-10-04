@@ -13,12 +13,14 @@ project:
   render:
     - "*.qmd"
     - "examples/*.qmd"
-  # The notebook pages are generated from examples/*.py on every render (the
-  # generator only rewrites a .qmd when its content changed, so the preview
-  # watcher does not loop), and the render fails if a marimo page came out
+  # The notebook pages are generated on every render from the marimo notebooks
+  # in this directory (each <name>.py becomes <name-kebab>.qmd next to it;
+  # docs_prerender.py adds the SymEval-specific tweaks on top of the generic
+  # mo_to_qmd.py). A .qmd is only rewritten when its content changed, so the
+  # preview watcher does not loop. The render fails if a marimo page came out
   # with zero islands: quarto-marimo failing to claim a page is silent
   # (exit 0, cells as literal text), so the check has to live out here.
-  pre-render: uv run ../scripts/examples_to_qmd.py
+  pre-render: uv run ../scripts/docs_prerender.py
   post-render: uv run ../scripts/check_islands.py
   # Static media served verbatim at <site-url>/public/…: the README GIFs/clips and
   # promo video (which no page references, but need stable absolute URLs, e.g. for PyPI),

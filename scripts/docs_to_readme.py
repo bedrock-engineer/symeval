@@ -9,7 +9,7 @@ the two stay in sync:
 
     docs/index.qmd            -> the top (intro, highlights, quickstart) + Inspiration
     docs/getting-started.qmd  -> the "More advanced" body (prose + code)
-    examples/__marimo__/session/getting_started.py.json
+    docs/__marimo__/session/getting_started.py.json
                               -> the computed marimo outputs (LaTeX), which the
                                  .qmd export omits
 
@@ -35,7 +35,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX = REPO_ROOT / "docs" / "index.qmd"
 GETTING_STARTED = REPO_ROOT / "docs" / "getting-started.qmd"
-SESSION = REPO_ROOT / "examples" / "__marimo__" / "session" / "getting_started.py.json"
+SESSION = REPO_ROOT / "docs" / "__marimo__" / "session" / "getting_started.py.json"
 TEMPLATE = REPO_ROOT / "README.template.md"
 OUT = REPO_ROOT / "README.md"
 
@@ -54,7 +54,7 @@ DOCS_SITE = "https://bedrock-engineer.github.io/symeval"
 IMG_BASE = f"{DOCS_SITE}/public"
 GITHUB_SLUG = "bedrock-engineer/symeval"
 # Trailing /wasm opens the notebook in the browser-only WASM sandbox.
-MOLAB_URL = f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/main/examples/getting_started.py/wasm"
+MOLAB_URL = f"https://molab.marimo.io/github/{GITHUB_SLUG}/blob/main/docs/getting_started.py/wasm"
 MOLAB_BADGE_IMG = "https://marimo.io/molab-shield.svg"
 
 # The recorded clip that replaces each interactive section's marimo output, keyed

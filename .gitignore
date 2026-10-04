@@ -31,10 +31,11 @@ node_modules/
 /docs/examples/*.html
 /docs/**/*_files/
 /docs/libs/
-# Notebook pages are generated from examples/*.py by the pre-render hook
-# (scripts/examples_to_qmd.py); the check_islands post-render script guards
-# against a silently islandless page, which is what made committing them safe
-# to stop.
+# Notebook pages are generated from the marimo notebooks in docs/ by the
+# pre-render hook (scripts/docs_prerender.py, on scripts/mo_to_qmd.py); the
+# check_islands post-render script guards against a silently islandless page,
+# which is what made committing them safe to stop. The .py notebooks
+# themselves are committed (the molab badges open them from GitHub).
 /docs/getting-started.qmd
 /docs/examples/*.qmd
 

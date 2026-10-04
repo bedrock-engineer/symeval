@@ -76,7 +76,7 @@ the exported page.
 
 Reproduced on the SymEval getting-started page
 (`bedrock-engineer/symeval`, `docs/getting-started.qmd`, generated from
-`examples/getting_started.py`). The same page's sliders, radio group, and
+`docs/getting_started.py`). The same page's sliders, radio group, and
 table hydrate without duplicates, so this looks specific to
 `mo.ui.code_editor` (or to elements whose snapshot is a custom element with a
 CodeMirror mount) rather than a general snapshot-removal failure.
