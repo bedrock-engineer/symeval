@@ -66,13 +66,12 @@ edited by hand:
 - `docs/getting_started.py` — the tutorial notebook, produced by
   `uv run task docs_generate` (it extracts the examples column). Committed,
   so the molab badges can open it from GitHub.
-- `docs/getting-started.qmd` (and `docs/examples/*.qmd`) — the docs pages, also
-  from `docs_generate`. These are gitignored build artifacts: every
-  `quarto render`/`preview` regenerates them via the project's `pre-render:`
-  hook (`scripts/docs_prerender.py`, which runs the generic
-  `scripts/mo_to_qmd.py` with the SymEval-specific page tweaks), and a
-  `post-render:` check (`scripts/check_islands.py`) fails the build if a
-  notebook page rendered with zero marimo islands.
+- `docs/getting-started.qmd` (and a `.qmd` next to any other notebook under
+  `docs/`) — the docs pages, also from `docs_generate`. These are gitignored
+  build artifacts: every `quarto render`/`preview` regenerates them via the
+  project's `pre-render:` hook (`scripts/docs_prerender.py`, which runs
+  quarto-marimo's own pre-render step with the SymEval-specific page tweaks).
+  A page that errors in a cell fails the render.
 - `README.md` — assembled from the docs by `uv run task docs_readme`; edit
   `docs/index.qmd`, `symeval_mo.py`, or `README.template.md` instead.
 
@@ -91,6 +90,13 @@ Test functions are the `def test_*` cells in the notebook's test column.
 
 The docs site is a [Quarto](https://quarto.org) project in `docs/`, built with
 the [quarto-marimo](https://github.com/marimo-team/quarto-marimo) extension.
+The copy vendored under `docs/_extensions/marimo/` is a build of the
+`integration` branch of [our fork](https://github.com/bedrock-engineer/quarto-marimo),
+which carries the pre-render step, native code blocks and folding ahead of an
+upstream release. Its built engine and browser assets are committed with it,
+because the extension's loader would otherwise fetch the upstream release
+build, which lacks those changes. To refresh it, build the fork (`make build`)
+and run `quarto add <path-to-the-fork> --no-prompt` from `docs/`.
 Quarto ships as the `quarto-cli` wheel, so the whole toolchain installs through
 uv, no system install needed:
 
@@ -151,9 +157,11 @@ add one:
    listing its dependencies (at least `marimo` and `symeval`).
 2. Run `uv run task docs_generate` (or just render: the `pre-render:` hook
    does the same). This writes `docs/examples/<name-kebab>.qmd` next to the
-   notebook (snake_case file, kebab-case URL), with a read-only code block
-   above every cell and *Open in molab* badges at the top and bottom. The
-   page is picked up automatically by the render globs in `docs/_quarto.yml`.
+   notebook (snake_case file, kebab-case URL), titled after the notebook's
+   opening heading, with each cell's code above its output (cells the
+   notebook hides fold away) and *Open in molab* badges at the top and
+   bottom. The page is picked up automatically by the render globs in
+   `docs/_quarto.yml`.
 3. Add it to the navigation in `docs/_quarto.yml`, which is curated by hand.
 4. Preview with `uv run task docs_preview` to check it renders and runs.
 5. Commit the `.py`; the generated `.qmd` is gitignored.

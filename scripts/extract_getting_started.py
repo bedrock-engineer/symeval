@@ -37,7 +37,7 @@ extracted notebook is a plain single-column notebook, so the ``width="columns"``
 layout and the ``column=0`` cell marker are stripped.
 
 The generated ``.py`` is a docs source: the ``pre-render:`` hook
-(``docs_prerender.py``, built on the generic ``mo_to_qmd.py``) renders every
+(``docs_prerender.py``, on quarto-marimo's own pre-render step) renders every
 marimo notebook under ``docs/`` to a Quarto ``.qmd`` page next to it.
 
 Run it with uv so the inline dependency metadata above provisions marimo::

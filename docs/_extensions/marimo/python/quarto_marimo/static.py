@@ -50,6 +50,10 @@ def render_static_cell(
         "displayCode": include and as_bool(render.get("source")),
         "code": request.source,
         "language": str(cell.options.get("language") or "python"),
+        # Carried as data so the projection emits the same Quarto code block
+        # as an interactive page, folded where the cell asks for it.
+        "fold": code_fold(render.get("codeFold")),
+        "summary": render.get("codeSummary") or None,
     }
     output = cell.output
     if not show_output or output is None:
@@ -138,6 +142,13 @@ def format_error(error: dict[str, Any]) -> str:
         kind = error.get("exception_type") or error.get("error_type")
         return f"{kind}: {message}" if kind else str(message)
     return str(error_type or "marimo error")
+
+
+def code_fold(value: Any) -> bool | str:
+    """Normalize a cell's resolved `codeFold` to `False`, `True` or `"show"`."""
+    if value == "show":
+        return "show"
+    return as_bool(value)
 
 
 def option_section(options: dict[str, Any], key: str) -> dict[str, Any]:

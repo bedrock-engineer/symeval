@@ -13,10 +13,10 @@ from quarto_marimo.authoring import (
     cell_options_patch,
     execution_options_patch,
     extract_cell_config,
-    page_options_from_root,
 )
 from quarto_marimo.protocol import (
     PAGE_PROTOCOL_VERSION,
+    JsonObject,
     MarimoCellRequest,
     MarimoPageMetadata,
     MarimoPageRequest,
@@ -31,8 +31,10 @@ def collect_page(
     *,
     filename: str,
     global_eval: bool,
+    page_options: JsonObject,
+    foldable: bool = True,
 ) -> MarimoPageRequest:
-    global_options = page_options_from_root(root)
+    global_options = dict(page_options)
     if not global_eval:
         global_options["eval"] = False
     defaults = execution_options_patch(global_options)
@@ -42,7 +44,9 @@ def collect_page(
         if child.tag == MARIMO_MD:
             continue
         local_options, source = extract_cell_config(str(child.text or ""))
-        options = cell_options_patch(local_options, dict(child.attrib))
+        options = cell_options_patch(
+            local_options, dict(child.attrib), foldable=foldable
+        )
         if not global_eval:
             options.pop("execution", None)
         cells.append(

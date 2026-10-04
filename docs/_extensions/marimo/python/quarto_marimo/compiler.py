@@ -83,6 +83,8 @@ class PlannedCell:
     display_editor: bool
     display_output: bool
     display_server_output: bool
+    code_fold: bool | str
+    code_summary: str | None
     start_line: int | None
 
 
@@ -97,6 +99,22 @@ class PageRequest:
     @property
     def runtime_cells(self) -> list[PlannedCell]:
         return [*self.setup_cells, *self.cells]
+
+
+def as_code_fold(value: Any) -> bool | str | None:
+    """Read a `code-fold` value as `True`, `False`, or `"show"`."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized == "show":
+        return "show"
+    if normalized == "true":
+        return True
+    if normalized in {"false", "none"}:
+        return False
+    return None
 
 
 def as_bool(value: Any, default: bool = False) -> bool:
@@ -209,6 +227,9 @@ def plan_cell(
     )
     display_output = include and as_bool(render.get("output"), True)
     display_server_output = display_output and as_bool(render.get("serverOutput"), True)
+    code_fold = as_code_fold(render.get("codeFold")) or False
+    summary = render.get("codeSummary")
+    code_summary = str(summary) if isinstance(summary, str) and summary else None
     return PlannedCell(
         index=int(cell.get("index") or 0),
         code=str(cell.get("source") or ""),
@@ -219,6 +240,8 @@ def plan_cell(
         display_editor=display_editor,
         display_output=display_output,
         display_server_output=display_server_output,
+        code_fold=code_fold,
+        code_summary=code_summary,
         start_line=(
             int(cell["startLine"])
             if isinstance(cell.get("startLine"), int)
@@ -495,12 +518,19 @@ def inline_script_metadata(pyproject: str | None) -> str:
     return "\n".join(lines)
 
 
-def author_source_html(plan: PlannedCell) -> str:
-    language = str(plan.options.get("language") or "python").lower()
-    return (
-        f'<pre><code class="language-{escape_html(language)}">'
-        f"{escape_html(plan.code)}</code></pre>"
-    )
+def author_source(plan: PlannedCell) -> dict[str, Any]:
+    """Describe the read-only source block Quarto should render for a cell.
+
+    The source is handed over as data rather than as HTML so the projection can
+    emit a real Pandoc code block, which Quarto highlights, folds and gives a
+    copy button.
+    """
+    return {
+        "code": plan.code,
+        "language": str(plan.options.get("language") or "python").lower(),
+        "fold": plan.code_fold,
+        "summary": plan.code_summary,
+    }
 
 
 def outputs_from_stubs(
@@ -515,31 +545,32 @@ def outputs_from_stubs(
             raise RuntimeError(
                 f"marimo execution failed in {error_location(request, plan)}"
             )
-        if renders_author_source(plan):
-            parts = [author_source_html(plan)]
-            if plan.display_output or plan.execute:
-                parts.append(
-                    render_stub(
-                        stub,
-                        display_code=False,
-                        display_output=plan.display_server_output,
-                    )
+        renders_source = renders_author_source(plan)
+        if renders_source:
+            html = (
+                render_stub(
+                    stub,
+                    display_code=False,
+                    display_output=plan.display_server_output,
                 )
-            html = "\n".join(part for part in parts if part)
+                if plan.display_output or plan.execute
+                else ""
+            )
         else:
             html = render_stub(
                 stub,
                 display_code=plan.display_editor,
                 display_output=plan.display_server_output,
             )
-        outputs.append(
-            {
-                "html": html,
-                "index": plan.index,
-                "options": plan.options,
-                "output": compiled_output(stub),
-            }
-        )
+        entry: dict[str, Any] = {
+            "html": html,
+            "index": plan.index,
+            "options": plan.options,
+            "output": compiled_output(stub),
+        }
+        if renders_source:
+            entry["authorSource"] = author_source(plan)
+        outputs.append(entry)
     return outputs
 
 
@@ -709,15 +740,6 @@ async def compile_page(
         "cells": outputs_from_stubs(request, request.cells, authored_stubs),
         "diagnostics": [],
     }
-
-
-def escape_html(value: str) -> str:
-    return (
-        value.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
 
 
 def main() -> None:

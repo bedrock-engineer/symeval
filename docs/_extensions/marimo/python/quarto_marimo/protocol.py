@@ -170,6 +170,7 @@ class CompiledMarimoCell:
     html: str
     options: JsonObject
     output: CompiledMarimoOutput | None
+    author_source: JsonObject | None = None
     diagnostics: tuple[JsonObject, ...] = ()
 
     def to_json(self) -> JsonObject:
@@ -179,6 +180,8 @@ class CompiledMarimoCell:
             "options": self.options,
             "output": self.output.to_json() if self.output else None,
         }
+        if self.author_source is not None:
+            payload["authorSource"] = self.author_source
         if self.diagnostics:
             payload["diagnostics"] = list(self.diagnostics)
         return payload
@@ -192,6 +195,7 @@ class CompiledMarimoCell:
         if "output" not in payload:
             raise TypeError("compiled marimo cell output is required")
         output = payload["output"]
+        author_source = payload.get("authorSource")
         diagnostics = payload.get("diagnostics")
         if diagnostics is None:
             diagnostics = []
@@ -201,6 +205,8 @@ class CompiledMarimoCell:
             raise TypeError("compiled marimo cell HTML must be a string")
         if not isinstance(options, dict):
             raise TypeError("compiled marimo cell options must be an object")
+        if author_source is not None and not isinstance(author_source, dict):
+            raise TypeError("compiled marimo cell author source must be an object")
         if not isinstance(diagnostics, list) or not all(
             isinstance(item, dict) for item in diagnostics
         ):
@@ -212,6 +218,7 @@ class CompiledMarimoCell:
             output=(
                 CompiledMarimoOutput.from_json(output) if output is not None else None
             ),
+            author_source=dict(author_source) if author_source is not None else None,
             diagnostics=tuple(dict(item) for item in diagnostics),
         )
 
