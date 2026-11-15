@@ -260,7 +260,7 @@ axial_stress_eq.sym_evalf(
 For the live, interactive version:
 
 - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#quantity_evalf-on-a-dataframe) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/docs/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 ## Axial Resistance of a Steel HSS Member
 
@@ -511,7 +511,7 @@ mo.vstack(
 For the live, interactive version:
 
 - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#axial-resistance-of-a-steel-hss-member) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/docs/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 ## Ideal Gas Law
 
@@ -691,13 +691,6 @@ _oob_html = (
     else ""
 )
 
-# marimo's static/session export collapses srcdoc to one line, so `//`
-# comments would swallow the whole script; rewrite them as /* */ blocks.
-# See research/issues/marimo--iframe-strips-newlines.md.
-import re as _re
-
-_piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", initial_piston_js_str)
-
 _piston_html = f"""<!doctype html>
 <html>
 <body style="margin:0;padding:0;background:#ffffff">
@@ -707,7 +700,7 @@ _piston_html = f"""<!doctype html>
 </div>
 <script>
 {_js_consts}
-{_piston_js}
+{initial_piston_js_str}
 </script>
 </body></html>"""
 
@@ -911,7 +904,7 @@ requestAnimationFrame(draw);
 For the live, interactive version:
 
 - go to the [Getting started tutorial](https://bedrock-engineer.github.io/symeval/getting-started.html#ideal-gas-law) on the docs website, or
-- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/examples/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
+- <a href="https://molab.marimo.io/github/bedrock-engineer/symeval/blob/main/docs/getting_started.py/wasm"><img src="https://marimo.io/molab-shield.svg" alt="Open in molab"></a>
 
 ## Inspiration
 

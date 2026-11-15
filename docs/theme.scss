@@ -26,4 +26,14 @@ a.external::after {
   width: auto;
   transform: translateY(-0.25rem);
 }
-// (The sidebar-only nav variant styles its logo in theme-sidebar.scss instead.)
+
+// Notebook pages list their GitHub and molab links as Quarto code links
+// (scripts/docs_prerender.py). Without the "Code Links" heading, and with the
+// blank icon space the repo actions use, they read as the same list the other
+// pages show.
+.quarto-code-links h2 {
+  display: none;
+}
+.quarto-code-links i.bi-empty {
+  padding-left: 1em;
+}
