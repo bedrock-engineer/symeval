@@ -12,8 +12,7 @@
 
 ## Examples
 
-### In the `docs/examples/` folder
-Longer, more complete demos. These become the **examples gallery**: `docs/examples/*.py` notebooks, auto-rendered to a `.qmd` next to each by the pre-render hook, each with a paired `.py` + molab badge (only the tutorial has one for now):
+Longer, more complete demos, each a marimo notebook directly in `docs/` (no separate examples folder), rendered to a page next to it by the pre-render hook, with an "Open in molab" link:
 - The [Explorable Explanations](https://worrydream.com/ExplorableExplanations) example.
 - Simply Supported Beam with Linearly Distributed Load: https://imartincei.github.io/CalcpadCE/examples/simply-supported-beams.html
 - Cantilever with Partially Distributed Load: https://imartincei.github.io/CalcpadCE/examples/cantilevers.html
@@ -35,18 +34,12 @@ Diataxis-style docs. Inspiration:
 - https://fastapi.tiangolo.com & https://sqlmodel.tiangolo.com & https://typer.tiangolo.com
 - https://geopandas.org/en/stable (Flow: Getting Started → Installation → Introduction to GeoPandas: https://geopandas.org/en/stable/getting_started/introduction.html#Concepts)
 
-Feedback (which maybe are (quarto-)marimo bugs too?):
-- The checkboxes in the "quantity_evalf() on a DataFrame"-table don't show well which row is selected, and the radio renders horizontally instead of vertically. Drafted as an upstream issue: `research/issues/mo-ui-elements-not-so-nice-in-quarto.md` (on 0.5.0 the checkbox gained a barely visible checkmark but lost the row and hover highlights; the radio is unchanged).
+## Upstream issues
+**Next step: file these upstream** (drafts handed over 2026-11-15, outside the repo). Each one lets this repo or the quarto-marimo fork drop a workaround once it is fixed:
 
-## (quarto-)marimo issues
-**Next step: file the drafts in `research/issues/` upstream** (re-capture the screenshots first; the Discord CDN links in the mo.ui draft expire). Then maybe submit PRs to quarto-marimo and/or marimo to resolve them. The drafts:
+- marimo: islands render a `mo.ui.code_editor` output twice (also on a Starlight page, so not Quarto-specific). Workaround: `strip_js_editor` in `scripts/docs_prerender.py` drops the piston editor cell from the docs page; once fixed, consider putting the editor back.
+- marimo: the islands runtime does not define `__resizeIframe`, which every `mo.iframe` output calls on load. Workaround: the quarto-marimo fork's browser header defines it.
+- mdx-marimo: the islands-bridge stylesheet's `overflow-x: auto` forces `overflow-y: auto`, giving KaTeX and tree outputs a tiny vertical scrollbar. Workaround: the quarto-marimo fork's host stylesheet restores `overflow: visible`.
+- quarto-marimo: the engine runs a raw `marimo export md --flavor qmd` file's `header:` (the PEP 723 block) as a setup cell, so the notebook's dependencies are never installed. Workaround: the fork's pre-render step renames it to `pyproject:`.
 
-- `marimo--iframe-strips-newlines.md` → marimo: `mo.iframe` srcdoc newline stripping in static/session export (why the piston's `//`→`/* */` regex exists; still reproduces on 0.24.0; root cause located: `flatten_string` in `marimo/_output/utils.py` wrapping the whole iframe element).
-- `marimo--islands-duplicate-code-editor.md` → marimo: islands render a `mo.ui.code_editor` output twice (why the piston editor cell is stripped from the docs export via `strip_js_editor` in `scripts/docs_prerender.py`; once fixed upstream, consider putting the editor back on the docs page).
-- `marimo--islands-resize-iframe-undefined.md` → marimo: every `mo.iframe` island logs `ReferenceError: __resizeIframe is not defined`. Worked around: the helper (copied from marimo's app shell, `marimo/_static/index.html`) is defined in our pages via `include-in-header` in `docs/_quarto.yml`, guarded so an upstream definition wins; drop the shim once fixed upstream.
-- `marimo--qmd-flavor-incompatible-with-quarto-marimo.md` → quarto-marimo (cross-reference marimo): rewritten 2026-10-04 after re-testing on marimo 0.25.1. The raw export renders its islands; `engine: marimo` is not needed (the engine claims a page by its fences). What remains is `header:` vs `pyproject:`: the extension runs `header:` as a setup cell, so the notebook's dependencies are never installed and the cells show `ModuleNotFoundError` while the build exits 0, because the `error` cell option defaults to `true`. The pre-render step in our quarto-marimo fork does the rename; `error: false` is the gate, and `check_islands.py` is gone.
-- `quarto-marimo--cell-option-handling.md` → quarto-marimo: rewritten 2026-10-04. `code-fold`/`code-summary` and folding `hide_code` cells are implemented in our fork (`feat/author-source-code-blocks`, `feat/hide-code-folds`). New finding: document-level cell options (`echo`, `error`, `code-fold`, ...) never reached the cells on 0.5.0 because marimo's parser drops non-string frontmatter values; fixed in the fork (`fix/document-options`). Still no per-cell static-vs-reactive marker.
-- `quarto-marimo--islands-bridge-overflow-scrollbars.md` → quarto-marimo: 0.5.0's islands-bridge `overflow-x: auto` forces `overflow-y: auto`, giving every KaTeX/tree output a tiny vertical scrollbar. Worked around in `docs/theme.scss` (`overflow: visible` on the island containers); drop that override once fixed upstream.
-- `mo-ui-elements-not-so-nice-in-quarto.md` → marimo: `mo.ui.table` selection state and `mo.ui.radio` orientation render with lower fidelity on islands than in the app (see Docs feedback above).
-
-Decided 2026-10-04: the generic notebook-to-page step lives in quarto-marimo (our fork's `feat/prerender-notebooks`, headed upstream), not in this repo. `mo_to_qmd.py` was its prototype and is gone; `scripts/docs_prerender.py` is a thin wrapper that adds the molab badges and drops the piston editor cell. Code display is native now (`echo: true` on the page, `hide_code` cells fold), so the build-time code blocks and the `<details>` wrapper are gone too, and `check_islands.py` with them: a cell error fails the render (`error: false`).
+The generic notebook-to-page step lives in the quarto-marimo fork (`integration` branch, headed upstream), not in this repo; `scripts/docs_prerender.py` only adds the page links (GitHub and molab) and drops the piston editor cell. So do the widget fixes for Quarto's Bootstrap (marimo widgets inherit Bootstrap's grid and form styles inside their shadow roots), which made the table checkboxes and the radio look wrong.

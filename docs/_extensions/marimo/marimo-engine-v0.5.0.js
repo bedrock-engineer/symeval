@@ -443,14 +443,28 @@ function isMarimoCell(cell) {
 
 // src/engine/browser-assets.ts
 var EXTENSION_CONFIG = "_extension.yml";
+var STYLESHEET_TITLE = "marimo-quarto-islands";
+var RESIZE_IFRAME_HELPER = `window.__resizeIframe ??= function (frame) {
+  function setHeight() {
+    const root = frame.contentWindow?.document?.documentElement;
+    if (!root || root.scrollHeight === root.clientHeight) return;
+    const scrollbar = root.scrollWidth > root.clientWidth ? 20 : 0;
+    const height = \`\${root.scrollHeight + scrollbar}px\`;
+    if (frame.style.height !== height) frame.style.height = height;
+  }
+  setHeight();
+  const body = frame.contentWindow?.document?.body;
+  if (body) new ResizeObserver(setHeight).observe(body);
+};`;
 function writeBrowserHeader(extensionDir, tempDir) {
   const version = extensionVersion(extensionDir);
   const assetsDir = join3(extensionDir, "assets");
   const browser = Deno.readTextFileSync(join3(assetsDir, `browser-v${version}.js`)).replace(/<\/script/gi, "<\\/script");
   const styles = Deno.readTextFileSync(join3(assetsDir, `islands-bridge-v${version}.css`)).replace(/<\/style/gi, "<\\/style");
   const header = [
-    `<style data-marimo-islands>${styles}</style>`,
-    `<script type="module" data-marimo-islands>${browser}<\/script>`
+    `<style data-marimo-islands title="${STYLESHEET_TITLE}">${styles}</style>`,
+    `<script data-marimo-islands>${RESIZE_IFRAME_HELPER}</script>`,
+    `<script type="module" data-marimo-islands>${browser}</script>`
   ].join("\n");
   const path = Deno.makeTempFileSync({
     dir: tempDir,
@@ -467,7 +481,7 @@ function extensionVersion(extensionDir) {
   return match[1];
 }
 
-// ../../../../.cache/deno/npm/registry.npmjs.org/@marimo-team/mdx-marimo/0.0.5/dist/bridge/protocol/index.js
+// ../../../root/.cache/deno/npm/registry.npmjs.org/@marimo-team/mdx-marimo/0.0.5/dist/bridge/protocol/index.js
 function pageCellPayload(page, cell) {
   return {
     protocolVersion: page.protocolVersion,

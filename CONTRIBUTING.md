@@ -65,7 +65,7 @@ edited by hand:
 - `src/symeval/__init__.py` — the package, produced by `uv run task build`.
 - `docs/getting_started.py` — the tutorial notebook, produced by
   `uv run task docs_generate` (it extracts the examples column). Committed,
-  so the molab badges can open it from GitHub.
+  so the docs page's molab link can open it from GitHub.
 - `docs/getting-started.qmd` (and a `.qmd` next to any other notebook under
   `docs/`) — the docs pages, also from `docs_generate`. These are gitignored
   build artifacts: every `quarto render`/`preview` regenerates them via the
@@ -152,21 +152,22 @@ examples show a recorded GIF instead of the live widget; the GIFs live in
 Worked examples are standalone marimo notebooks inside the docs project. To
 add one:
 
-1. Author the notebook as `docs/examples/<name>.py` (snake_case), for example
-   with `uvx marimo edit docs/examples/<name>.py`. Give it a PEP 723 header
+1. Author the notebook as `docs/<name>.py` (snake_case), for example
+   with `uvx marimo edit docs/<name>.py`. Give it a PEP 723 header
    listing its dependencies (at least `marimo` and `symeval`).
 2. Run `uv run task docs_generate` (or just render: the `pre-render:` hook
-   does the same). This writes `docs/examples/<name-kebab>.qmd` next to the
+   does the same). This writes `docs/<name-kebab>.qmd` next to the
    notebook (snake_case file, kebab-case URL), titled after the notebook's
    opening heading, with each cell's code above its output (cells the
-   notebook hides fold away) and *Open in molab* badges at the top and
-   bottom. The page is picked up automatically by the render globs in
-   `docs/_quarto.yml`.
+   notebook hides fold away) and *View source* and *Open in molab* links
+   under the table of contents. The page is picked up automatically by the
+   render globs in `docs/_quarto.yml`.
 3. Add it to the navigation in `docs/_quarto.yml`, which is curated by hand.
 4. Preview with `uv run task docs_preview` to check it renders and runs.
-5. Commit the `.py`; the generated `.qmd` is gitignored.
+5. Add the generated `.qmd` to the notebook pages in `.gitignore`, then commit
+   the `.py`.
 
-The molab badge points at the notebook on the `main` branch, so it goes live once
+The page links point at the notebook on the `main` branch, so they go live once
 your change merges.
 
 ## Opening a pull request

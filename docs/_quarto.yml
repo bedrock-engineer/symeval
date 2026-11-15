@@ -77,31 +77,3 @@ format:
     code-copy: true
     code-overflow: wrap
     html-math-method: katex
-    # mo.iframe outputs set onload="__resizeIframe(this)", but only marimo's
-    # app shell defines that helper (marimo/_static/index.html); the islands
-    # runtime does not, so every iframe load logs a ReferenceError and the
-    # iframe never auto-resizes. Define it ourselves (verbatim marimo's
-    # implementation, guarded so an upstream definition wins). Issue draft:
-    # research/issues/marimo--islands-resize-iframe-undefined.md.
-    include-in-header:
-      - text: |
-          <script>
-            window.__resizeIframe ??= function (obj) {
-              const scrollbarHeight = 20;
-              function setHeight() {
-                if (!obj.contentWindow?.document?.documentElement) return;
-                const element = obj.contentWindow.document.documentElement;
-                if (element.scrollHeight === element.clientHeight) return;
-                const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
-                const newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
-                if (obj.style.height !== `${newHeight}px`) {
-                  obj.style.height = `${newHeight}px`;
-                }
-              }
-              setHeight();
-              const resizeObserver = new ResizeObserver(() => setHeight());
-              if (obj.contentWindow?.document?.body) {
-                resizeObserver.observe(obj.contentWindow.document.body);
-              }
-            };
-          </script>
