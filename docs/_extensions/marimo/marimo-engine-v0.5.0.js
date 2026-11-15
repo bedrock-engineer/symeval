@@ -443,7 +443,7 @@ function isMarimoCell(cell) {
 
 // src/engine/browser-assets.ts
 var EXTENSION_CONFIG = "_extension.yml";
-var STYLESHEET_TITLE = "marimo-quarto-islands";
+var STYLESHEET_TITLE = "marimo-islands";
 var RESIZE_IFRAME_HELPER = `window.__resizeIframe ??= function (frame) {
   function setHeight() {
     const root = frame.contentWindow?.document?.documentElement;
