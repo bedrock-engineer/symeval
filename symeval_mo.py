@@ -1251,13 +1251,6 @@ def _(
         else ""
     )
 
-    # marimo's static/session export collapses srcdoc to one line, so `//`
-    # comments would swallow the whole script; rewrite them as /* */ blocks.
-    # See research/issues/marimo--iframe-strips-newlines.md.
-    import re as _re
-
-    _piston_js = _re.sub(r"//([^\n]*)", r"/*\1 */", piston_js_editor.value)
-
     _piston_html = f"""<!doctype html>
     <html>
     <body style="margin:0;padding:0;background:#ffffff">
@@ -1267,7 +1260,7 @@ def _(
     </div>
     <script>
     {_js_consts}
-    {_piston_js}
+    {piston_js_editor.value}
     </script>
     </body></html>"""
 

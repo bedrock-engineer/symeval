@@ -32,8 +32,8 @@ node_modules/
 /docs/libs/
 # Notebook pages are generated from the marimo notebooks in docs/ by the
 # pre-render hook (scripts/docs_prerender.py, on quarto-marimo's own
-# pre-render step). The .py notebooks themselves are committed (the molab
-# badges open them from GitHub).
+# pre-render step). The .py notebooks themselves are committed (the pages'
+# "View source" and "Open in molab" links open them from GitHub).
 /docs/getting-started.qmd
 
 # Coding agents

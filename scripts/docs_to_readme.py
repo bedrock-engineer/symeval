@@ -227,16 +227,28 @@ def build_top_and_inspiration() -> tuple[str, str]:
 # --------------------------------------------------------------------------- #
 # getting-started.qmd -> the "More advanced" body
 # --------------------------------------------------------------------------- #
-ISLAND_RE = re.compile(
-    r"^```\{marimo \.python[^}]*\}\n.*?\n```[ \t]*$\n?", re.DOTALL | re.MULTILINE
+# One marimo cell as the pre-render step writes it: ```{marimo .python}``` or the
+# hidden-code variant ```{marimo .python hide_code="true"}```, capturing the code.
+CELL_RE = re.compile(
+    r'^```\{marimo \.python(?P<hide> hide_code="true")?[^}]*\}[ \t]*\n'
+    r"(?P<code>.*?)\n```[ \t]*$",
+    re.DOTALL | re.MULTILINE,
 )
 CODE_BLOCK_RE = re.compile(r"```python\n(?P<code>.*?)\n```", re.DOTALL)
 
 
-def strip_islands(body: str) -> str:
-    """Drop the ``{marimo .python}`` islands (GitHub cannot execute them) and the
-    ``<!---->`` cell separators marimo emits between adjacent markdown cells."""
-    body = ISLAND_RE.sub("", body)
+def cells_to_code(body: str) -> str:
+    """Show each marimo cell as a plain code block (GitHub cannot execute them),
+    folding the cells whose code the notebook hides, and drop the ``<!---->`` cell
+    separators marimo emits between adjacent markdown cells."""
+
+    def code_block(match: re.Match[str]) -> str:
+        block = f"```python\n{match.group('code')}\n```"
+        if match.group("hide"):
+            return f"<details>\n<summary>Show code</summary>\n\n{block}\n\n</details>"
+        return block
+
+    body = CELL_RE.sub(code_block, body)
     # Blank the marker but keep its newline, so adjacent cells stay separated by a
     # blank line (a table followed immediately by a paragraph breaks on GitHub).
     body = re.sub(r"^<!---->$", "", body, flags=re.MULTILINE)
@@ -324,10 +336,7 @@ def inject_ideal_gas_output(section: str, igl_latex: str) -> str:
 def build_advanced_body() -> str:
     """Transform getting-started.qmd into the README's "More advanced" body."""
     _, body = split_frontmatter(GETTING_STARTED.read_text(encoding="utf-8"))
-    # Drop the molab badges the .qmd now carries at its top and bottom (the README
-    # adds its own per-section badges); matches the HTML element and the ![]() form.
-    body = re.sub(r"(?m)^.*molab-shield\.svg.*$\n?", "", body)
-    body = strip_islands(body)
+    body = cells_to_code(body)
     body = qmd_to_gfm(body)
 
     # Split on "## " section headings; drop the intro before the first one.
