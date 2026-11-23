@@ -14,7 +14,7 @@ Found a bug or have a feature request? [Open an issue](https://github.com/bedroc
 
 Want to add a worked example? See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev setup, the docs dev server, and how to add a notebook.
 
-The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`CLAUDE.md`](CLAUDE.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
+The package is a single marimo notebook (`symeval_mo.py`) with `## EXPORT`-marked cells extracted into `src/symeval/` via [mobuild](https://github.com/koaning/mobuild); see [`AGENTS.md`](AGENTS.md) for the project layout and [`RELEASING.md`](RELEASING.md) for the release workflow.
 
 ## Authors
 
